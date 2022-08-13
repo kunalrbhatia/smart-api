@@ -11,6 +11,7 @@
     "smartapi-javascript": "^1.0.14"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
     "@types/http-errors": "^1.8.2",
     "@types/node": "^18.7.2",
