@@ -9,13 +9,11 @@ const { SmartAPI, WebSocket } = require('smartapi-javascript');
 const WebSocketServer = require('ws');
 const app = express();
 app.use(express.json());
-
 app.use(bodyParser.json());
 const server = createServer(app);
 const wss = new WebSocketServer.Server({ server: server });
 let scripMaster: object[];
 wss.on('connection', (ws: any) => {
-  console.log('new client connected');
   const smart_api = new SmartAPI({
     api_key: API_KEY,
   });
