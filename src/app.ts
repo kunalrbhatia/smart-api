@@ -147,11 +147,17 @@ app.post('/getScripDetails', (req: Request, res: Response) => {
 });
 app.post('/scrip/details/get-script', (req: Request, res: Response) => {
   const scriptName: string = req.body.scriptName;
-  console.log(scriptName);
   if (scriptName && _.isArray(scripMaster) && scripMaster.length > 0) {
     let scrips = scripMaster.filter((scrip) => {
       const _scripName: string = _.get(scrip, 'name', '') || '';
-      return _scripName.indexOf(scriptName) > 0 ? scrip : null;
+      return (_scripName.indexOf(scriptName) > 0 ||
+        _scripName === scriptName) &&
+        _.get(scrip, 'exch_seg', '') === 'NFO' &&
+        (_.get(scrip, 'instrumenttype', '') === 'FUTSTK' ||
+          _.get(scrip, 'instrumenttype', '') === 'FUTIDX') &&
+        parseInt(_.get(scrip, 'lotsize', '')) > 1
+        ? scrip
+        : null;
     });
     scrips = scrips.map((element: object, index: number) => {
       return {
