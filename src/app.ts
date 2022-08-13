@@ -1,16 +1,24 @@
 import { CLIENT_CODE, CLIENT_PASSWORD, API_KEY, STREAM_URL } from './constants';
 import { ISmartApiData } from './app.interface';
+import { Server, createServer } from 'http';
+import cors from 'cors';
 import * as _ from 'lodash';
-const express = require('express');
-const bodyParser = require('body-parser');
-const axios = require('axios');
-import { createServer } from 'http';
+import express, {
+  Request,
+  Response,
+  NextFunction,
+  Application,
+  ErrorRequestHandler,
+} from 'express';
+import bodyParser from 'body-parser';
+import axios from 'axios';
+import createHttpError from 'http-errors';
 const { SmartAPI, WebSocket } = require('smartapi-javascript');
 const WebSocketServer = require('ws');
-const app = express();
-app.use(express.json());
+const app: Application = express();
 app.use(bodyParser.json());
-const server = createServer(app);
+app.use(cors());
+const server: Server = createServer(app);
 const wss = new WebSocketServer.Server({ server: server });
 let scripMaster: object[];
 wss.on('connection', (ws: any) => {
@@ -92,11 +100,13 @@ const fetchData = async () => {
     console.error(_.get(error, 'message', '') || '');
   }
 };
-server.listen(5000, () => {
-  app.get('/', (req: any, res: any) => {
-    res.json({ message: 'Hello World!' });
-  });
-  app.get('/getScripDetails/:scriptName/:exchSeg', (req: any, res: any) => {
+server.listen(5000, () => {});
+app.get('/', (req: Request, res: Response) => {
+  res.json({ message: 'Hello World!' });
+});
+app.get(
+  '/getScripDetails/:scriptName/:exchSeg',
+  (req: Request, res: Response) => {
     const scriptName: string = req.params.scriptName;
     const exchSeg: string = req.params.exchSeg;
     if (_.isArray(scripMaster) && scripMaster.length > 0) {
@@ -108,31 +118,59 @@ server.listen(5000, () => {
       if (scrip) res.json(scrip);
       else res.json({ status: 'Scrip not found' });
     } else res.json({ status: 'pending' });
-  });
-  app.post('/getScripDetails', (req: any, res: any) => {
-    const scriptName: string = req.body.scriptName;
-    console.log(scriptName);
-    const exchSeg: string = req.body.exchSeg;
-    if (scriptName) {
-      if (_.isArray(scripMaster) && scripMaster.length > 0) {
-        let scrip: object = {};
-        if (exchSeg) {
-          scrip = scripMaster.filter(
-            (scrip) =>
-              _.get(scrip, 'name', '') === scriptName &&
-              _.get(scrip, 'exch_seg', '') === exchSeg
-          );
-        } else {
-          scrip = scripMaster.filter(
-            (scrip) => _.get(scrip, 'name', '') === scriptName
-          );
-        }
-        if (scrip) res.json(scrip);
-        else res.json({ status: 'Scrip not found' });
-      } else res.json({ status: 'pending' });
-    } else {
-      res.json({ status: 'scriptName is mandatory' });
-    }
-  });
-  fetchData();
+  }
+);
+app.post('/getScripDetails', (req: Request, res: Response) => {
+  const scriptName: string = req.body.scriptName;
+  console.log(scriptName);
+  const exchSeg: string = req.body.exchSeg;
+  if (scriptName) {
+    if (_.isArray(scripMaster) && scripMaster.length > 0) {
+      let scrip: object = {};
+      if (exchSeg) {
+        scrip = scripMaster.filter(
+          (scrip) =>
+            _.get(scrip, 'name', '') === scriptName &&
+            _.get(scrip, 'exch_seg', '') === exchSeg
+        );
+      } else {
+        scrip = scripMaster.filter(
+          (scrip) => _.get(scrip, 'name', '') === scriptName
+        );
+      }
+      if (scrip) res.json(scrip);
+      else res.json({ status: 'Scrip not found' });
+    } else res.json({ status: 'pending' });
+  } else {
+    res.json({ status: 'scriptName is mandatory' });
+  }
 });
+app.post('/scrip/details/get-script', (req: Request, res: Response) => {
+  const scriptName: string = req.body.scriptName;
+  console.log(scriptName);
+  if (scriptName && _.isArray(scripMaster) && scripMaster.length > 0) {
+    let scrips = scripMaster.filter((scrip) => {
+      const _scripName: string = _.get(scrip, 'name', '') || '';
+      return _scripName.indexOf(scriptName) > 0 ? scrip : null;
+    });
+    scrips = scrips.map((element: object, index: number) => {
+      return {
+        ...element,
+        label: _.get(element, 'name', 'NoName') || 'NoName',
+        key: index,
+      };
+    });
+    res.json(scrips);
+  } else {
+    res.status(200).json({ message: 'pending' });
+  }
+});
+fetchData();
+app.use((req: Request, res: Response, next: NextFunction) => {
+  next(new createHttpError.NotFound());
+});
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  res.status(err.status || 500);
+  res.send({ status: err.status || 500, message: err.message });
+};
+app.use(errorHandler);
