@@ -104,47 +104,6 @@ server.listen(5000, () => {});
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'Hello World!' });
 });
-app.get(
-  '/getScripDetails/:scriptName/:exchSeg',
-  (req: Request, res: Response) => {
-    const scriptName: string = req.params.scriptName;
-    const exchSeg: string = req.params.exchSeg;
-    if (_.isArray(scripMaster) && scripMaster.length > 0) {
-      const scrip: object = scripMaster.filter(
-        (scrip) =>
-          _.get(scrip, 'name', '') === scriptName &&
-          _.get(scrip, 'exch_seg', '') === exchSeg
-      );
-      if (scrip) res.json(scrip);
-      else res.json({ status: 'Scrip not found' });
-    } else res.json({ status: 'pending' });
-  }
-);
-app.post('/getScripDetails', (req: Request, res: Response) => {
-  const scriptName: string = req.body.scriptName;
-  console.log(scriptName);
-  const exchSeg: string = req.body.exchSeg;
-  if (scriptName) {
-    if (_.isArray(scripMaster) && scripMaster.length > 0) {
-      let scrip: object = {};
-      if (exchSeg) {
-        scrip = scripMaster.filter(
-          (scrip) =>
-            _.get(scrip, 'name', '') === scriptName &&
-            _.get(scrip, 'exch_seg', '') === exchSeg
-        );
-      } else {
-        scrip = scripMaster.filter(
-          (scrip) => _.get(scrip, 'name', '') === scriptName
-        );
-      }
-      if (scrip) res.json(scrip);
-      else res.json({ status: 'Scrip not found' });
-    } else res.json({ status: 'pending' });
-  } else {
-    res.json({ status: 'scriptName is mandatory' });
-  }
-});
 app.post('/scrip/details/get-script', (req: Request, res: Response) => {
   const scriptName: string = req.body.scriptName;
   if (scriptName && _.isArray(scripMaster) && scripMaster.length > 0) {
