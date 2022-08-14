@@ -14,68 +14,18 @@ import bodyParser from 'body-parser';
 import axios from 'axios';
 import createHttpError from 'http-errors';
 const { SmartAPI, WebSocket } = require('smartapi-javascript');
-const WebSocketServer = require('ws');
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
 const server: Server = createServer(app);
-const wss = new WebSocketServer.Server({ server: server });
 let scripMaster: object[];
-wss.on('connection', (ws: any) => {
-  const smart_api = new SmartAPI({
-    api_key: API_KEY,
-  });
-  smart_api
-    .generateSession(CLIENT_CODE, CLIENT_PASSWORD)
-    .then((data: object) => {
-      let smartApiData: ISmartApiData = _.get(data, 'data', {});
-      const web_socket = new WebSocket({
-        client_code: CLIENT_CODE,
-        feed_token: smartApiData.feedToken,
-        url: STREAM_URL,
-      });
-      web_socket
-        .connect()
-        .then(() => {
-          const bnIndexInstrumentToken = '26009';
-          const bankNiftyIndex = 'nse_cm|' + bnIndexInstrumentToken;
-          const bnCurrentFutInstrumentToken = '82221';
-          const bankNifty25Aug22FUT = 'nse_fo|' + bnCurrentFutInstrumentToken;
-          const bnNextFutInstrumentToken = '37516';
-          const bankNifty29SEP22FUT = 'nse_fo|' + bnNextFutInstrumentToken;
-          const strWatchListScript =
-            bankNiftyIndex +
-            '&' +
-            bankNifty25Aug22FUT +
-            '&' +
-            bankNifty29SEP22FUT;
-          web_socket.runScript(strWatchListScript, 'mw');
-          setTimeout(function () {
-            web_socket.close();
-          }, 3000);
-        })
-        .catch((err: any) => {
-          throw err;
-        });
-      web_socket.on('tick', (obj: object[]) => {
-        ws.send(JSON.stringify(obj));
-      });
-    })
-    .catch((err: object) => {
-      throw err;
-    });
-  // sending message
-  ws.on('message', (data: object) => {
-    console.log(`Client has sent us: ${data}`);
-  });
-  // handling what to do when clients disconnects from server
-  ws.on('close', () => {
-    console.log('the client has connected');
-  });
-  // handling client connection error
-  ws.onerror = function () {
-    console.log('Some Error occurred');
-  };
+let stremMsg: object = { message: 'no_message' };
+/* -------WEB SOCKET CODE */
+let bnIndexLTP: string = '';
+let bnCurrentFutureLTP: string = '';
+let bnNextFutureLTP: string = '';
+const smart_api = new SmartAPI({
+  api_key: API_KEY,
 });
 const fetchData = async () => {
   try {
@@ -102,7 +52,7 @@ const fetchData = async () => {
 };
 server.listen(5000, () => {});
 app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'Hello World!' });
+  res.json({ status: 'ok' });
 });
 app.post('/scrip/details/get-script', (req: Request, res: Response) => {
   const scriptName: string = req.body.scriptName;
@@ -129,6 +79,83 @@ app.post('/scrip/details/get-script', (req: Request, res: Response) => {
   } else {
     res.status(200).json({ message: 'pending' });
   }
+});
+app.get('/arbitrage', (req: Request, res: Response) => {
+  const bnIndexInstrumentToken = '26009';
+  const bankNiftyIndex = 'nse_cm|' + bnIndexInstrumentToken;
+  const bnCurrentFutInstrumentToken = '82221';
+  const bankNifty25Aug22FUT = 'nse_fo|' + bnCurrentFutInstrumentToken;
+  const bnNextFutInstrumentToken = '37516';
+  const bankNifty29SEP22FUT = 'nse_fo|' + bnNextFutInstrumentToken;
+  const strWatchListScript =
+    bankNiftyIndex + '&' + bankNifty25Aug22FUT + '&' + bankNifty29SEP22FUT;
+  smart_api
+    .generateSession(CLIENT_CODE, CLIENT_PASSWORD)
+    .then((data: object) => {
+      let smartApiData: ISmartApiData = _.get(data, 'data', {});
+      const web_socket = new WebSocket({
+        client_code: CLIENT_CODE,
+        feed_token: smartApiData.feedToken,
+        url: STREAM_URL,
+      });
+      web_socket
+        .connect()
+        .then(() => {
+          web_socket.runScript(strWatchListScript, 'mw');
+          setTimeout(function () {
+            web_socket.close();
+          }, 3000);
+        })
+        .catch((err: any) => {
+          throw err;
+        });
+      web_socket.on('tick', (wsStreamData: object[]) => {
+        for (const obj of wsStreamData) {
+          if (_.get(obj, 'tk') == bnIndexInstrumentToken && _.get(obj, 'ltp')) {
+            bnIndexLTP = _.get(obj, 'ltp', '') || '';
+          }
+          if (
+            _.get(obj, 'tk') == bnCurrentFutInstrumentToken &&
+            _.get(obj, 'ltp')
+          ) {
+            bnCurrentFutureLTP = _.get(obj, 'ltp', '') || '';
+          }
+          if (
+            _.get(obj, 'tk') == bnNextFutInstrumentToken &&
+            _.get(obj, 'ltp')
+          ) {
+            bnNextFutureLTP = _.get(obj, 'ltp', '') || '';
+          }
+          let bnIndex = !isNaN(parseFloat(bnIndexLTP))
+            ? parseFloat(bnIndexLTP)
+            : 0;
+          let bnCurrent = !isNaN(parseFloat(bnCurrentFutureLTP))
+            ? parseFloat(bnCurrentFutureLTP)
+            : 0;
+          let bnNext = !isNaN(parseFloat(bnNextFutureLTP))
+            ? parseFloat(bnNextFutureLTP)
+            : 0;
+          // bnIndex = 38000;
+          // bnCurrent = 38100;
+          // bnNext = 38200;
+          let currentToSpot = bnCurrent - bnIndex;
+          let nextToCurrent = bnNext - bnCurrent;
+          let isGoodOpportunity: boolean =
+            currentToSpot >= 80 && nextToCurrent <= 120 ? true : false;
+          if (bnIndex > 0 && bnCurrent > 0 && bnNext > 0) {
+            stremMsg = {
+              currentToSpot: Math.ceil(currentToSpot),
+              nextToCurrent: Math.ceil(nextToCurrent),
+              isGoodOpportunity: isGoodOpportunity,
+            };
+          }
+        }
+      });
+    })
+    .catch((err: object) => {
+      throw err;
+    });
+  res.json(stremMsg);
 });
 fetchData();
 app.use((req: Request, res: Response, next: NextFunction) => {
