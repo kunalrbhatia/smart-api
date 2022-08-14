@@ -19,7 +19,7 @@ app.use(bodyParser.json());
 app.use(cors());
 const server: Server = createServer(app);
 let scripMaster: object[];
-let stremMsg: object = { message: 'no_message' };
+let stremMsg: object = { message: 'no_message', status: 'in progress' };
 /* -------WEB SOCKET CODE */
 let bnIndexLTP: string = '';
 let bnCurrentFutureLTP: string = '';
@@ -62,9 +62,7 @@ app.post('/scrip/details/get-script', (req: Request, res: Response) => {
       return (_scripName.indexOf(scriptName) > 0 ||
         _scripName === scriptName) &&
         _.get(scrip, 'exch_seg', '') === 'NFO' &&
-        (_.get(scrip, 'instrumenttype', '') === 'FUTSTK' ||
-          _.get(scrip, 'instrumenttype', '') === 'FUTIDX') &&
-        parseInt(_.get(scrip, 'lotsize', '')) > 1
+        _.get(scrip, 'instrumenttype', '') === 'FUTIDX'
         ? scrip
         : null;
     });
@@ -136,8 +134,8 @@ app.get('/arbitrage', (req: Request, res: Response) => {
             ? parseFloat(bnNextFutureLTP)
             : 0;
           // bnIndex = 38000;
-          // bnCurrent = 38100;
-          // bnNext = 38200;
+          // bnCurrent = 38020;
+          // bnNext = 38040;
           let currentToSpot = bnCurrent - bnIndex;
           let nextToCurrent = bnNext - bnCurrent;
           let isGoodOpportunity: boolean =
@@ -147,6 +145,7 @@ app.get('/arbitrage', (req: Request, res: Response) => {
               currentToSpot: Math.ceil(currentToSpot),
               nextToCurrent: Math.ceil(nextToCurrent),
               isGoodOpportunity: isGoodOpportunity,
+              status: 'ok',
             };
           }
         }
