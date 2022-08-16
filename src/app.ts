@@ -54,6 +54,7 @@ server.listen(5000, () => {});
 app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
+
 app.post('/scrip/details/get-script', (req: Request, res: Response) => {
   const scriptName: string = req.body.scriptName;
   if (scriptName && _.isArray(scripMaster) && scripMaster.length > 0) {
@@ -134,8 +135,8 @@ app.get('/arbitrage', (req: Request, res: Response) => {
             ? parseFloat(bnNextFutureLTP)
             : 0;
           // bnIndex = 38000;
-          // bnCurrent = 38020;
-          // bnNext = 38040;
+          // bnCurrent = 38100;
+          // bnNext = 38200;
           let currentToSpot = bnCurrent - bnIndex;
           let nextToCurrent = bnNext - bnCurrent;
           let isGoodOpportunity: boolean =
