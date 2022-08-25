@@ -1,4 +1,10 @@
-import { CLIENT_CODE, CLIENT_PASSWORD, API_KEY, STREAM_URL } from './constants';
+import {
+  CLIENT_CODE,
+  CLIENT_PASSWORD,
+  API_KEY,
+  STREAM_URL,
+  ORDER_API,
+} from './constants';
 import { ISmartApiData } from './app.interface';
 import { Server, createServer } from 'http';
 import cors from 'cors';
@@ -27,6 +33,41 @@ let bnNextFutureLTP: string = '';
 const smart_api = new SmartAPI({
   api_key: API_KEY,
 });
+
+const doOrder = () => {
+  const data: string = JSON.stringify({
+    exchange: 'NSE',
+    tradingsymbol: 'INFY-EQ',
+    quantity: 5,
+    disclosedquantity: 3,
+    transactiontype: 'BUY',
+    ordertype: 'MARKET',
+    variety: 'NORMAL',
+    producttype: 'INTRADAY',
+  });
+  const config: object = {
+    method: 'post',
+    url: ORDER_API,
+    headers: {
+      Authorization: 'Bearer AUTHORIZATION_TOKEN',
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': 'API_KEY',
+    },
+  };
+  axios(config)
+    .then((response: object) => {
+      console.log(JSON.stringify(_.get(response, 'data')));
+    })
+    .catch(function (error: any) {
+      console.log(error);
+    });
+};
 const fetchData = async () => {
   try {
     await axios
@@ -101,9 +142,9 @@ app.get('/arbitrage', (req: Request, res: Response) => {
         .connect()
         .then(() => {
           web_socket.runScript(strWatchListScript, 'mw');
-          setTimeout(function () {
+          /* setTimeout(function () {
             web_socket.close();
-          }, 3000);
+          }, 3000); */
         })
         .catch((err: any) => {
           throw err;
@@ -148,6 +189,10 @@ app.get('/arbitrage', (req: Request, res: Response) => {
               isGoodOpportunity: isGoodOpportunity,
               status: 'ok',
             };
+            if (isGoodOpportunity) {
+              doOrder();
+            }
+            console.log('stremMsg: ', stremMsg);
           }
         }
       });
