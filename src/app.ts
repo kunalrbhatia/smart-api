@@ -1,10 +1,4 @@
-import {
-  CLIENT_CODE,
-  CLIENT_PASSWORD,
-  API_KEY,
-  STREAM_URL,
-  ORDER_API,
-} from './constants';
+import { CLIENT_CODE, CLIENT_PASSWORD, API_KEY, ORDER_API } from './constants';
 import { ISmartApiData } from './app.interface';
 import { Server, createServer } from 'http';
 import cors from 'cors';
@@ -35,40 +29,46 @@ const smart_api = new SmartAPI({
 });
 
 const doOrder = () => {
-  const data: string = JSON.stringify({
-    exchange: 'NSE',
-    tradingsymbol: 'INFY-EQ',
-    quantity: 5,
-    disclosedquantity: 3,
-    transactiontype: 'BUY',
-    ordertype: 'MARKET',
-    variety: 'NORMAL',
-    producttype: 'INTRADAY',
-  });
-  const config: object = {
-    method: 'post',
-    url: ORDER_API,
-    headers: {
-      Authorization: 'Bearer AUTHORIZATION_TOKEN',
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': 'API_KEY',
-    },
-  };
-  axios(config)
-    .then((response: object) => {
-      console.log(JSON.stringify(_.get(response, 'data')));
-    })
-    .catch(function (error: any) {
-      console.log(error);
+  smart_api
+    .generateSession(CLIENT_CODE, CLIENT_PASSWORD)
+    .then((data: object) => {
+      let smartApiData: ISmartApiData = _.get(data, 'data', {});
+      const payloadData: string = JSON.stringify({
+        exchange: 'NSE',
+        tradingsymbol: 'BANKNIFTY29SEP22FUT',
+        symboltoken: '37516',
+        quantity: 1,
+        transactiontype: 'BUY',
+        ordertype: 'MARKET',
+        variety: 'NORMAL',
+        producttype: 'CNC',
+      });
+      const config: object = {
+        method: 'post',
+        url: ORDER_API,
+        headers: {
+          Authorization: 'Bearer ' + smartApiData.jwtToken,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-UserType': 'USER',
+          'X-SourceID': 'WEB',
+          'X-ClientLocalIP': '192.168.168.168',
+          'X-ClientPublicIP': '106.193.147.98',
+          'X-MACAddress': 'fe80::216e:6507:4b90:3719',
+          'X-PrivateKey': API_KEY,
+        },
+        data: payloadData,
+      };
+      axios(config)
+        .then((response: object) => {
+          console.log(JSON.stringify(_.get(response, 'data')));
+        })
+        .catch(function (error: any) {
+          console.log(error);
+        });
     });
 };
-const fetchData = async () => {
+const fetchData = async (req: Request, res: Response, next: NextFunction) => {
   try {
     await axios
       .get(
@@ -83,52 +83,71 @@ const fetchData = async () => {
             key: '0' + index + _.get(element, 'token', '00') || '00',
           };
         });
+        next();
       })
       .catch((evt: object) => {
-        console.log(evt);
+        res.json({ error: evt });
       });
   } catch (error) {
     console.error(_.get(error, 'message', '') || '');
   }
 };
+
 server.listen(5000, () => {});
 app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
-
-app.post('/scrip/details/get-script', (req: Request, res: Response) => {
-  const scriptName: string = req.body.scriptName;
-  if (scriptName && _.isArray(scripMaster) && scripMaster.length > 0) {
-    let scrips = scripMaster.filter((scrip) => {
-      const _scripName: string = _.get(scrip, 'name', '') || '';
-      return (_scripName.indexOf(scriptName) > 0 ||
-        _scripName === scriptName) &&
-        _.get(scrip, 'exch_seg', '') === 'NFO' &&
-        _.get(scrip, 'instrumenttype', '') === 'FUTIDX'
-        ? scrip
-        : null;
-    });
-    scrips = scrips.map((element: object, index: number) => {
-      return {
-        ...element,
-        label: _.get(element, 'name', 'NoName') || 'NoName',
-        key: index,
-      };
-    });
-    res.json(scrips);
-  } else {
-    res.status(200).json({ message: 'pending' });
+//doOrder();
+app.post(
+  '/scrip/details/get-script',
+  fetchData,
+  (req: Request, res: Response) => {
+    const scriptName: string = req.body.scriptName;
+    const strikePrice: string = req.body.strikePrice;
+    const optionType: 'CE' | 'PE' = req.body.optionType || '';
+    const expiryDate: string = req.body.expiryDate;
+    if (scriptName && _.isArray(scripMaster) && scripMaster.length > 0) {
+      let scrips = scripMaster.filter((scrip) => {
+        const _scripName: string = _.get(scrip, 'name', '') || '';
+        const _symbol: string = _.get(scrip, 'symbol', '') || '';
+        const _expiry: string = _.get(scrip, 'expiry', '') || '';
+        return (_scripName.indexOf(scriptName) > 0 ||
+          _scripName === scriptName) &&
+          _.get(scrip, 'exch_seg', '') === 'NFO' &&
+          _.get(scrip, 'instrumenttype', '') === 'OPTIDX' &&
+          _symbol.indexOf(strikePrice) > 0 &&
+          _symbol.indexOf(optionType) !== -1 &&
+          _expiry === expiryDate
+          ? scrip
+          : null;
+      });
+      scrips.sort(
+        (curr: object, next: object) =>
+          _.get(curr, 'token', 0) - _.get(next, 'token', 0)
+      );
+      scrips = scrips.map((element: object, index: number) => {
+        return {
+          ...element,
+          label: _.get(element, 'name', 'NoName') || 'NoName',
+          key: index,
+        };
+      });
+      res.json(scrips);
+    } else {
+      res.status(200).json({ message: 'pending' });
+    }
   }
-});
-app.get('/arbitrage', (req: Request, res: Response) => {
+);
+/* app.get('/arbitrage', (req: Request, res: Response) => {
   const bnIndexInstrumentToken = '26009';
   const bankNiftyIndex = 'nse_cm|' + bnIndexInstrumentToken;
-  const bnCurrentFutInstrumentToken = '82221';
-  const bankNifty25Aug22FUT = 'nse_fo|' + bnCurrentFutInstrumentToken;
-  const bnNextFutInstrumentToken = '37516';
-  const bankNifty29SEP22FUT = 'nse_fo|' + bnNextFutInstrumentToken;
+  const bnCurrentFutInstrumentToken = '37516';
+  const bankNifty29SEP22FUT = 'nse_fo|' + bnCurrentFutInstrumentToken;
+  const bnNextFutInstrumentToken = '51942';
+  const bankNifty27OCT22FUT = 'nse_fo|' + bnNextFutInstrumentToken;
   const strWatchListScript =
-    bankNiftyIndex + '&' + bankNifty25Aug22FUT + '&' + bankNifty29SEP22FUT;
+    bankNiftyIndex + '&' + bankNifty29SEP22FUT + '&' + bankNifty27OCT22FUT;
+
   smart_api
     .generateSession(CLIENT_CODE, CLIENT_PASSWORD)
     .then((data: object) => {
@@ -142,9 +161,9 @@ app.get('/arbitrage', (req: Request, res: Response) => {
         .connect()
         .then(() => {
           web_socket.runScript(strWatchListScript, 'mw');
-          /* setTimeout(function () {
-            web_socket.close();
-          }, 3000); */
+          // setTimeout(function () {
+          //   web_socket.close();
+          // }, 3000);
         })
         .catch((err: any) => {
           throw err;
@@ -201,8 +220,7 @@ app.get('/arbitrage', (req: Request, res: Response) => {
       throw err;
     });
   res.json(stremMsg);
-});
-fetchData();
+}); */
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());
 });
