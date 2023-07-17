@@ -13,13 +13,16 @@ import express, {
 import bodyParser from 'body-parser';
 import axios from 'axios';
 import createHttpError from 'http-errors';
-import { generateSmartSession, getLtpData } from './helpers/apiService';
+import {
+  generateSmartSession,
+  getLtpData,
+  getScrip,
+} from './helpers/apiService';
 let { SmartAPI, WebSocket, WebSocketV2 } = require('smartapi-javascript');
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
 const server: Server = createServer(app);
-let scripMaster: object[];
 let stremMsg: object = { message: 'no_message', status: 'in progress' };
 /* -------WEB SOCKET CODE */
 let bnIndexLTP: string = '';
@@ -68,31 +71,6 @@ const doOrder = () => {
         });
     });
 };
-const fetchData = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await axios
-      .get(
-        'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json'
-      )
-      .then((response: object) => {
-        let acData: object[] = _.get(response, 'data', []) || [];
-        scripMaster = acData.map((element, index) => {
-          return {
-            ...element,
-            label: _.get(element, 'name', 'NONAME') || 'NONAME',
-            key: '0' + index + _.get(element, 'token', '00') || '00',
-          };
-        });
-        next();
-      })
-      .catch((evt: object) => {
-        res.json({ error: evt });
-      });
-  } catch (error) {
-    console.error(_.get(error, 'message', '') || '');
-  }
-};
-
 server.listen(5000, () => {});
 app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
@@ -116,46 +94,16 @@ app.post(
     res.send(ltpData);
   }
 );
-app.post(
-  '/scrip/details/get-script',
-  fetchData,
-  (req: Request, res: Response) => {
-    const scriptName: string = req.body.scriptName;
-    const strikePrice: string = req.body.strikePrice;
-    const optionType: 'CE' | 'PE' = req.body.optionType || '';
-    const expiryDate: string = req.body.expiryDate;
-    if (scriptName && _.isArray(scripMaster) && scripMaster.length > 0) {
-      let scrips = scripMaster.filter((scrip) => {
-        const _scripName: string = _.get(scrip, 'name', '') || '';
-        const _symbol: string = _.get(scrip, 'symbol', '') || '';
-        const _expiry: string = _.get(scrip, 'expiry', '') || '';
-        return (_scripName.indexOf(scriptName) > 0 ||
-          _scripName === scriptName) &&
-          _.get(scrip, 'exch_seg', '') === 'NFO' &&
-          _.get(scrip, 'instrumenttype', '') === 'OPTIDX' &&
-          _symbol.indexOf(strikePrice) > 0 &&
-          _symbol.indexOf(optionType) !== -1 &&
-          _expiry === expiryDate
-          ? scrip
-          : null;
-      });
-      scrips.sort(
-        (curr: object, next: object) =>
-          _.get(curr, 'token', 0) - _.get(next, 'token', 0)
-      );
-      scrips = scrips.map((element: object, index: number) => {
-        return {
-          ...element,
-          label: _.get(element, 'name', 'NoName') || 'NoName',
-          key: index,
-        };
-      });
-      res.json(scrips);
-    } else {
-      res.status(200).json({ message: 'pending' });
-    }
-  }
-);
+app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
+  const scriptName: string = req.body.scriptName;
+  const strikePrice: string = req.body.strikePrice;
+  const optionType: 'CE' | 'PE' = req.body.optionType || '';
+  const expiryDate: string = req.body.expiryDate;
+  res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
+});
+app.post('/run-algo', async (req: Request, res: Response) => {
+  res.json({ message: 'Success' });
+});
 /* app.get('/arbitrage', (req: Request, res: Response) => {
   const bnIndexInstrumentToken = '26009';
   const bankNiftyIndex = 'nse_cm|' + bnIndexInstrumentToken;
