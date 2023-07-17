@@ -8,7 +8,8 @@
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
-    "smartapi-javascript": "^1.0.14"
+    "smartapi-javascript": "^1.0.15",
+    "totp-generator": "0.0.14"
   },
   "devDependencies": {
     "@types/cors": "^2.8.12",
