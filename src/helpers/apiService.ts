@@ -9,6 +9,7 @@ import {
   CLIENT_PIN,
   GET_LTP_DATA_API,
   SCRIPMASTER,
+  GET_POSITIONS,
 } from '../constants';
 type getLtpDataType = {
   exchange: string;
@@ -115,4 +116,31 @@ export const getScrip = async ({
   } else {
     return [{ message: 'pending' }];
   }
+};
+export const getPositions = async () => {
+  const smartApiData: object = await generateSmartSession();
+  const jwtToken = get(smartApiData, 'jwtToken');
+  let config = {
+    method: 'get',
+    url: GET_POSITIONS,
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': API_KEY,
+    },
+    data: {},
+  };
+  return axios(config)
+    .then(function (response: object) {
+      return get(response, 'data');
+    })
+    .catch(function (error: object) {
+      return error;
+    });
 };
