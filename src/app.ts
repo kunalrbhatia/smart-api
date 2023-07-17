@@ -1,8 +1,8 @@
-import { CLIENT_CODE, CLIENT_PASSWORD, API_KEY, ORDER_API } from './constants';
+import { CLIENT_CODE, API_KEY, ORDER_API, CLIENT_PIN } from './constants';
 import { ISmartApiData } from './app.interface';
 import { Server, createServer } from 'http';
 import cors from 'cors';
-import * as _ from 'lodash';
+import { get } from 'lodash';
 import express, {
   Request,
   Response,
@@ -18,58 +18,57 @@ import {
   getLtpData,
   getScrip,
 } from './helpers/apiService';
+import {
+  delay,
+  getAtmStrikePrice,
+  getNextExpiry,
+  isPastTime,
+} from './helpers/functions';
 let { SmartAPI, WebSocket, WebSocketV2 } = require('smartapi-javascript');
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
 const server: Server = createServer(app);
 let stremMsg: object = { message: 'no_message', status: 'in progress' };
-/* -------WEB SOCKET CODE */
-let bnIndexLTP: string = '';
-let bnCurrentFutureLTP: string = '';
-let bnNextFutureLTP: string = '';
-const smart_api = new SmartAPI({
-  api_key: API_KEY,
-});
 const doOrder = () => {
-  smart_api
-    .generateSession(CLIENT_CODE, CLIENT_PASSWORD)
-    .then((data: object) => {
-      let smartApiData: ISmartApiData = _.get(data, 'data', {});
-      const payloadData: string = JSON.stringify({
-        exchange: 'NSE',
-        tradingsymbol: 'BANKNIFTY29SEP22FUT',
-        symboltoken: '37516',
-        quantity: 1,
-        transactiontype: 'BUY',
-        ordertype: 'MARKET',
-        variety: 'NORMAL',
-        producttype: 'CNC',
-      });
-      const config: object = {
-        method: 'post',
-        url: ORDER_API,
-        headers: {
-          Authorization: 'Bearer ' + smartApiData.jwtToken,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'X-UserType': 'USER',
-          'X-SourceID': 'WEB',
-          'X-ClientLocalIP': '192.168.168.168',
-          'X-ClientPublicIP': '106.193.147.98',
-          'X-MACAddress': 'fe80::216e:6507:4b90:3719',
-          'X-PrivateKey': API_KEY,
-        },
-        data: payloadData,
-      };
-      axios(config)
-        .then((response: object) => {
-          console.log(JSON.stringify(_.get(response, 'data')));
-        })
-        .catch(function (error: any) {
-          console.log(error);
-        });
-    });
+  // smart_api
+  //   .generateSession(CLIENT_CODE, CLIENT_PIN)
+  //   .then((data: object) => {
+  //     let smartApiData: ISmartApiData = _.get(data, 'data', {});
+  //     const payloadData: string = JSON.stringify({
+  //       exchange: 'NSE',
+  //       tradingsymbol: 'BANKNIFTY29SEP22FUT',
+  //       symboltoken: '37516',
+  //       quantity: 1,
+  //       transactiontype: 'BUY',
+  //       ordertype: 'MARKET',
+  //       variety: 'NORMAL',
+  //       producttype: 'CNC',
+  //     });
+  //     const config: object = {
+  //       method: 'post',
+  //       url: ORDER_API,
+  //       headers: {
+  //         Authorization: 'Bearer ' + smartApiData.jwtToken,
+  //         'Content-Type': 'application/json',
+  //         Accept: 'application/json',
+  //         'X-UserType': 'USER',
+  //         'X-SourceID': 'WEB',
+  //         'X-ClientLocalIP': '192.168.168.168',
+  //         'X-ClientPublicIP': '106.193.147.98',
+  //         'X-MACAddress': 'fe80::216e:6507:4b90:3719',
+  //         'X-PrivateKey': API_KEY,
+  //       },
+  //       data: payloadData,
+  //     };
+  //     axios(config)
+  //       .then((response: object) => {
+  //         console.log(JSON.stringify(_.get(response, 'data')));
+  //       })
+  //       .catch(function (error: any) {
+  //         console.log(error);
+  //       });
+  //   });
 };
 server.listen(5000, () => {});
 app.get('/', (req: Request, res: Response) => {
@@ -83,13 +82,10 @@ app.post(
     const tradingsymbol: string = req.body.tradingsymbol;
     const exchange: string = req.body.exchange;
     const symboltoken: string = req.body.symboltoken;
-    const smartApiData: object = await generateSmartSession();
-    const jwtToken = _.get(smartApiData, 'jwtToken');
     const ltpData = await getLtpData({
       exchange,
       symboltoken,
       tradingsymbol,
-      jwtToken,
     });
     res.send(ltpData);
   }
@@ -102,7 +98,53 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  res.json({ message: 'Success' });
+  //CHECK IF IT IS PAST 10:15
+  while (!isPastTime()) {
+    await delay({ milliSeconds: 1000 });
+  }
+  //GET ATM STIKE PRICE
+  const atmStrike = await getAtmStrikePrice();
+  await delay({ milliSeconds: 2000 });
+  //GET CURRENT EXPIRY
+  const expiryDate = getNextExpiry();
+  //GET CALL DATA
+  const ceToken = await getScrip({
+    scriptName: 'BANKNIFTY',
+    expiryDate: expiryDate,
+    optionType: 'CE',
+    strikePrice: atmStrike.toString(),
+  });
+  await delay({ milliSeconds: 2000 });
+  //GET PUT DATA
+  const peToken = await getScrip({
+    scriptName: 'BANKNIFTY',
+    expiryDate: expiryDate,
+    optionType: 'PE',
+    strikePrice: atmStrike.toString(),
+  });
+  await delay({ milliSeconds: 2000 });
+  //GET CALL LTP
+  const ltpCE = await getLtpData({
+    exchange: get(ceToken, '0.exch_seg'),
+    tradingsymbol: get(ceToken, '0.symbol'),
+    symboltoken: get(ceToken, '0.token'),
+  });
+  await delay({ milliSeconds: 2000 });
+  //GET PUT LTP
+  const ltpPE = await getLtpData({
+    exchange: get(peToken, '0.exch_seg'),
+    tradingsymbol: get(peToken, '0.symbol'),
+    symboltoken: get(peToken, '0.token'),
+  });
+  await delay({ milliSeconds: 2000 });
+  res.json({
+    message: 'Success: ',
+    atmStike: atmStrike,
+    ceToken: ceToken,
+    ltpCe: ltpCE,
+    peToken: peToken,
+    ltpPE: ltpPE,
+  });
 });
 /* app.get('/arbitrage', (req: Request, res: Response) => {
   const bnIndexInstrumentToken = '26009';

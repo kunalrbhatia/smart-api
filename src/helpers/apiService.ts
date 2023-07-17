@@ -1,4 +1,4 @@
-import { get, isArray } from 'lodash';
+import { get, isArray, isEmpty } from 'lodash';
 let { SmartAPI, WebSocket, WebSocketV2 } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
@@ -14,15 +14,20 @@ type getLtpDataType = {
   exchange: string;
   tradingsymbol: string;
   symboltoken: string;
-  jwtToken: string;
 };
-export const getLtpData = async (payload: getLtpDataType): Promise<object> => {
-  const data = JSON.stringify(payload);
+export const getLtpData = async ({
+  exchange,
+  tradingsymbol,
+  symboltoken,
+}: getLtpDataType): Promise<object> => {
+  const smartApiData: object = await generateSmartSession();
+  const jwtToken = get(smartApiData, 'jwtToken');
+  const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
   const config = {
     method: 'post',
     url: GET_LTP_DATA_API,
     headers: {
-      Authorization: `Bearer ${payload.jwtToken}`,
+      Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
       'X-UserType': 'USER',
@@ -69,8 +74,8 @@ export const fetchData = async (): Promise<object> => {
 };
 type getScripType = {
   scriptName: string;
-  strikePrice: string;
-  optionType: string;
+  strikePrice?: string;
+  optionType?: 'CE' | 'PE';
   expiryDate: string;
 };
 export const getScrip = async ({
@@ -85,15 +90,15 @@ export const getScrip = async ({
       const _scripName: string = get(scrip, 'name', '') || '';
       const _symbol: string = get(scrip, 'symbol', '') || '';
       const _expiry: string = get(scrip, 'expiry', '') || '';
-      return (_scripName.indexOf(scriptName) > 0 ||
-        _scripName === scriptName) &&
+
+      return (
+        (_scripName.includes(scriptName) || _scripName === scriptName) &&
         get(scrip, 'exch_seg', '') === 'NFO' &&
         get(scrip, 'instrumenttype', '') === 'OPTIDX' &&
-        _symbol.indexOf(strikePrice) > 0 &&
-        _symbol.indexOf(optionType) !== -1 &&
+        (strikePrice === undefined || _symbol.includes(strikePrice)) &&
+        (optionType === undefined || _symbol.includes(optionType)) &&
         _expiry === expiryDate
-        ? scrip
-        : null;
+      );
     });
     scrips.sort(
       (curr: object, next: object) =>
