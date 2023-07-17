@@ -22,8 +22,6 @@ const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
 const server: Server = createServer(app);
-let stremMsg: object = { message: 'no_message', status: 'in progress' };
-const doOrder = () => {};
 server.listen(5000, () => {});
 app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok' });

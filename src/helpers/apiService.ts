@@ -1,5 +1,5 @@
-import { get, isArray, isEmpty } from 'lodash';
-let { SmartAPI, WebSocket, WebSocketV2 } = require('smartapi-javascript');
+import { get, isArray } from 'lodash';
+let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
