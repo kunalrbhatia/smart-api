@@ -13,7 +13,8 @@ import express, {
 import bodyParser from 'body-parser';
 import axios from 'axios';
 import createHttpError from 'http-errors';
-const { SmartAPI, WebSocket } = require('smartapi-javascript');
+import { generateSmartSession, getLtpData } from './helpers/apiService';
+let { SmartAPI, WebSocket, WebSocketV2 } = require('smartapi-javascript');
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -27,40 +28,6 @@ let bnNextFutureLTP: string = '';
 const smart_api = new SmartAPI({
   api_key: API_KEY,
 });
-const getNextExpiry = () => {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const daysUntilThursday = 4 - dayOfWeek;
-  const comingThursday = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate() + daysUntilThursday
-  );
-  // Get the year, month, and day of the coming Thursday
-  const year = comingThursday.getFullYear();
-  const month = comingThursday.getMonth() + 1;
-  const day = comingThursday.getDate();
-
-  // Format the date as ddmmmyyyy
-  const months = [
-    'JAN',
-    'FEB',
-    'MAR',
-    'APR',
-    'MAY',
-    'JUN',
-    'JUL',
-    'AUG',
-    'SEP',
-    'OCT',
-    'NOV',
-    'DEC',
-  ];
-  const monthName = months[month - 1];
-  const formattedDate = `${day}${monthName}${year}`;
-
-  return formattedDate;
-};
 const doOrder = () => {
   smart_api
     .generateSession(CLIENT_CODE, CLIENT_PASSWORD)
@@ -131,6 +98,24 @@ app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 //doOrder();
+
+app.post(
+  '/script/details/get-script-ltp',
+  async (req: Request, res: Response) => {
+    const tradingsymbol: string = req.body.tradingsymbol;
+    const exchange: string = req.body.exchange;
+    const symboltoken: string = req.body.symboltoken;
+    const smartApiData: object = await generateSmartSession();
+    const jwtToken = _.get(smartApiData, 'jwtToken');
+    const ltpData = await getLtpData({
+      exchange,
+      symboltoken,
+      tradingsymbol,
+      jwtToken,
+    });
+    res.send(ltpData);
+  }
+);
 app.post(
   '/scrip/details/get-script',
   fetchData,
