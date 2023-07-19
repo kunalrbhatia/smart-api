@@ -10,7 +10,11 @@ import {
   GET_LTP_DATA_API,
   SCRIPMASTER,
   GET_POSITIONS,
+  DELAY,
+  ORDER_API,
 } from '../constants';
+import { delay, getAtmStrikePrice, getNextExpiry } from './functions';
+import { Response } from 'express';
 type getLtpDataType = {
   exchange: string;
   tradingsymbol: string;
@@ -143,4 +147,69 @@ export const getPositions = async () => {
     .catch(function (error: object) {
       return error;
     });
+};
+type doOrderType = { tradingsymbol: string };
+export const doOrder = async ({ tradingsymbol }: doOrderType) => {
+  const smartApiData: object = await generateSmartSession();
+  const jwtToken = get(smartApiData, 'jwtToken');
+  let data = JSON.stringify({
+    exchange: 'NFO',
+    tradingsymbol,
+    quantity: 1,
+    disclosedquantity: 1,
+    transactiontype: 'SELL',
+    ordertype: 'MARKET',
+    variety: 'NORMAL',
+    producttype: 'CARRYFORWARD',
+  });
+  let config = {
+    method: 'post',
+    url: ORDER_API,
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': API_KEY,
+    },
+    data: data,
+  };
+  return axios(config)
+    .then((response: Response) => {
+      return get(response, 'data');
+    })
+    .catch(function (error: Response) {
+      return error;
+    });
+};
+export const shortStraddle = async () => {
+  //GET ATM STIKE PRICE
+  const atmStrike = await getAtmStrikePrice();
+  await delay({ milliSeconds: DELAY });
+  //GET CURRENT EXPIRY
+  const expiryDate = getNextExpiry();
+  //GET CALL DATA
+  const ceToken = await getScrip({
+    scriptName: 'BANKNIFTY',
+    expiryDate: expiryDate,
+    optionType: 'CE',
+    strikePrice: atmStrike.toString(),
+  });
+  await delay({ milliSeconds: DELAY });
+  //GET PUT DATA
+  const peToken = await getScrip({
+    scriptName: 'BANKNIFTY',
+    expiryDate: expiryDate,
+    optionType: 'PE',
+    strikePrice: atmStrike.toString(),
+  });
+  await delay({ milliSeconds: DELAY });
+  await doOrder({ tradingsymbol: get(ceToken, '0.symbol') });
+  await delay({ milliSeconds: DELAY });
+  await doOrder({ tradingsymbol: get(peToken, '0.symbol') });
+  await delay({ milliSeconds: DELAY });
 };
