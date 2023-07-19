@@ -1,7 +1,5 @@
-import { DELAY } from './constants';
 import { Server, createServer } from 'http';
 import cors from 'cors';
-import { get } from 'lodash';
 import express, {
   Request,
   Response,
@@ -13,16 +11,8 @@ import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import {
   getLtpData,
-  getPositions,
   getScrip,
-  shortStraddle,
 } from './helpers/apiService';
-import {
-  delay,
-  getAtmStrikePrice,
-  getNextExpiry,
-  isPastTime,
-} from './helpers/functions';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -53,27 +43,29 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 
-app.post('/run-algo', async (req: Request, res: Response) => {
-  //CHECK IF IT IS PAST 10:15
-  // while (!isPastTime()) {
-  //   await delay({ milliSeconds: DELAY });
-  // }
-  await shortStraddle();
-  // const currentPositions = await getPositions();
-  // const currentPositionsData: object[] = get(currentPositions, 'data');
-  // let mtm = 0;
-  // currentPositionsData.forEach((value) => {
-  //   mtm += parseInt(get(value, 'unrealised'));
-  // });
-  // DO ORDER WITH ONE LOT
-  // KEEP CHECKING IN AN INTERVAL OF 5 MINS THAT BNF HAS MADE PLUS OR MINUS 300 POINTS FROM THE TIME OF ORDER PUNCHED
-  // IF BNF MOVED MORE THAN 300 POINTS THEN DO ORDER AGAIN WITH 1 MORE LOT
-  // ELSE KEEP WAITING
-  // CLOSE POSITION ON OR AFTER 3:25 BUT BEFORE 3:30
-  res.json({
-    message: 'Success: ',
-  });
-});
+
+// app.post('/run-algo', async (req: Request, res: Response) => {
+
+//   //CHECK IF IT IS PAST 10:15
+//   // while (!isPastTime()) {
+//   //   await delay({ milliSeconds: DELAY });
+//   // }
+//   await shortStraddle();
+//   // const currentPositions = await getPositions();
+//   // const currentPositionsData: object[] = get(currentPositions, 'data');
+//   // let mtm = 0;
+//   // currentPositionsData.forEach((value) => {
+//   //   mtm += parseInt(get(value, 'unrealised'));
+//   // });
+//   // DO ORDER WITH ONE LOT
+//   // KEEP CHECKING IN AN INTERVAL OF 5 MINS THAT BNF HAS MADE PLUS OR MINUS 300 POINTS FROM THE TIME OF ORDER PUNCHED
+//   // IF BNF MOVED MORE THAN 300 POINTS THEN DO ORDER AGAIN WITH 1 MORE LOT
+//   // ELSE KEEP WAITING
+//   // CLOSE POSITION ON OR AFTER 3:25 BUT BEFORE 3:30
+//   res.json({
+//     message: 'Success: ',
+//   });
+// });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());
 });

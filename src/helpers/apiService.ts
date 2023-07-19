@@ -1,5 +1,5 @@
 import { get, isArray } from 'lodash';
-let { SmartAPI } = require('smartapi-javascript');
+let { SmartAPI, WebSocket,WebSocketV2 } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
@@ -15,6 +15,7 @@ import {
 } from '../constants';
 import { delay, getAtmStrikePrice, getNextExpiry } from './functions';
 import { Response } from 'express';
+import { ISmartApiData } from '../app.interface';
 type getLtpDataType = {
   exchange: string;
   tradingsymbol: string;
@@ -25,7 +26,7 @@ export const getLtpData = async ({
   tradingsymbol,
   symboltoken,
 }: getLtpDataType): Promise<object> => {
-  const smartApiData: object = await generateSmartSession();
+  const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
   const config = {
@@ -48,7 +49,7 @@ export const getLtpData = async ({
     return get(response, 'data.data', {}) || {};
   });
 };
-export const generateSmartSession = async (): Promise<object[]> => {
+export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const smart_api = new SmartAPI({
     api_key: API_KEY,
   });
@@ -122,7 +123,7 @@ export const getScrip = async ({
   }
 };
 export const getPositions = async () => {
-  const smartApiData: object = await generateSmartSession();
+  const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   let config = {
     method: 'get',
@@ -150,7 +151,7 @@ export const getPositions = async () => {
 };
 type doOrderType = { tradingsymbol: string };
 export const doOrder = async ({ tradingsymbol }: doOrderType) => {
-  const smartApiData: object = await generateSmartSession();
+  const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   let data = JSON.stringify({
     exchange: 'NFO',
@@ -208,8 +209,17 @@ export const shortStraddle = async () => {
     strikePrice: atmStrike.toString(),
   });
   await delay({ milliSeconds: DELAY });
-  await doOrder({ tradingsymbol: get(ceToken, '0.symbol') });
+  await doOrder({ tradingsymbol: get(ceToken, '0.symbol','') });
   await delay({ milliSeconds: DELAY });
-  await doOrder({ tradingsymbol: get(peToken, '0.symbol') });
+  await doOrder({ tradingsymbol: get(peToken, '0.symbol','') });
   await delay({ milliSeconds: DELAY });
+};
+export const getNewWebSocket = async () => {
+  const smartApiData: ISmartApiData = await generateSmartSession();
+   return  new WebSocketV2({
+    jwttoken: smartApiData.jwtToken,
+    apikey: API_KEY,
+    clientcode: CLIENT_CODE,
+    feedtype: smartApiData.feedToken,
+  });
 };
