@@ -18,7 +18,7 @@
     "@types/express-ws": "^3.0.1",
     "@types/http-errors": "^1.8.2",
     "@types/lodash": "^4.14.195",
-    "@types/node": "^18.7.2",
+    "@types/node": "^18.16.19",
     "@types/ws": "^8.5.5",
     "nodemon": "^2.0.19",
     "ts-node": "^10.9.1",

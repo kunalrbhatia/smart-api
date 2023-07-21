@@ -2,3 +2,4 @@
 /smart_api_client
 package-lock.json
 constants.ts
+*.json
