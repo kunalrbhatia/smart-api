@@ -93,23 +93,21 @@ export const getCurrentDate = (): string => {
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${year}_${month}_${day}`;
 };
-export const createJsonFile = (): void => {
+export const createJsonFile = () => {
   // Example data to store in the JSON file
   const dataToStore = {
     isTradeExecuted: false,
     accountDetails: {
       capitalUsed: '',
     },
-    tradeDetails: [
-      {
-        shortStraddle: 'short_sraddle_1',
-        call: { strike: '', mtm: '' },
-        put: { strike: '', mtm: '' },
-        mtmTotal: '',
-      },
-    ],
+    tradeDetails: {
+      shortStraddle: 'short_sraddle_1',
+      call: { strike: '', token: '', mtm: '' },
+      put: { strike: '', token: '', mtm: '' },
+      mtmTotal: '',
+    },
   };
   // Generate the file name with the current date
   const currentDate = getCurrentDate();
@@ -124,4 +122,5 @@ export const createJsonFile = (): void => {
       console.log(`Data stored successfully in file: ${fileName}`);
     }
   });
+  return dataToStore;
 };

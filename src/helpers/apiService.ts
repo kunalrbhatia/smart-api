@@ -1,5 +1,5 @@
 import { get, isArray } from 'lodash';
-let { SmartAPI, WebSocket,WebSocketV2 } = require('smartapi-javascript');
+let { SmartAPI, WebSocket, WebSocketV2 } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
@@ -150,7 +150,18 @@ export const getPositions = async () => {
     });
 };
 type doOrderType = { tradingsymbol: string };
-export const doOrder = async ({ tradingsymbol }: doOrderType) => {
+type doOrderResponse = {
+  status: boolean;
+  message: string;
+  errorcode: string;
+  data: {
+    script: string;
+    orderid: string;
+  };
+};
+export const doOrder = async ({
+  tradingsymbol,
+}: doOrderType): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   let data = JSON.stringify({
@@ -209,14 +220,25 @@ export const shortStraddle = async () => {
     strikePrice: atmStrike.toString(),
   });
   await delay({ milliSeconds: DELAY });
-  await doOrder({ tradingsymbol: get(ceToken, '0.symbol','') });
+  const ceOrderData = await doOrder({
+    tradingsymbol: get(ceToken, '0.symbol', ''),
+  });
   await delay({ milliSeconds: DELAY });
-  await doOrder({ tradingsymbol: get(peToken, '0.symbol','') });
+  const peOrderData = await doOrder({
+    tradingsymbol: get(peToken, '0.symbol', ''),
+  });
   await delay({ milliSeconds: DELAY });
+  return {
+    stikePrice: atmStrike.toString(),
+    ceOrderToken: get(ceToken, '0.token', ''),
+    peOrderToken: get(peToken, '0.token', ''),
+    ceOrderStatus: ceOrderData.status,
+    peOrderStatus: peOrderData.status,
+  };
 };
 export const getNewWebSocket = async () => {
   const smartApiData: ISmartApiData = await generateSmartSession();
-   return  new WebSocketV2({
+  return new WebSocketV2({
     jwttoken: smartApiData.jwtToken,
     apikey: API_KEY,
     clientcode: CLIENT_CODE,

@@ -9,8 +9,15 @@ import express, {
 } from 'express';
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
-import { getLtpData, getScrip, shortStraddle } from './helpers/apiService';
-import { createJsonFile } from './helpers/functions';
+import {
+  getLtpData,
+  getPositions,
+  getScrip,
+  shortStraddle,
+} from './helpers/apiService';
+import { createJsonFile, delay, isPastTime } from './helpers/functions';
+import { DELAY } from './constants';
+import { get } from 'lodash';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -41,18 +48,30 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  createJsonFile();
-  //CHECK IF IT IS PAST 10:15
-  // while (!isPastTime()) {
-  //   await delay({ milliSeconds: DELAY });
-  // }
-  //await shortStraddle();
+  const data = createJsonFile();
+  // CHECK IF IT IS PAST 10:15
+  while (!isPastTime()) {
+    await delay({ milliSeconds: DELAY });
+  }
+  let no_of_shortStraddles = 1;
+  const shortStraddleData = await shortStraddle();
+  if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
+    data.isTradeExecuted = true;
+    data.tradeDetails.call.strike = shortStraddleData.stikePrice.toString();
+    data.tradeDetails.call.token = shortStraddleData.ceOrderToken;
+    data.tradeDetails.put.strike = shortStraddleData.stikePrice.toString();
+    data.tradeDetails.put.token = shortStraddleData.peOrderToken;
+    data.tradeDetails.shortStraddle = `shortStraddle_${no_of_shortStraddles}`;
+  }
+  console.log(shortStraddleData);
   // const currentPositions = await getPositions();
   // const currentPositionsData: object[] = get(currentPositions, 'data');
+  // console.log(currentPositionsData);
   // let mtm = 0;
   // currentPositionsData.forEach((value) => {
-  //   mtm += parseInt(get(value, 'unrealised'));
+  //   mtm += parseInt(get(value, 'unrealised', ''));
   // });
+  // console.log('mtm: ', mtm);
   // DO ORDER WITH ONE LOT
   // KEEP CHECKING IN AN INTERVAL OF 5 MINS THAT BNF HAS MADE PLUS OR MINUS 300 POINTS FROM THE TIME OF ORDER PUNCHED
   // IF BNF MOVED MORE THAN 300 POINTS THEN DO ORDER AGAIN WITH 1 MORE LOT
