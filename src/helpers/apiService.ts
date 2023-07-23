@@ -15,7 +15,7 @@ import {
 } from '../constants';
 import { delay, getAtmStrikePrice, getNextExpiry } from './functions';
 import { Response } from 'express';
-import { ISmartApiData } from '../app.interface';
+import { ISmartApiData, JsonFileStructure } from '../app.interface';
 type getLtpDataType = {
   exchange: string;
   tradingsymbol: string;
@@ -197,6 +197,22 @@ export const doOrder = async ({
     .catch(function (error: Response) {
       return error;
     });
+};
+export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
+  const currentPositions = await getPositions();
+  const currentPositionsData: object[] = get(currentPositions, 'data');
+  let mtm = 0;
+  currentPositionsData.forEach((value) => {
+    data.tradeDetails.forEach((trade) => {
+      if (
+        trade.call.token === get(value, 'symboltoken', '') ||
+        trade.put.token === get(value, 'symboltoken', '')
+      ) {
+        mtm += parseInt(get(value, 'unrealised', ''));
+      }
+    });
+  });
+  return data;
 };
 export const shortStraddle = async () => {
   //GET ATM STIKE PRICE

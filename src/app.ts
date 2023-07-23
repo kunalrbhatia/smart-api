@@ -10,6 +10,7 @@ import express, {
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import {
+  calculateMtm,
   getLtpData,
   getPositions,
   getScrip,
@@ -48,30 +49,32 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  const data = createJsonFile();
+  let data = createJsonFile();
   // CHECK IF IT IS PAST 10:15
   while (!isPastTime()) {
     await delay({ milliSeconds: DELAY });
   }
-  let no_of_shortStraddles = 1;
   const shortStraddleData = await shortStraddle();
   if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
     data.isTradeExecuted = true;
-    data.tradeDetails.call.strike = shortStraddleData.stikePrice.toString();
-    data.tradeDetails.call.token = shortStraddleData.ceOrderToken;
-    data.tradeDetails.put.strike = shortStraddleData.stikePrice.toString();
-    data.tradeDetails.put.token = shortStraddleData.peOrderToken;
-    data.tradeDetails.shortStraddle = `shortStraddle_${no_of_shortStraddles}`;
+    data.tradeDetails.push({
+      mtmTotal: 0,
+      call: {
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.ceOrderToken,
+        mtm: 0,
+      },
+      put: {
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.peOrderToken,
+        mtm: 0,
+      },
+    });
   }
-  console.log(shortStraddleData);
-  // const currentPositions = await getPositions();
-  // const currentPositionsData: object[] = get(currentPositions, 'data');
-  // console.log(currentPositionsData);
-  // let mtm = 0;
-  // currentPositionsData.forEach((value) => {
-  //   mtm += parseInt(get(value, 'unrealised', ''));
-  // });
-  // console.log('mtm: ', mtm);
+  
+  let mtmData = await calculateMtm({ data });
+  
+
   // DO ORDER WITH ONE LOT
   // KEEP CHECKING IN AN INTERVAL OF 5 MINS THAT BNF HAS MADE PLUS OR MINUS 300 POINTS FROM THE TIME OF ORDER PUNCHED
   // IF BNF MOVED MORE THAN 300 POINTS THEN DO ORDER AGAIN WITH 1 MORE LOT

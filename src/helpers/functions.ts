@@ -1,6 +1,7 @@
 import { getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
+import { JsonFileStructure } from '../app.interface';
 export const getNextExpiry = () => {
   const today = new Date();
   const dayOfWeek = today.getDay();
@@ -95,19 +96,20 @@ export const getCurrentDate = (): string => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}_${month}_${day}`;
 };
-export const createJsonFile = () => {
+export const createJsonFile = (): JsonFileStructure => {
   // Example data to store in the JSON file
-  const dataToStore = {
+  const dataToStore: JsonFileStructure = {
     isTradeExecuted: false,
     accountDetails: {
-      capitalUsed: '',
+      capitalUsed: 0,
     },
-    tradeDetails: {
-      shortStraddle: 'short_sraddle_1',
-      call: { strike: '', token: '', mtm: '' },
-      put: { strike: '', token: '', mtm: '' },
-      mtmTotal: '',
-    },
+    tradeDetails: [
+      {
+        call: { strike: '', token: '', mtm: 0 },
+        put: { strike: '', token: '', mtm: 0 },
+        mtmTotal: 0,
+      },
+    ],
   };
   // Generate the file name with the current date
   const currentDate = getCurrentDate();
