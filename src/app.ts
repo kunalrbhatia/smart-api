@@ -15,20 +15,16 @@ import {
   closeTrade,
   getLtpData,
   getScrip,
-  repeatShortStraddle,
   shortStraddle,
 } from './helpers/apiService';
 import {
   createJsonFile,
-  delay,
   getAtmStrikePrice,
   isPastTime,
   readJsonFile,
   writeJsonFile,
 } from './helpers/functions';
-import { DELAY } from './constants';
 import { get } from 'lodash';
-import { JsonFileStructure } from './app.interface';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -82,9 +78,9 @@ app.post('/run-algo', async (req: Request, res: Response) => {
             mtm: 0,
           },
         });
+        writeJsonFile(data);
       }
     } else {
-      let reformedData: JsonFileStructure;
       const atmStrike = await getAtmStrikePrice();
       const no_of_trades = data.tradeDetails.length;
       const previousTradeStrikePrice = get(
