@@ -57,7 +57,7 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
 app.post('/run-algo', async (req: Request, res: Response) => {
   if (!isPastTime({ hours: 10, minutes: 15 })) {
     res.json({
-      message: 'Wait it is not over 10:15 am',
+      mtm: 'Wait it is not over 10:15 am',
     });
   } else {
     let data = createJsonFile();
@@ -99,14 +99,14 @@ app.post('/run-algo', async (req: Request, res: Response) => {
       const updatedJson = readJsonFile();
       closeTrade(updatedJson);
       res.json({
-        message: 'Trade Closed',
+        mtm: 'Trade Closed',
       });
     }
     if (!isPastTime({ hours: 15, minutes: 25 })) {
       const updatedJson = readJsonFile();
       closeTrade(updatedJson);
       res.json({
-        message: 'Trade Closed',
+        mtm: 'Trade Closed',
       });
     }
     res.json({
