@@ -11,6 +11,7 @@ import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import {
   calculateMtm,
+  checkToRepeatShortStraddle,
   closeTrade,
   getLtpData,
   getScrip,
@@ -58,66 +59,64 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  while (!isPastTime({ hours: 10, minutes: 15 })) {
-    await delay({ milliSeconds: DELAY });
-  }
-
-  let data = createJsonFile();
-  if (!data.isTradeExecuted) {
-    const shortStraddleData = await shortStraddle();
-    if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
-      data.isTradeExecuted = true;
-      data.tradeDetails.push({
-        mtmTotal: 0,
-        call: {
-          strike: shortStraddleData.stikePrice,
-          token: shortStraddleData.ceOrderToken,
-          mtm: 0,
-        },
-        put: {
-          strike: shortStraddleData.stikePrice,
-          token: shortStraddleData.peOrderToken,
-          mtm: 0,
-        },
+  if (!isPastTime({ hours: 10, minutes: 15 })) {
+    res.json({
+      message: 'Wait it is not over 10:15 am',
+    });
+  } else {
+    let data = createJsonFile();
+    if (!data.isTradeExecuted) {
+      const shortStraddleData = await shortStraddle();
+      if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
+        data.isTradeExecuted = true;
+        data.tradeDetails.push({
+          mtmTotal: 0,
+          call: {
+            strike: shortStraddleData.stikePrice,
+            token: shortStraddleData.ceOrderToken,
+            mtm: 0,
+          },
+          put: {
+            strike: shortStraddleData.stikePrice,
+            token: shortStraddleData.peOrderToken,
+            mtm: 0,
+          },
+        });
+      }
+    } else {
+      let reformedData: JsonFileStructure;
+      const atmStrike = await getAtmStrikePrice();
+      const no_of_trades = data.tradeDetails.length;
+      const previousTradeStrikePrice = get(
+        data,
+        `tradeDetails.${no_of_trades - 1}.call.strike`,
+        ''
+      );
+      checkToRepeatShortStraddle(
+        atmStrike,
+        parseInt(previousTradeStrikePrice),
+        data
+      );
+    }
+    let mtmData = await calculateMtm({ data });
+    if (mtmData > 2000) {
+      const updatedJson = readJsonFile();
+      closeTrade(updatedJson);
+      res.json({
+        message: 'Trade Closed',
       });
     }
-  } else {
-    let reformedData: JsonFileStructure;
-    const atmStrike = await getAtmStrikePrice();
-    const no_of_trades = data.tradeDetails.length;
-    const previousTradeStrikePrice = get(
-      data,
-      `tradeDetails.${no_of_trades - 1}.call.strike`,
-      ''
-    );
-    if (atmStrike > parseInt(previousTradeStrikePrice)) {
-      const difference = atmStrike - parseInt(previousTradeStrikePrice);
-      reformedData = await repeatShortStraddle(difference, data, atmStrike);
-      writeJsonFile(reformedData);
-    } else if (atmStrike < parseInt(previousTradeStrikePrice)) {
-      const difference = parseInt(previousTradeStrikePrice) - atmStrike;
-      reformedData = await repeatShortStraddle(difference, data, atmStrike);
-      writeJsonFile(reformedData);
+    if (!isPastTime({ hours: 15, minutes: 25 })) {
+      const updatedJson = readJsonFile();
+      closeTrade(updatedJson);
+      res.json({
+        message: 'Trade Closed',
+      });
     }
-  }
-  let mtmData = await calculateMtm({ data });
-  if (mtmData > 2000) {
-    const updatedJson = readJsonFile();
-    closeTrade(updatedJson);
     res.json({
-      message: 'Trade Closed',
+      mtm: mtmData,
     });
   }
-  if (!isPastTime({ hours: 15, minutes: 25 })) {
-    const updatedJson = readJsonFile();
-    closeTrade(updatedJson);
-    res.json({
-      message: 'Trade Closed',
-    });
-  }
-  res.json({
-    mtm: mtmData,
-  });
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());

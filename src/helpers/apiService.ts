@@ -20,6 +20,7 @@ import {
   delay,
   getAtmStrikePrice,
   getNextExpiry,
+  writeJsonFile,
 } from './functions';
 import { Response } from 'express';
 import { ISmartApiData, JsonFileStructure } from '../app.interface';
@@ -331,4 +332,20 @@ export const closeTrade = (data: JsonFileStructure) => {
     await delay({ milliSeconds: SHORT_DELAY });
     await doOrder({ tradingsymbol: trade.put.token, orderType: 'BUY' });
   });
+};
+export const checkToRepeatShortStraddle = async (
+  atmStrike: number,
+  previousTradeStrikePrice: number,
+  data: JsonFileStructure
+) => {
+  let reformedData;
+  if (atmStrike > previousTradeStrikePrice) {
+    const difference = atmStrike - previousTradeStrikePrice;
+    reformedData = await repeatShortStraddle(difference, data, atmStrike);
+    writeJsonFile(reformedData);
+  } else if (atmStrike < previousTradeStrikePrice) {
+    const difference = previousTradeStrikePrice - atmStrike;
+    reformedData = await repeatShortStraddle(difference, data, atmStrike);
+    writeJsonFile(reformedData);
+  }
 };
