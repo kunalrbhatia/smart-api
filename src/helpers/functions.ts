@@ -1,7 +1,7 @@
 import { getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
-import { JsonFileStructure } from '../app.interface';
+import { JsonFileStructure, TradeDetails } from '../app.interface';
 export const getNextExpiry = () => {
   const today = new Date();
   const dayOfWeek = today.getDay();
@@ -128,4 +128,27 @@ export const createJsonFile = (): JsonFileStructure => {
     });
   }
   return json;
+};
+export const writeJsonFile = (data: JsonFileStructure) => {
+  const currentDate = getCurrentDate();
+  const fileName = `${currentDate}_trades.json`;
+  const dataToStoreString = JSON.stringify(data);
+  fs.writeFile(fileName, dataToStoreString, (err) => {
+    if (err) {
+      console.error('Error writing data to file:', err);
+    } else {
+      console.log(`Data stored successfully in file: ${fileName}`);
+    }
+  });
+};
+export const checkStrike = (
+  tradeDetails: TradeDetails[],
+  strike: string
+): boolean => {
+  for (const trade of tradeDetails) {
+    if (trade.call.strike === strike || trade.put.strike === strike) {
+      return true;
+    }
+  }
+  return false;
 };

@@ -14,7 +14,12 @@ import {
   ORDER_API,
   GET_MARGIN,
 } from '../constants';
-import { delay, getAtmStrikePrice, getNextExpiry } from './functions';
+import {
+  checkStrike,
+  delay,
+  getAtmStrikePrice,
+  getNextExpiry,
+} from './functions';
 import { Response } from 'express';
 import { ISmartApiData, JsonFileStructure } from '../app.interface';
 type getLtpDataType = {
@@ -213,7 +218,7 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
       }
     });
   });
-  return data;
+  return mtm;
 };
 export const shortStraddle = async () => {
   //GET ATM STIKE PRICE
@@ -287,4 +292,30 @@ export const getMarginDetails = async () => {
     .catch(function (error: Response) {
       return error;
     });
+};
+export const repeatShortStraddle = async (
+  difference: number,
+  data: JsonFileStructure,
+  atmStrike: number
+) => {
+  if (
+    difference > 300 &&
+    checkStrike(get(data, 'tradeDetails', []), atmStrike.toString()) === false
+  ) {
+    const shortStraddleData = await shortStraddle();
+    data.tradeDetails.push({
+      mtmTotal: 0,
+      call: {
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.ceOrderToken,
+        mtm: 0,
+      },
+      put: {
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.peOrderToken,
+        mtm: 0,
+      },
+    });
+  }
+  return data;
 };

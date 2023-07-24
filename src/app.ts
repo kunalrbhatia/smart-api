@@ -15,11 +15,20 @@ import {
   getMarginDetails,
   getPositions,
   getScrip,
+  repeatShortStraddle,
   shortStraddle,
 } from './helpers/apiService';
-import { createJsonFile, delay, isPastTime } from './helpers/functions';
+import {
+  checkStrike,
+  createJsonFile,
+  delay,
+  getAtmStrikePrice,
+  isPastTime,
+  writeJsonFile,
+} from './helpers/functions';
 import { DELAY } from './constants';
 import { get } from 'lodash';
+import { JsonFileStructure } from './app.interface';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -56,25 +65,48 @@ app.post('/run-algo', async (req: Request, res: Response) => {
   }
 
   let data = createJsonFile();
-  const shortStraddleData = await shortStraddle();
-  if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
-    data.isTradeExecuted = true;
-    data.tradeDetails.push({
-      mtmTotal: 0,
-      call: {
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.ceOrderToken,
-        mtm: 0,
-      },
-      put: {
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.peOrderToken,
-        mtm: 0,
-      },
-    });
+  if (!data.isTradeExecuted) {
+    const shortStraddleData = await shortStraddle();
+    if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
+      data.isTradeExecuted = true;
+      data.tradeDetails.push({
+        mtmTotal: 0,
+        call: {
+          strike: shortStraddleData.stikePrice,
+          token: shortStraddleData.ceOrderToken,
+          mtm: 0,
+        },
+        put: {
+          strike: shortStraddleData.stikePrice,
+          token: shortStraddleData.peOrderToken,
+          mtm: 0,
+        },
+      });
+    }
+  } else {
+    let reformedData: JsonFileStructure;
+    const atmStrike = await getAtmStrikePrice();
+    const no_of_trades = data.tradeDetails.length;
+    const previousTradeStrikePrice = get(
+      data,
+      `tradeDetails.${no_of_trades - 1}.call.strike`,
+      ''
+    );
+    if (atmStrike > parseInt(previousTradeStrikePrice)) {
+      const difference = atmStrike - parseInt(previousTradeStrikePrice);
+      reformedData = await repeatShortStraddle(difference, data, atmStrike);
+      writeJsonFile(reformedData);
+    } else if (atmStrike < parseInt(previousTradeStrikePrice)) {
+      const difference = parseInt(previousTradeStrikePrice) - atmStrike;
+      reformedData = await repeatShortStraddle(difference, data, atmStrike);
+      writeJsonFile(reformedData);
+    }
   }
   let mtmData = await calculateMtm({ data });
-  const marginDetails = await getMarginDetails();
+  if (mtmData > 2000) {
+    //closeTrade
+  }
+  //const marginDetails = await getMarginDetails();
 
   // DO ORDER WITH ONE LOT
   // KEEP CHECKING IN AN INTERVAL OF 5 MINS THAT BNF HAS MADE PLUS OR MINUS 300 POINTS FROM THE TIME OF ORDER PUNCHED
