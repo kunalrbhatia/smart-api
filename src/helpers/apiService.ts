@@ -155,7 +155,7 @@ export const getPositions = async () => {
       return error;
     });
 };
-type doOrderType = { tradingsymbol: string };
+type doOrderType = { tradingsymbol: string; orderType: 'BUY' | 'SELL' };
 type doOrderResponse = {
   status: boolean;
   message: string;
@@ -167,6 +167,7 @@ type doOrderResponse = {
 };
 export const doOrder = async ({
   tradingsymbol,
+  orderType,
 }: doOrderType): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
@@ -244,10 +245,12 @@ export const shortStraddle = async () => {
   await delay({ milliSeconds: DELAY });
   const ceOrderData = await doOrder({
     tradingsymbol: get(ceToken, '0.symbol', ''),
+    orderType: 'SELL',
   });
   await delay({ milliSeconds: DELAY });
   const peOrderData = await doOrder({
     tradingsymbol: get(peToken, '0.symbol', ''),
+    orderType: 'SELL',
   });
   await delay({ milliSeconds: DELAY });
   return {
