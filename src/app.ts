@@ -13,14 +13,11 @@ import {
   calculateMtm,
   closeTrade,
   getLtpData,
-  getMarginDetails,
-  getPositions,
   getScrip,
   repeatShortStraddle,
   shortStraddle,
 } from './helpers/apiService';
 import {
-  checkStrike,
   createJsonFile,
   delay,
   getAtmStrikePrice,
