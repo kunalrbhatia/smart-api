@@ -11,6 +11,7 @@ import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import {
   calculateMtm,
+  closeTrade,
   getLtpData,
   getMarginDetails,
   getPositions,
@@ -24,6 +25,7 @@ import {
   delay,
   getAtmStrikePrice,
   isPastTime,
+  readJsonFile,
   writeJsonFile,
 } from './helpers/functions';
 import { DELAY } from './constants';
@@ -60,7 +62,7 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
   // CHECK IF IT IS PAST 10:15
-  while (!isPastTime()) {
+  while (!isPastTime({ hours: 10, minutes: 15 })) {
     await delay({ milliSeconds: DELAY });
   }
 
@@ -104,15 +106,14 @@ app.post('/run-algo', async (req: Request, res: Response) => {
   }
   let mtmData = await calculateMtm({ data });
   if (mtmData > 2000) {
-    //closeTrade
+    const updatedJson = readJsonFile();
+    closeTrade(updatedJson);
   }
-  //const marginDetails = await getMarginDetails();
-
-  // DO ORDER WITH ONE LOT
-  // KEEP CHECKING IN AN INTERVAL OF 5 MINS THAT BNF HAS MADE PLUS OR MINUS 300 POINTS FROM THE TIME OF ORDER PUNCHED
-  // IF BNF MOVED MORE THAN 300 POINTS THEN DO ORDER AGAIN WITH 1 MORE LOT
-  // ELSE KEEP WAITING
-  // CLOSE POSITION ON OR AFTER 3:25 BUT BEFORE 3:30
+  while (!isPastTime({ hours: 15, minutes: 25 })) {
+    await delay({ milliSeconds: DELAY });
+  }
+  const updatedJson = readJsonFile();
+  closeTrade(updatedJson);
   res.json({
     message: 'Success: ',
   });

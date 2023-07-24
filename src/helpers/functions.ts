@@ -76,14 +76,15 @@ export const delay = ({ milliSeconds }: delayType) => {
     setTimeout(resolve, milliSeconds);
   });
 };
-export const isPastTime = (): boolean => {
+type isPastTimeType = { hours: number; minutes: number };
+export const isPastTime = ({ hours, minutes }: isPastTimeType): boolean => {
   const currentTime = new Date();
   const targetTime = new Date(
     currentTime.getFullYear(),
     currentTime.getMonth(),
     currentTime.getDate(),
-    10,
-    15,
+    hours,
+    minutes,
     0
   );
 
@@ -140,6 +141,13 @@ export const writeJsonFile = (data: JsonFileStructure) => {
       console.log(`Data stored successfully in file: ${fileName}`);
     }
   });
+};
+export const readJsonFile = (): JsonFileStructure => {
+  const currentDate = getCurrentDate();
+  const fileName = `${currentDate}_trades.json`;
+  const dataFromFile = fs.readFileSync(fileName, 'utf-8');
+  const dataFromFileJson = JSON.parse(dataFromFile);
+  return dataFromFileJson;
 };
 export const checkStrike = (
   tradeDetails: TradeDetails[],

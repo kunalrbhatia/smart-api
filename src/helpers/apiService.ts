@@ -13,6 +13,7 @@ import {
   DELAY,
   ORDER_API,
   GET_MARGIN,
+  SHORT_DELAY,
 } from '../constants';
 import {
   checkStrike,
@@ -321,4 +322,13 @@ export const repeatShortStraddle = async (
     });
   }
   return data;
+};
+export const closeTrade = (data: JsonFileStructure) => {
+  const tradeDetails = data.tradeDetails;
+  tradeDetails.forEach(async (trade) => {
+    await delay({ milliSeconds: SHORT_DELAY });
+    await doOrder({ tradingsymbol: trade.call.token, orderType: 'BUY' });
+    await delay({ milliSeconds: SHORT_DELAY });
+    await doOrder({ tradingsymbol: trade.put.token, orderType: 'BUY' });
+  });
 };
