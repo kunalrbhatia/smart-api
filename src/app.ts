@@ -61,7 +61,6 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  // CHECK IF IT IS PAST 10:15
   while (!isPastTime({ hours: 10, minutes: 15 })) {
     await delay({ milliSeconds: DELAY });
   }
@@ -108,14 +107,19 @@ app.post('/run-algo', async (req: Request, res: Response) => {
   if (mtmData > 2000) {
     const updatedJson = readJsonFile();
     closeTrade(updatedJson);
+    res.json({
+      message: 'Trade Closed',
+    });
   }
-  while (!isPastTime({ hours: 15, minutes: 25 })) {
-    await delay({ milliSeconds: DELAY });
+  if (!isPastTime({ hours: 15, minutes: 25 })) {
+    const updatedJson = readJsonFile();
+    closeTrade(updatedJson);
+    res.json({
+      message: 'Trade Closed',
+    });
   }
-  const updatedJson = readJsonFile();
-  closeTrade(updatedJson);
   res.json({
-    message: 'Success: ',
+    message: 'Trade Executed',
   });
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
