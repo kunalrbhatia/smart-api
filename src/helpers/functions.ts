@@ -97,8 +97,7 @@ export const getCurrentDate = (): string => {
   return `${year}_${month}_${day}`;
 };
 export const createJsonFile = (): JsonFileStructure => {
-  // Example data to store in the JSON file
-  const dataToStore: JsonFileStructure = {
+  let json: JsonFileStructure = {
     isTradeExecuted: false,
     accountDetails: {
       capitalUsed: 0,
@@ -111,18 +110,22 @@ export const createJsonFile = (): JsonFileStructure => {
       },
     ],
   };
-  // Generate the file name with the current date
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
-  // Convert the data to a JSON string
-  const dataToStoreString = JSON.stringify(dataToStore);
-  // Write the data to the file
-  fs.writeFile(fileName, dataToStoreString, (err) => {
-    if (err) {
-      console.error('Error writing data to file:', err);
-    } else {
-      console.log(`Data stored successfully in file: ${fileName}`);
-    }
-  });
-  return dataToStore;
+  const exists = fs.existsSync(fileName);
+  if (exists) {
+    const dataFromFile = fs.readFileSync(fileName, 'utf-8');
+    const dataFromFileJson = JSON.parse(dataFromFile);
+    json = dataFromFileJson;
+  } else {
+    const dataToStoreString = JSON.stringify(json);
+    fs.writeFile(fileName, dataToStoreString, (err) => {
+      if (err) {
+        console.error('Error writing data to file:', err);
+      } else {
+        console.log(`Data stored successfully in file: ${fileName}`);
+      }
+    });
+  }
+  return json;
 };

@@ -12,6 +12,7 @@ import createHttpError from 'http-errors';
 import {
   calculateMtm,
   getLtpData,
+  getMarginDetails,
   getPositions,
   getScrip,
   shortStraddle,
@@ -49,11 +50,12 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  let data = createJsonFile();
   // CHECK IF IT IS PAST 10:15
   while (!isPastTime()) {
     await delay({ milliSeconds: DELAY });
   }
+
+  let data = createJsonFile();
   const shortStraddleData = await shortStraddle();
   if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
     data.isTradeExecuted = true;
@@ -71,9 +73,8 @@ app.post('/run-algo', async (req: Request, res: Response) => {
       },
     });
   }
-  
   let mtmData = await calculateMtm({ data });
-  
+  const marginDetails = await getMarginDetails();
 
   // DO ORDER WITH ONE LOT
   // KEEP CHECKING IN AN INTERVAL OF 5 MINS THAT BNF HAS MADE PLUS OR MINUS 300 POINTS FROM THE TIME OF ORDER PUNCHED

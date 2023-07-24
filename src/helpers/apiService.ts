@@ -12,6 +12,7 @@ import {
   GET_POSITIONS,
   DELAY,
   ORDER_API,
+  GET_MARGIN,
 } from '../constants';
 import { delay, getAtmStrikePrice, getNextExpiry } from './functions';
 import { Response } from 'express';
@@ -201,6 +202,7 @@ export const doOrder = async ({
 export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   const currentPositions = await getPositions();
   const currentPositionsData: object[] = get(currentPositions, 'data');
+  console.log(currentPositionsData);
   let mtm = 0;
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
@@ -260,4 +262,30 @@ export const getNewWebSocket = async () => {
     clientcode: CLIENT_CODE,
     feedtype: smartApiData.feedToken,
   });
+};
+export const getMarginDetails = async () => {
+  const smartApiData: ISmartApiData = await generateSmartSession();
+  const jwtToken = get(smartApiData, 'jwtToken');
+  const config = {
+    method: 'get',
+    url: GET_MARGIN,
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': API_KEY,
+    },
+  };
+  return axios(config)
+    .then((response: Response) => {
+      return get(response, 'data');
+    })
+    .catch(function (error: Response) {
+      return error;
+    });
 };
