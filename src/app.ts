@@ -119,7 +119,7 @@ app.post('/run-algo', async (req: Request, res: Response) => {
     });
   }
   res.json({
-    message: 'Trade Executed',
+    mtm: mtmData,
   });
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
