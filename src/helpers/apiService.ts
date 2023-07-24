@@ -202,7 +202,6 @@ export const doOrder = async ({
 export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   const currentPositions = await getPositions();
   const currentPositionsData: object[] = get(currentPositions, 'data');
-  console.log(currentPositionsData);
   let mtm = 0;
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
