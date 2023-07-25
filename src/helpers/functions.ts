@@ -87,7 +87,6 @@ export const isPastTime = ({ hours, minutes }: isPastTimeType): boolean => {
     minutes,
     0
   );
-
   return currentTime > targetTime;
 };
 export const getCurrentDate = (): string => {

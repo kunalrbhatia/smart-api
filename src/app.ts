@@ -83,7 +83,6 @@ app.post('/run-algo', async (req: Request, res: Response) => {
         writeJsonFile(data);
       }
     } else {
-      console.log('here to repeat');
       const atmStrike = await getAtmStrikePrice();
       const no_of_trades = data.tradeDetails.length;
       const previousTradeStrikePrice = get(
@@ -98,7 +97,7 @@ app.post('/run-algo', async (req: Request, res: Response) => {
       );
     }
     let mtmData = await calculateMtm({ data: readJsonFile() });
-    if (mtmData > 2000 || !isPastTime({ hours: 15, minutes: 25 })) {
+    if (mtmData > 2000 || isPastTime({ hours: 15, minutes: 25 })) {
       closeTrade(readJsonFile());
       res.json({
         mtm: 'Trade Closed',
