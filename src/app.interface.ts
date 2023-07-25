@@ -4,9 +4,8 @@ export interface ISmartApiData {
   feedToken: string;
 }
 export interface TradeDetails {
-  call: { strike: string; token: string; mtm: number; symbol: string };
-  put: { strike: string; token: string; mtm: number; symbol: string };
-  mtmTotal: number;
+  call: { strike: string; token: string; symbol: string };
+  put: { strike: string; token: string; symbol: string };
 }
 export interface JsonFileStructure {
   isTradeExecuted: boolean;

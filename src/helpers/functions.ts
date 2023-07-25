@@ -102,13 +102,7 @@ export const createJsonFile = (): JsonFileStructure => {
     accountDetails: {
       capitalUsed: 0,
     },
-    tradeDetails: [
-      {
-        call: { strike: '', token: '', mtm: 0, symbol: '' },
-        put: { strike: '', token: '', mtm: 0, symbol: '' },
-        mtmTotal: 0,
-      },
-    ],
+    tradeDetails: [],
   };
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;

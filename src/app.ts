@@ -66,18 +66,15 @@ app.post('/run-algo', async (req: Request, res: Response) => {
       if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
         data.isTradeExecuted = true;
         data.tradeDetails.push({
-          mtmTotal: 0,
           call: {
             strike: shortStraddleData.stikePrice,
             token: shortStraddleData.ceOrderToken,
             symbol: shortStraddleData.ceOrderSymbol,
-            mtm: 0,
           },
           put: {
             strike: shortStraddleData.stikePrice,
             token: shortStraddleData.peOrderToken,
             symbol: shortStraddleData.peOrderSymbol,
-            mtm: 0,
           },
         });
         writeJsonFile(data);

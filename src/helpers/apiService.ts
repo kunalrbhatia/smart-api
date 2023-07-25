@@ -321,18 +321,15 @@ export const repeatShortStraddle = async (
   ) {
     const shortStraddleData = await shortStraddle();
     data.tradeDetails.push({
-      mtmTotal: 0,
       call: {
         strike: shortStraddleData.stikePrice,
         token: shortStraddleData.ceOrderToken,
         symbol: shortStraddleData.ceOrderSymbol,
-        mtm: 0,
       },
       put: {
         strike: shortStraddleData.stikePrice,
         token: shortStraddleData.peOrderToken,
         symbol: shortStraddleData.peOrderSymbol,
-        mtm: 0,
       },
     });
   }
