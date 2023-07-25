@@ -70,17 +70,20 @@ app.post('/run-algo', async (req: Request, res: Response) => {
           call: {
             strike: shortStraddleData.stikePrice,
             token: shortStraddleData.ceOrderToken,
+            symbol: shortStraddleData.ceOrderSymbol,
             mtm: 0,
           },
           put: {
             strike: shortStraddleData.stikePrice,
             token: shortStraddleData.peOrderToken,
+            symbol: shortStraddleData.peOrderSymbol,
             mtm: 0,
           },
         });
         writeJsonFile(data);
       }
     } else {
+      console.log('here to repeat');
       const atmStrike = await getAtmStrikePrice();
       const no_of_trades = data.tradeDetails.length;
       const previousTradeStrikePrice = get(
@@ -95,21 +98,16 @@ app.post('/run-algo', async (req: Request, res: Response) => {
       );
     }
     let mtmData = await calculateMtm({ data: readJsonFile() });
-    if (mtmData > 2000) {
+    if (mtmData > 2000 || !isPastTime({ hours: 15, minutes: 25 })) {
       closeTrade(readJsonFile());
       res.json({
         mtm: 'Trade Closed',
       });
-    }
-    if (!isPastTime({ hours: 15, minutes: 25 })) {
-      closeTrade(readJsonFile());
+    } else {
       res.json({
-        mtm: 'Trade Closed',
+        mtm: mtmData,
       });
     }
-    res.json({
-      mtm: mtmData,
-    });
   }
 });
 app.use((req: Request, res: Response, next: NextFunction) => {

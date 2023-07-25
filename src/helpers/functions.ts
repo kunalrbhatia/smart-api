@@ -105,8 +105,8 @@ export const createJsonFile = (): JsonFileStructure => {
     },
     tradeDetails: [
       {
-        call: { strike: '', token: '', mtm: 0 },
-        put: { strike: '', token: '', mtm: 0 },
+        call: { strike: '', token: '', mtm: 0, symbol: '' },
+        put: { strike: '', token: '', mtm: 0, symbol: '' },
         mtmTotal: 0,
       },
     ],

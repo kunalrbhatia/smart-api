@@ -157,7 +157,11 @@ export const getPositions = async () => {
       return error;
     });
 };
-type doOrderType = { tradingsymbol: string; orderType: 'BUY' | 'SELL' };
+type doOrderType = {
+  tradingsymbol: string;
+  symboltoken: string;
+  orderType: 'BUY' | 'SELL';
+};
 type doOrderResponse = {
   status: boolean;
   message: string;
@@ -170,15 +174,17 @@ type doOrderResponse = {
 export const doOrder = async ({
   tradingsymbol,
   orderType,
+  symboltoken,
 }: doOrderType): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   let data = JSON.stringify({
     exchange: 'NFO',
     tradingsymbol,
-    quantity: 1,
+    symboltoken,
+    quantity: '15',
     disclosedquantity: 1,
-    transactiontype: 'SELL',
+    transactiontype: orderType,
     ordertype: 'MARKET',
     variety: 'NORMAL',
     producttype: 'CARRYFORWARD',
@@ -226,9 +232,11 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
 export const shortStraddle = async () => {
   //GET ATM STIKE PRICE
   const atmStrike = await getAtmStrikePrice();
+  console.log(atmStrike);
   await delay({ milliSeconds: DELAY });
   //GET CURRENT EXPIRY
   const expiryDate = getNextExpiry();
+  console.log(expiryDate);
   //GET CALL DATA
   const ceToken = await getScrip({
     scriptName: 'BANKNIFTY',
@@ -236,6 +244,7 @@ export const shortStraddle = async () => {
     optionType: 'CE',
     strikePrice: atmStrike.toString(),
   });
+  console.log(ceToken);
   await delay({ milliSeconds: DELAY });
   //GET PUT DATA
   const peToken = await getScrip({
@@ -244,21 +253,28 @@ export const shortStraddle = async () => {
     optionType: 'PE',
     strikePrice: atmStrike.toString(),
   });
+  console.log(peToken);
   await delay({ milliSeconds: DELAY });
   const ceOrderData = await doOrder({
     tradingsymbol: get(ceToken, '0.symbol', ''),
+    symboltoken: get(ceToken, '0.token', ''),
     orderType: 'SELL',
   });
+  console.log(ceOrderData);
   await delay({ milliSeconds: DELAY });
   const peOrderData = await doOrder({
     tradingsymbol: get(peToken, '0.symbol', ''),
+    symboltoken: get(peToken, '0.token', ''),
     orderType: 'SELL',
   });
+  console.log(peOrderData);
   await delay({ milliSeconds: DELAY });
   return {
     stikePrice: atmStrike.toString(),
     ceOrderToken: get(ceToken, '0.token', ''),
     peOrderToken: get(peToken, '0.token', ''),
+    ceOrderSymbol: get(ceToken, '0.symbol', ''),
+    peOrderSymbol: get(peToken, '0.symbol', ''),
     ceOrderStatus: ceOrderData.status,
     peOrderStatus: peOrderData.status,
   };
@@ -313,11 +329,13 @@ export const repeatShortStraddle = async (
       call: {
         strike: shortStraddleData.stikePrice,
         token: shortStraddleData.ceOrderToken,
+        symbol: shortStraddleData.ceOrderSymbol,
         mtm: 0,
       },
       put: {
         strike: shortStraddleData.stikePrice,
         token: shortStraddleData.peOrderToken,
+        symbol: shortStraddleData.peOrderSymbol,
         mtm: 0,
       },
     });
@@ -328,9 +346,17 @@ export const closeTrade = (data: JsonFileStructure) => {
   const tradeDetails = data.tradeDetails;
   tradeDetails.forEach(async (trade) => {
     await delay({ milliSeconds: SHORT_DELAY });
-    await doOrder({ tradingsymbol: trade.call.token, orderType: 'BUY' });
+    await doOrder({
+      tradingsymbol: trade.call.symbol,
+      orderType: 'BUY',
+      symboltoken: trade.call.token,
+    });
     await delay({ milliSeconds: SHORT_DELAY });
-    await doOrder({ tradingsymbol: trade.put.token, orderType: 'BUY' });
+    await doOrder({
+      tradingsymbol: trade.put.symbol,
+      orderType: 'BUY',
+      symboltoken: trade.put.token,
+    });
   });
 };
 export const checkToRepeatShortStraddle = async (
