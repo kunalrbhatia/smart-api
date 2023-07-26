@@ -94,7 +94,7 @@ app.post('/run-algo', async (req: Request, res: Response) => {
       );
     }
     let mtmData = await calculateMtm({ data: readJsonFile() });
-    if (mtmData > 2000 || isPastTime({ hours: 15, minutes: 25 })) {
+    if (mtmData > 2000 || isPastTime({ hours: 15, minutes: 15 })) {
       closeTrade(readJsonFile());
       res.json({
         mtm: 'Trade Closed',

@@ -1,20 +1,8 @@
 import { get, isArray } from 'lodash';
-let { SmartAPI, WebSocket, WebSocketV2 } = require('smartapi-javascript');
+let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
-import {
-  CLIENT_CODE,
-  API_KEY,
-  CLIENT_TOTP_KEY,
-  CLIENT_PIN,
-  GET_LTP_DATA_API,
-  SCRIPMASTER,
-  GET_POSITIONS,
-  DELAY,
-  ORDER_API,
-  GET_MARGIN,
-  SHORT_DELAY,
-} from '../constants';
+import dotenv from 'dotenv';
 import {
   checkStrike,
   delay,
@@ -24,6 +12,7 @@ import {
 } from './functions';
 import { Response } from 'express';
 import { ISmartApiData, JsonFileStructure } from '../app.interface';
+dotenv.config();
 type getLtpDataType = {
   exchange: string;
   tradingsymbol: string;
@@ -39,7 +28,7 @@ export const getLtpData = async ({
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
   const config = {
     method: 'post',
-    url: GET_LTP_DATA_API,
+    url: process.env.GET_LTP_DATA_API,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -49,7 +38,7 @@ export const getLtpData = async ({
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': API_KEY,
+      'X-PrivateKey': process.env.API_KEY,
     },
     data: data,
   };
@@ -59,18 +48,18 @@ export const getLtpData = async ({
 };
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const smart_api = new SmartAPI({
-    api_key: API_KEY,
+    api_key: process.env.API_KEY,
   });
-  const TOTP = totp(CLIENT_TOTP_KEY);
+  const TOTP = totp(process.env.CLIENT_TOTP_KEY);
   return smart_api
-    .generateSession(CLIENT_CODE, CLIENT_PIN, TOTP)
+    .generateSession(process.env.CLIENT_CODE, process.env.CLIENT_PIN, TOTP)
     .then(async (response: object) => {
       return get(response, 'data');
     });
 };
 export const fetchData = async (): Promise<object> => {
   return await axios
-    .get(SCRIPMASTER)
+    .get(process.env.SCRIPMASTER)
     .then((response: object) => {
       let acData: object[] = get(response, 'data', []) || [];
       let scripMaster = acData.map((element, index) => {
@@ -131,12 +120,12 @@ export const getScrip = async ({
   }
 };
 export const getPositions = async () => {
-  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: process.env.DELAY });
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   let config = {
     method: 'get',
-    url: GET_POSITIONS,
+    url: process.env.GET_POSITIONS,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -146,7 +135,7 @@ export const getPositions = async () => {
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': API_KEY,
+      'X-PrivateKey': process.env.API_KEY,
     },
     data: '',
   };
@@ -161,7 +150,7 @@ export const getPositions = async () => {
 type doOrderType = {
   tradingsymbol: string;
   symboltoken: string;
-  transactionType: 'BUY' | 'SELL';
+  transactionType: string | undefined;
 };
 type doOrderResponse = {
   status: boolean;
@@ -193,7 +182,7 @@ export const doOrder = async ({
   });
   let config = {
     method: 'post',
-    url: ORDER_API,
+    url: process.env.ORDER_API,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -203,7 +192,7 @@ export const doOrder = async ({
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': API_KEY,
+      'X-PrivateKey': process.env.API_KEY,
     },
     data: data,
   };
@@ -234,7 +223,7 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
 export const shortStraddle = async () => {
   //GET ATM STIKE PRICE
   const atmStrike = await getAtmStrikePrice();
-  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: process.env.DELAY });
   //GET CURRENT EXPIRY
   const expiryDate = getNextExpiry();
   //GET CALL DATA
@@ -244,7 +233,7 @@ export const shortStraddle = async () => {
     optionType: 'CE',
     strikePrice: atmStrike.toString(),
   });
-  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: process.env.DELAY });
   //GET PUT DATA
   const peToken = await getScrip({
     scriptName: 'BANKNIFTY',
@@ -252,19 +241,19 @@ export const shortStraddle = async () => {
     optionType: 'PE',
     strikePrice: atmStrike.toString(),
   });
-  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: process.env.DELAY });
   const ceOrderData = await doOrder({
     tradingsymbol: get(ceToken, '0.symbol', ''),
     symboltoken: get(ceToken, '0.token', ''),
-    transactionType: 'SELL',
+    transactionType: process.env.TRANSACTION_TYPE_SELL,
   });
-  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: process.env.DELAY });
   const peOrderData = await doOrder({
     tradingsymbol: get(peToken, '0.symbol', ''),
     symboltoken: get(peToken, '0.token', ''),
-    transactionType: 'SELL',
+    transactionType: process.env.TRANSACTION_TYPE_SELL,
   });
-  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: process.env.DELAY });
   return {
     stikePrice: atmStrike.toString(),
     ceOrderToken: get(ceToken, '0.token', ''),
@@ -275,21 +264,12 @@ export const shortStraddle = async () => {
     peOrderStatus: peOrderData.status,
   };
 };
-export const getNewWebSocket = async () => {
-  const smartApiData: ISmartApiData = await generateSmartSession();
-  return new WebSocketV2({
-    jwttoken: smartApiData.jwtToken,
-    apikey: API_KEY,
-    clientcode: CLIENT_CODE,
-    feedtype: smartApiData.feedToken,
-  });
-};
 export const getMarginDetails = async () => {
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   const config = {
     method: 'get',
-    url: GET_MARGIN,
+    url: process.env.GET_MARGIN,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -299,7 +279,7 @@ export const getMarginDetails = async () => {
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': API_KEY,
+      'X-PrivateKey': process.env.API_KEY,
     },
   };
   return axios(config)
@@ -339,16 +319,16 @@ export const closeTrade = (data: JsonFileStructure) => {
   const tradeDetails = data.tradeDetails;
   tradeDetails.forEach(async (trade) => {
     if (trade.call.token !== '' || trade.put.token !== '') {
-      await delay({ milliSeconds: SHORT_DELAY });
+      await delay({ milliSeconds: process.env.SHORT_DELAY });
       await doOrder({
         tradingsymbol: trade.call.symbol,
-        transactionType: 'BUY',
+        transactionType: process.env.TRANSACTION_TYPE_BUY,
         symboltoken: trade.call.token,
       });
-      await delay({ milliSeconds: SHORT_DELAY });
+      await delay({ milliSeconds: process.env.SHORT_DELAY });
       await doOrder({
         tradingsymbol: trade.put.symbol,
-        transactionType: 'BUY',
+        transactionType: process.env.TRANSACTION_TYPE_BUY,
         symboltoken: trade.put.token,
       });
     }

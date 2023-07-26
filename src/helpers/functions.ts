@@ -69,11 +69,18 @@ export const getAtmStrikePrice = async () => {
   return nearestStrike;
 };
 type delayType = {
-  milliSeconds: number;
+  milliSeconds: number | undefined | string;
 };
 export const delay = ({ milliSeconds }: delayType) => {
+  const FIVE_MINUTES = 5 * 60 * 1000;
+  let delayInMilliseconds = 0;
+  if (milliSeconds && typeof milliSeconds === 'number')
+    delayInMilliseconds = milliSeconds;
+  else if (milliSeconds && typeof milliSeconds === 'string')
+    delayInMilliseconds = parseInt(milliSeconds);
+  else delayInMilliseconds = FIVE_MINUTES;
   return new Promise((resolve) => {
-    setTimeout(resolve, milliSeconds);
+    setTimeout(resolve, delayInMilliseconds);
   });
 };
 type isPastTimeType = { hours: number; minutes: number };
