@@ -42,14 +42,14 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  /* if (
+  if (
     !isPastTime({ hours: 15, minutes: 30 }) ||
     isPastTime({ hours: 9, minutes: 15 })
   ) {
     res.json({
       mtm: 'Market Closed',
     });
-  } else  */ if (!isPastTime({ hours: 10, minutes: 15 })) {
+  } else if (!isPastTime({ hours: 10, minutes: 15 })) {
     res.json({
       mtm: 'Wait it is not over 10:15 am',
     });
