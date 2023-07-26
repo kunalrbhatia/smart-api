@@ -109,7 +109,9 @@ export const createJsonFile = (): JsonFileStructure => {
   const exists = fs.existsSync(fileName);
   if (exists) {
     const dataFromFile = fs.readFileSync(fileName, 'utf-8');
-    const dataFromFileJson = JSON.parse(dataFromFile);
+    const dataFromFileJson = JSON.parse(
+      dataFromFile || JSON.stringify({ data: 'defualt value' })
+    );
     json = dataFromFileJson;
   } else {
     const dataToStoreString = JSON.stringify(json);
@@ -139,7 +141,9 @@ export const readJsonFile = (): JsonFileStructure => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const dataFromFile = fs.readFileSync(fileName, 'utf-8');
-  const dataFromFileJson = JSON.parse(dataFromFile);
+  const dataFromFileJson = JSON.parse(
+    dataFromFile || JSON.stringify({ data: 'defualt value' })
+  );
   return dataFromFileJson;
 };
 export const checkStrike = (
