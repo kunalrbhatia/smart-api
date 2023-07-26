@@ -5,9 +5,12 @@ const totp = require('totp-generator');
 import dotenv from 'dotenv';
 import {
   checkStrike,
+  createJsonFile,
   delay,
   getAtmStrikePrice,
   getNextExpiry,
+  isPastTime,
+  readJsonFile,
   writeJsonFile,
 } from './functions';
 import { Response } from 'express';
@@ -315,24 +318,28 @@ export const repeatShortStraddle = async (
   }
   return data;
 };
-export const closeTrade = (data: JsonFileStructure) => {
-  const tradeDetails = data.tradeDetails;
-  tradeDetails.forEach(async (trade) => {
-    if (trade.call.token !== '' || trade.put.token !== '') {
-      await delay({ milliSeconds: process.env.SHORT_DELAY });
-      await doOrder({
-        tradingsymbol: trade.call.symbol,
-        transactionType: process.env.TRANSACTION_TYPE_BUY,
-        symboltoken: trade.call.token,
-      });
-      await delay({ milliSeconds: process.env.SHORT_DELAY });
-      await doOrder({
-        tradingsymbol: trade.put.symbol,
-        transactionType: process.env.TRANSACTION_TYPE_BUY,
-        symboltoken: trade.put.token,
-      });
-    }
-  });
+export const closeTrade = async (data: JsonFileStructure) => {
+  if (!data.isTradeClosed) {
+    const tradeDetails = data.tradeDetails;
+    tradeDetails.forEach(async (trade) => {
+      if (trade.call.token !== '' || trade.put.token !== '') {
+        await delay({ milliSeconds: process.env.SHORT_DELAY });
+        await doOrder({
+          tradingsymbol: trade.call.symbol,
+          transactionType: process.env.TRANSACTION_TYPE_BUY,
+          symboltoken: trade.call.token,
+        });
+        await delay({ milliSeconds: process.env.SHORT_DELAY });
+        await doOrder({
+          tradingsymbol: trade.put.symbol,
+          transactionType: process.env.TRANSACTION_TYPE_BUY,
+          symboltoken: trade.put.token,
+        });
+      }
+    });
+    data.isTradeClosed = true;
+    writeJsonFile(data);
+  }
 };
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
@@ -348,5 +355,50 @@ export const checkToRepeatShortStraddle = async (
     const difference = previousTradeStrikePrice - atmStrike;
     reformedData = await repeatShortStraddle(difference, data, atmStrike);
     writeJsonFile(reformedData);
+  }
+};
+export const executeTrade = async () => {
+  let data = createJsonFile();
+  if (!data.isTradeExecuted) {
+    const shortStraddleData = await shortStraddle();
+    if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
+      data.isTradeExecuted = true;
+      data.isTradeClosed = false;
+      data.tradeDetails.push({
+        call: {
+          strike: shortStraddleData.stikePrice,
+          token: shortStraddleData.ceOrderToken,
+          symbol: shortStraddleData.ceOrderSymbol,
+        },
+        put: {
+          strike: shortStraddleData.stikePrice,
+          token: shortStraddleData.peOrderToken,
+          symbol: shortStraddleData.peOrderSymbol,
+        },
+      });
+      writeJsonFile(data);
+    }
+  } else {
+    const atmStrike = await getAtmStrikePrice();
+    const no_of_trades = data.tradeDetails.length;
+    const previousTradeStrikePrice = get(
+      data,
+      `tradeDetails.${no_of_trades - 1}.call.strike`,
+      ''
+    );
+    checkToRepeatShortStraddle(
+      atmStrike,
+      parseInt(previousTradeStrikePrice),
+      data
+    );
+  }
+  let mtmData = await calculateMtm({ data: readJsonFile() });
+  if (data.isTradeClosed) {
+    return 'Trade already closed';
+  } else if (mtmData > 2000 || isPastTime({ hours: 15, minutes: 15 })) {
+    await closeTrade(readJsonFile());
+    return 'Trade Closed';
+  } else {
+    return mtmData;
   }
 };

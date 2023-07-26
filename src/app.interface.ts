@@ -13,4 +13,5 @@ export interface JsonFileStructure {
     capitalUsed: number;
   };
   tradeDetails: TradeDetails[];
+  isTradeClosed: boolean;
 }
