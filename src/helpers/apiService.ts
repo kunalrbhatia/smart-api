@@ -55,6 +55,7 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
     api_key: process.env.API_KEY,
   });
   const TOTP = totp(process.env.CLIENT_TOTP_KEY);
+  console.log(process.env.CLIENT_TOTP_KEY);
   return smart_api
     .generateSession(process.env.CLIENT_CODE, process.env.CLIENT_PIN, TOTP)
     .then(async (response: object) => {

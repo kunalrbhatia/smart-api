@@ -18,7 +18,6 @@ import {
 import {
   isMarketClosed,
   isCurrentTimeGreater,
-  readJsonFile,
   createJsonFile,
 } from './helpers/functions';
 
