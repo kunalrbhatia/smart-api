@@ -27,11 +27,11 @@ export const getLtpData = async ({
   symboltoken,
 }: getLtpDataType): Promise<object> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
-  console.log('smartApiData: ', smartApiData);
+
   const jwtToken = get(smartApiData, 'jwtToken');
-  console.log('jwtToken: ', jwtToken);
+
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
-  console.log('data: ', data);
+
   const config = {
     method: 'post',
     url: process.env.GET_LTP_DATA_API,
@@ -48,10 +48,8 @@ export const getLtpData = async ({
     },
     data: data,
   };
-  console.log('config: ', config);
 
   return axios(config).then((response: object) => {
-    console.log('response: ', response);
     return get(response, 'data.data', {}) || {};
   });
 };
@@ -59,13 +57,10 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const smart_api = new SmartAPI({
     api_key: process.env.API_KEY,
   });
-  console.log(smart_api);
   const TOTP = totp(process.env.CLIENT_TOTP_KEY);
-  console.log(TOTP);
   return smart_api
     .generateSession(process.env.CLIENT_CODE, process.env.CLIENT_PIN, TOTP)
     .then(async (response: object) => {
-      console.log(response);
       return get(response, 'data');
     })
     .catch((ex: object) => {
@@ -87,7 +82,6 @@ export const fetchData = async (): Promise<object> => {
       return scripMaster;
     })
     .catch((evt: object) => {
-      console.log(evt);
       return evt;
     });
 };

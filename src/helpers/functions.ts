@@ -119,20 +119,9 @@ export const createJsonFile = (): JsonFileStructure => {
   const fileName = `${currentDate}_trades.json`;
   const exists = fs.existsSync(fileName);
   if (exists) {
-    const dataFromFile = fs.readFileSync(fileName, 'utf-8');
-    const dataFromFileJson = JSON.parse(
-      dataFromFile || JSON.stringify({ data: 'defualt value' })
-    );
-    json = dataFromFileJson;
+    json = readJsonFile();
   } else {
-    const dataToStoreString = JSON.stringify(json);
-    fs.writeFile(fileName, dataToStoreString, (err) => {
-      if (err) {
-        console.error('Error writing data to file:', err);
-      } else {
-        console.log(`Data stored successfully in file: ${fileName}`);
-      }
-    });
+    writeJsonFile(json);
   }
   return json;
 };
@@ -140,7 +129,6 @@ export const writeJsonFile = (data: JsonFileStructure) => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const dataToStoreString = JSON.stringify(data);
-  console.log(dataToStoreString);
   fs.writeFile(fileName, dataToStoreString, (err) => {
     if (err) {
       console.error('Error writing data to file:', err);
