@@ -14,11 +14,7 @@ import {
   writeJsonFile,
 } from './functions';
 import { Response } from 'express';
-import {
-  ISmartApiData,
-  JsonFileStructure,
-  TradeDetails,
-} from '../app.interface';
+import { ISmartApiData, JsonFileStructure } from '../app.interface';
 dotenv.config();
 type getLtpDataType = {
   exchange: string;
@@ -333,7 +329,7 @@ export const areAllTradesClosed = (): boolean => {
   }
   return true;
 };
-export const closeAllTrades = async (): Promise<TradeDetails[]> => {
+export const closeAllTrades = async () => {
   const data = readJsonFile();
   const tradeDetails = data.tradeDetails;
   for (const trade of tradeDetails) {
