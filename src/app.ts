@@ -28,7 +28,12 @@ app.get('/', (req: Request, res: Response) => {
 process.on('uncaughtException', function (err) {
   console.log(err);
 });
-cron.schedule(' # * 5 * * * *', async () => {
+cron.schedule('5 * * * * *', async () => {
+  const istTz = new Date().toLocaleString('default', {
+    timeZone: 'Asia/Kolkata',
+  });
+  // const istDate = jsDate.toLocaleString('default', { timeZone: istTz });
+  console.log('time ', istTz);
   const response = await runAlgo();
   console.log('response: ', response);
 });
