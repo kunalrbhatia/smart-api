@@ -27,7 +27,7 @@ app.use(cors());
 const server: Server = createServer(app);
 server.listen(process.env.PORT, () => {});
 app.get('/', (req: Request, res: Response) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', lastUpdated: '2023-07-27, 21:07:20' });
 });
 app.post(
   '/script/details/get-script-ltp',
