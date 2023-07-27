@@ -19,6 +19,7 @@ import {
   isMarketClosed,
   isCurrentTimeGreater,
   readJsonFile,
+  createJsonFile,
 } from './helpers/functions';
 
 const app: Application = express();
@@ -54,7 +55,7 @@ app.post('/close-trade', async (req: Request, res: Response) => {
   await closeTrade();
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  const data = readJsonFile();
+  let data = createJsonFile();
   if (isMarketClosed()) {
     res.json({
       mtm: 'Market Closed',

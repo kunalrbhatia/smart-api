@@ -381,7 +381,7 @@ export const checkToRepeatShortStraddle = async (
   }
 };
 export const executeTrade = async () => {
-  let data = createJsonFile();
+  let data = readJsonFile();
   if (!data.isTradeExecuted) {
     const shortStraddleData = await shortStraddle();
     if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
