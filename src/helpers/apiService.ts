@@ -27,8 +27,11 @@ export const getLtpData = async ({
   symboltoken,
 }: getLtpDataType): Promise<object> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
+  console.log('smartApiData: ', smartApiData);
   const jwtToken = get(smartApiData, 'jwtToken');
+  console.log('jwtToken: ', jwtToken);
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
+  console.log('data: ', data);
   const config = {
     method: 'post',
     url: process.env.GET_LTP_DATA_API,
@@ -45,7 +48,10 @@ export const getLtpData = async ({
     },
     data: data,
   };
+  console.log('config: ', config);
+
   return axios(config).then((response: object) => {
+    console.log('response: ', response);
     return get(response, 'data.data', {}) || {};
   });
 };
