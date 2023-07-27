@@ -51,7 +51,7 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/close-trade', async (req: Request, res: Response) => {
-  await closeTrade(readJsonFile());
+  await closeTrade();
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
   if (isMarketClosed()) {
