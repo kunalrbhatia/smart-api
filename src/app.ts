@@ -9,8 +9,17 @@ import express, {
 } from 'express';
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
-import { executeTrade, getLtpData, getScrip } from './helpers/apiService';
-import { isMarketClosed, isCurrentTimeGreater } from './helpers/functions';
+import {
+  closeTrade,
+  executeTrade,
+  getLtpData,
+  getScrip,
+} from './helpers/apiService';
+import {
+  isMarketClosed,
+  isCurrentTimeGreater,
+  readJsonFile,
+} from './helpers/functions';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -40,6 +49,9 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   const optionType: 'CE' | 'PE' = req.body.optionType || '';
   const expiryDate: string = req.body.expiryDate;
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
+});
+app.post('/close-trade', async (req: Request, res: Response) => {
+  await closeTrade(readJsonFile());
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
   if (isMarketClosed()) {

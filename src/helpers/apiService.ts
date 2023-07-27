@@ -14,7 +14,11 @@ import {
   writeJsonFile,
 } from './functions';
 import { Response } from 'express';
-import { ISmartApiData, JsonFileStructure } from '../app.interface';
+import {
+  ISmartApiData,
+  JsonFileStructure,
+  TradeDetails,
+} from '../app.interface';
 dotenv.config();
 type getLtpDataType = {
   exchange: string;
@@ -299,7 +303,7 @@ export const repeatShortStraddle = async (
   atmStrike: number
 ) => {
   if (
-    difference > 300 &&
+    difference >= 300 &&
     checkStrike(get(data, 'tradeDetails', []), atmStrike.toString()) === false
   ) {
     const shortStraddleData = await shortStraddle();
@@ -308,38 +312,60 @@ export const repeatShortStraddle = async (
         strike: shortStraddleData.stikePrice,
         token: shortStraddleData.ceOrderToken,
         symbol: shortStraddleData.ceOrderSymbol,
+        closed: false,
       },
       put: {
         strike: shortStraddleData.stikePrice,
         token: shortStraddleData.peOrderToken,
         symbol: shortStraddleData.peOrderSymbol,
+        closed: false,
       },
     });
   }
   return data;
 };
-export const closeTrade = async (data: JsonFileStructure) => {
-  if (!data.isTradeClosed) {
-    const tradeDetails = data.tradeDetails;
-    tradeDetails.forEach(async (trade) => {
-      if (trade.call.token !== '' || trade.put.token !== '') {
-        await delay({ milliSeconds: process.env.SHORT_DELAY });
-        await doOrder({
-          tradingsymbol: trade.call.symbol,
-          transactionType: process.env.TRANSACTION_TYPE_BUY,
-          symboltoken: trade.call.token,
-        });
-        await delay({ milliSeconds: process.env.SHORT_DELAY });
-        await doOrder({
-          tradingsymbol: trade.put.symbol,
-          transactionType: process.env.TRANSACTION_TYPE_BUY,
-          symboltoken: trade.put.token,
-        });
-      }
-    });
-    data.isTradeClosed = true;
-    writeJsonFile(data);
+export const areAllTradesClosed = (): boolean => {
+  const tradeDetails = readJsonFile().tradeDetails;
+  for (const trade of tradeDetails) {
+    if (!trade.call.closed || !trade.put.closed) {
+      return false;
+    }
   }
+  return true;
+};
+export const closeAllTrades = async (): Promise<TradeDetails[]> => {
+  const data = readJsonFile();
+  const tradeDetails = data.tradeDetails;
+  for (const trade of tradeDetails) {
+    if (
+      (trade.call.token !== '' && trade.call.closed === false) ||
+      (trade.put.token !== '' && trade.put.closed === false)
+    ) {
+      await delay({ milliSeconds: process.env.DELAY });
+      const callStatus = await doOrder({
+        tradingsymbol: trade.call.symbol,
+        transactionType: process.env.TRANSACTION_TYPE_BUY,
+        symboltoken: trade.call.token,
+      });
+      await delay({ milliSeconds: process.env.DELAY });
+      const putStatus = await doOrder({
+        tradingsymbol: trade.put.symbol,
+        transactionType: process.env.TRANSACTION_TYPE_BUY,
+        symboltoken: trade.put.token,
+      });
+      trade.call.closed = callStatus.status;
+      trade.put.closed = putStatus.status;
+    }
+  }
+  writeJsonFile(data);
+};
+export const closeTrade = async () => {
+  while (areAllTradesClosed() === false) {
+    await closeAllTrades();
+  }
+  const data = readJsonFile();
+  data.isTradeClosed = true;
+  writeJsonFile(data);
 };
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
@@ -369,11 +395,13 @@ export const executeTrade = async () => {
           strike: shortStraddleData.stikePrice,
           token: shortStraddleData.ceOrderToken,
           symbol: shortStraddleData.ceOrderSymbol,
+          closed: false,
         },
         put: {
           strike: shortStraddleData.stikePrice,
           token: shortStraddleData.peOrderToken,
           symbol: shortStraddleData.peOrderSymbol,
+          closed: false,
         },
       });
       writeJsonFile(data);
@@ -400,7 +428,7 @@ export const executeTrade = async () => {
     mtmData > 2000 ||
     isCurrentTimeGreater({ hours: 15, minutes: 15 })
   ) {
-    await closeTrade(readJsonFile());
+    await closeTrade();
     return 'Trade Closed';
   } else {
     return mtmData;
