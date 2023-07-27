@@ -9,7 +9,7 @@ import {
   delay,
   getAtmStrikePrice,
   getNextExpiry,
-  isPastTime,
+  isCurrentTimeGreater,
   readJsonFile,
   writeJsonFile,
 } from './functions';
@@ -395,7 +395,10 @@ export const executeTrade = async () => {
   let mtmData = await calculateMtm({ data: readJsonFile() });
   if (data.isTradeClosed) {
     return 'Trade already closed';
-  } else if (mtmData > 2000 || isPastTime({ hours: 15, minutes: 15 })) {
+  } else if (
+    mtmData > 2000 ||
+    isCurrentTimeGreater({ hours: 15, minutes: 15 })
+  ) {
     await closeTrade(readJsonFile());
     return 'Trade Closed';
   } else {

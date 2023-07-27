@@ -10,7 +10,7 @@ import express, {
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import { executeTrade, getLtpData, getScrip } from './helpers/apiService';
-import { isMarketClosed, isPastTime } from './helpers/functions';
+import { isMarketClosed, isCurrentTimeGreater } from './helpers/functions';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -46,7 +46,7 @@ app.post('/run-algo', async (req: Request, res: Response) => {
     res.json({
       mtm: 'Market Closed',
     });
-  } else if (!isPastTime({ hours: 10, minutes: 15 })) {
+  } else if (!isCurrentTimeGreater({ hours: 10, minutes: 15 })) {
     res.json({
       mtm: 'Wait it is not over 10:15 am',
     });

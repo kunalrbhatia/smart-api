@@ -83,8 +83,11 @@ export const delay = ({ milliSeconds }: delayType) => {
     setTimeout(resolve, delayInMilliseconds);
   });
 };
-type isPastTimeType = { hours: number; minutes: number };
-export const isPastTime = ({ hours, minutes }: isPastTimeType): boolean => {
+type TimeComparisonType = { hours: number; minutes: number };
+export const isCurrentTimeGreater = ({
+  hours,
+  minutes,
+}: TimeComparisonType): boolean => {
   const currentTime = new Date();
   const targetTime = new Date(
     currentTime.getFullYear(),
@@ -167,8 +170,8 @@ export const checkStrike = (
 };
 export const isMarketClosed = () => {
   if (
-    isPastTime({ hours: 9, minutes: 15 }) &&
-    !isPastTime({ hours: 15, minutes: 30 })
+    isCurrentTimeGreater({ hours: 9, minutes: 15 }) &&
+    !isCurrentTimeGreater({ hours: 15, minutes: 30 })
   ) {
     return false;
   } else {
