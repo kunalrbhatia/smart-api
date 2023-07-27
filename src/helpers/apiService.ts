@@ -6,7 +6,6 @@ import dotenv from 'dotenv';
 import {
   TimeComparisonType,
   checkStrike,
-  createJsonFile,
   delay,
   getAtmStrikePrice,
   getNextExpiry,
@@ -54,7 +53,6 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const smart_api = new SmartAPI({
     api_key: process.env.API_KEY,
   });
-  console.log(process.env.CLIENT_TOTP_KEY);
   const TOTP = totp(process.env.CLIENT_TOTP_KEY);
   return smart_api
     .generateSession(process.env.CLIENT_CODE, process.env.CLIENT_PIN, TOTP)
@@ -80,6 +78,7 @@ export const fetchData = async (): Promise<object> => {
       return scripMaster;
     })
     .catch((evt: object) => {
+      console.log(evt);
       return evt;
     });
 };
