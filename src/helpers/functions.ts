@@ -165,3 +165,13 @@ export const checkStrike = (
   }
   return false;
 };
+export const isMarketClosed = () => {
+  if (
+    isPastTime({ hours: 9, minutes: 15 }) &&
+    !isPastTime({ hours: 15, minutes: 30 })
+  ) {
+    return false;
+  } else {
+    return true;
+  }
+};

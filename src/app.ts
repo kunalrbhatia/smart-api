@@ -10,7 +10,7 @@ import express, {
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import { executeTrade, getLtpData, getScrip } from './helpers/apiService';
-import { isPastTime } from './helpers/functions';
+import { isMarketClosed, isPastTime } from './helpers/functions';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -42,10 +42,7 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  if (
-    !isPastTime({ hours: 15, minutes: 30 }) ||
-    isPastTime({ hours: 9, minutes: 15 })
-  ) {
+  if (isMarketClosed()) {
     res.json({
       mtm: 'Market Closed',
     });
