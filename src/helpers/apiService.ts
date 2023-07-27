@@ -4,6 +4,7 @@ const axios = require('axios');
 const totp = require('totp-generator');
 import dotenv from 'dotenv';
 import {
+  TimeComparisonType,
   checkStrike,
   createJsonFile,
   delay,
@@ -418,11 +419,11 @@ export const executeTrade = async () => {
   }
   await delay({ milliSeconds: process.env.DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
-  if (data.isTradeClosed) {
-    return 'Trade already closed';
-  } else if (
-    mtmData > 2000 ||
-    isCurrentTimeGreater({ hours: 15, minutes: 15 })
+  const mtmDataThreshold = process.env.MTMDATATHRESHOLD;
+  const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
+  if (
+    (mtmDataThreshold && mtmData < -parseInt(mtmDataThreshold.toString())) ||
+    isCurrentTimeGreater(closingTime)
   ) {
     await closeTrade();
     return 'Trade Closed';

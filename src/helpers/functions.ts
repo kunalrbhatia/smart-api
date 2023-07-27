@@ -83,7 +83,7 @@ export const delay = ({ milliSeconds }: delayType) => {
     setTimeout(resolve, delayInMilliseconds);
   });
 };
-type TimeComparisonType = { hours: number; minutes: number };
+export type TimeComparisonType = { hours: number; minutes: number };
 export const isCurrentTimeGreater = ({
   hours,
   minutes,

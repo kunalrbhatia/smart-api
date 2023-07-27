@@ -54,6 +54,7 @@ app.post('/close-trade', async (req: Request, res: Response) => {
   await closeTrade();
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
+  const data = readJsonFile();
   if (isMarketClosed()) {
     res.json({
       mtm: 'Market Closed',
@@ -61,6 +62,10 @@ app.post('/run-algo', async (req: Request, res: Response) => {
   } else if (!isCurrentTimeGreater({ hours: 10, minutes: 15 })) {
     res.json({
       mtm: 'Wait it is not over 10:15 am',
+    });
+  } else if (data.isTradeClosed) {
+    res.json({
+      mtm: 'Trade already closed!',
     });
   } else {
     const tradeData = await executeTrade();
