@@ -392,6 +392,7 @@ export const executeTrade = async () => {
       data
     );
   }
+  await delay({ milliSeconds: process.env.DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
   if (data.isTradeClosed) {
     return 'Trade already closed';
