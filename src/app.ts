@@ -29,6 +29,9 @@ server.listen(process.env.PORT, () => {});
 app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok', lastUpdated: '2023-07-27, 21:07:20' });
 });
+process.on('uncaughtException', function (err) {
+  console.log(err);
+});
 app.post(
   '/script/details/get-script-ltp',
   async (req: Request, res: Response) => {
