@@ -16,7 +16,7 @@ const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
 const server: Server = createServer(app);
-server.listen(5000, () => {});
+server.listen(process.env.PORT, () => {});
 app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
