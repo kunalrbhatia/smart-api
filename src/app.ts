@@ -9,17 +9,13 @@ import express, {
 } from 'express';
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
+import cron from 'node-cron';
 import {
   closeTrade,
-  executeTrade,
   getLtpData,
   getScrip,
+  runAlgo,
 } from './helpers/apiService';
-import {
-  isMarketClosed,
-  isCurrentTimeGreater,
-  createJsonFile,
-} from './helpers/functions';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -31,6 +27,10 @@ app.get('/', (req: Request, res: Response) => {
 });
 process.on('uncaughtException', function (err) {
   console.log(err);
+});
+cron.schedule(' # * 5 * * * *', async () => {
+  const response = await runAlgo();
+  console.log('response: ', response);
 });
 app.post(
   '/script/details/get-script-ltp',
@@ -57,23 +57,10 @@ app.post('/close-trade', async (req: Request, res: Response) => {
   await closeTrade();
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  let data = createJsonFile();
-  if (isMarketClosed()) {
-    res.json({
-      mtm: 'Market Closed',
-    });
-  } else if (!isCurrentTimeGreater({ hours: 10, minutes: 15 })) {
-    res.json({
-      mtm: 'Wait it is not over 10:15 am',
-    });
-  } else if (data.isTradeClosed) {
-    res.json({
-      mtm: 'Trade already closed!',
-    });
-  } else {
-    const tradeData = await executeTrade();
-    res.json({ mtm: tradeData });
-  }
+  const response = await runAlgo();
+  res.json({
+    mtm: response,
+  });
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());

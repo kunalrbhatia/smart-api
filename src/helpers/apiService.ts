@@ -6,10 +6,12 @@ import dotenv from 'dotenv';
 import {
   TimeComparisonType,
   checkStrike,
+  createJsonFile,
   delay,
   getAtmStrikePrice,
   getNextExpiry,
   isCurrentTimeGreater,
+  isMarketClosed,
   readJsonFile,
   writeJsonFile,
 } from './functions';
@@ -435,5 +437,17 @@ export const executeTrade = async () => {
     return 'Trade Closed';
   } else {
     return mtmData;
+  }
+};
+export const runAlgo = async () => {
+  let data = createJsonFile();
+  if (isMarketClosed()) {
+    return 'Market closed';
+  } else if (!isCurrentTimeGreater({ hours: 10, minutes: 15 })) {
+    return 'Wait it is not over 10:15 am';
+  } else if (data.isTradeClosed) {
+    return 'Trade already closed!';
+  } else {
+    return await executeTrade();
   }
 };
