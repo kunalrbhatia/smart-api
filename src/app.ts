@@ -16,6 +16,7 @@ import {
   getScrip,
   runAlgo,
 } from './helpers/apiService';
+import { isFridayMondayTuesday } from './helpers/functions';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -33,8 +34,12 @@ cron.schedule('*/5 * * * *', async () => {
     timeZone: 'Asia/Kolkata',
   });
   console.log('time ', istTz);
-  const response = await runAlgo();
-  console.log('response: ', response);
+  if (isFridayMondayTuesday()) {
+    const response = await runAlgo();
+    console.log('response: ', response);
+  } else {
+    console.log('Not a good time to take the the trade');
+  }
 });
 app.post(
   '/script/details/get-script-ltp',
@@ -61,10 +66,16 @@ app.post('/close-trade', async (req: Request, res: Response) => {
   await closeTrade();
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  const response = await runAlgo();
-  res.json({
-    mtm: response,
-  });
+  if (isFridayMondayTuesday()) {
+    const response = await runAlgo();
+    res.json({
+      mtm: response,
+    });
+  } else {
+    res.json({
+      mtm: 'Not a good time to take the the trade',
+    });
+  }
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());

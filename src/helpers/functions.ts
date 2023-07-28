@@ -2,6 +2,13 @@ import { getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
 import { JsonFileStructure, TradeDetails } from '../app.interface';
+export const isFridayMondayTuesday = () => {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+
+  // Check if the current day is Friday, Monday, or Tuesday (5, 1, or 2 respectively)
+  return [1, 2, 5].includes(dayOfWeek);
+};
 export const getNextExpiry = () => {
   const today = new Date();
   const dayOfWeek = today.getDay();
