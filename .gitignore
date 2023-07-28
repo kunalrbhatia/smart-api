@@ -1,4 +1,5 @@
 /node_modules
 /smart_api_client
+/target
 package-lock.json
 .env
