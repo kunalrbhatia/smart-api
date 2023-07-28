@@ -134,6 +134,7 @@ export const writeJsonFile = (data: JsonFileStructure) => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const dataToStoreString = JSON.stringify(data);
+  console.log('json data: ', dataToStoreString);
   fs.writeFile(fileName, dataToStoreString, (err) => {
     if (err) {
       console.error('Error writing data to file:', err);
