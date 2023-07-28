@@ -2,6 +2,7 @@ import { getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
 import { JsonFileStructure, TradeDetails } from '../app.interface';
+import moment from 'moment-timezone';
 export const isFridayMondayTuesday = () => {
   const today = new Date();
   const dayOfWeek = today.getDay();
@@ -97,17 +98,12 @@ export const isCurrentTimeGreater = ({
   hours,
   minutes,
 }: TimeComparisonType): boolean => {
-  const currentTime = new Date();
-  const targetTime = new Date(
-    currentTime.getFullYear(),
-    currentTime.getMonth(),
-    currentTime.getDate(),
-    hours,
-    minutes,
-    0
-  );
-  console.log(currentTime, '< ----- >', targetTime);
-  return currentTime > targetTime;
+  const currentTime = moment().tz('Asia/Kolkata'); // Set your local time zone here (IST)
+  const targetTime = moment()
+    .tz('Asia/Kolkata')
+    .set({ hours, minutes, seconds: 0 });
+  console.log(currentTime.format(), '< ----- >', targetTime.format());
+  return currentTime.isAfter(targetTime);
 };
 export const getCurrentDate = (): string => {
   const today = new Date();
