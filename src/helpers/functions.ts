@@ -5,11 +5,14 @@ import { JsonFileStructure, TradeDetails } from '../app.interface';
 export const getNextExpiry = () => {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const daysUntilThursday = 4 - dayOfWeek;
+  // Check if today is Thursday
+  const isThursday = dayOfWeek === 4;
+  // Calculate days until the next Thursday
+  const daysUntilNextThursday = isThursday ? 7 : (11 - dayOfWeek) % 7;
   const comingThursday = new Date(
     today.getFullYear(),
     today.getMonth(),
-    today.getDate() + daysUntilThursday
+    today.getDate() + daysUntilNextThursday
   );
   // Get the year, month, and day of the coming Thursday
   const year = comingThursday.getFullYear();
@@ -53,6 +56,7 @@ function findNearestStrike(options: object[], target: number) {
 }
 export const getAtmStrikePrice = async () => {
   const expiryDate = getNextExpiry();
+  console.log(expiryDate);
   const optionChain = await getScrip({
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
@@ -66,6 +70,7 @@ export const getAtmStrikePrice = async () => {
     optionChain,
     parseInt(get(ltp, 'ltp', ''))
   );
+  console.log(nearestStrike);
   return nearestStrike;
 };
 type delayType = {

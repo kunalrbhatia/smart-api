@@ -234,19 +234,20 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
 };
 export const shortStraddle = async () => {
   //GET ATM STIKE PRICE
-  const atmStrike = await getAtmStrikePrice();
   await delay({ milliSeconds: process.env.DELAY });
+  const atmStrike = await getAtmStrikePrice();
   //GET CURRENT EXPIRY
   const expiryDate = getNextExpiry();
   //GET CALL DATA
+  await delay({ milliSeconds: process.env.DELAY });
   const ceToken = await getScrip({
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
     optionType: 'CE',
     strikePrice: atmStrike.toString(),
   });
-  await delay({ milliSeconds: process.env.DELAY });
   //GET PUT DATA
+  await delay({ milliSeconds: process.env.DELAY });
   const peToken = await getScrip({
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
@@ -265,7 +266,6 @@ export const shortStraddle = async () => {
     symboltoken: get(peToken, '0.token', ''),
     transactionType: process.env.TRANSACTION_TYPE_SELL,
   });
-  await delay({ milliSeconds: process.env.DELAY });
   return {
     stikePrice: atmStrike.toString(),
     ceOrderToken: get(ceToken, '0.token', ''),
