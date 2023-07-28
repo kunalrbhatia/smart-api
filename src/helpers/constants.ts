@@ -30,3 +30,4 @@ export const TRANSACTION_TYPE_BUY = 'BUY';
 export const TRANSACTION_TYPE_SELL = 'SELL';
 export const PORT = 8000;
 export const MTMDATATHRESHOLD = 2000;
+export const STRIKE_DIFFERENCE = 200;

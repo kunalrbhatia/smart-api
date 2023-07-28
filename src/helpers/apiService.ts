@@ -25,6 +25,7 @@ import {
   MTMDATATHRESHOLD,
   ORDER_API,
   SCRIPMASTER,
+  STRIKE_DIFFERENCE,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
 } from './constants';
@@ -319,7 +320,7 @@ export const repeatShortStraddle = async (
   atmStrike: number
 ) => {
   if (
-    difference >= 300 &&
+    difference >= STRIKE_DIFFERENCE &&
     checkStrike(get(data, 'tradeDetails', []), atmStrike.toString()) === false
   ) {
     const shortStraddleData = await shortStraddle();
