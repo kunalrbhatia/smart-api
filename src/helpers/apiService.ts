@@ -17,6 +17,17 @@ import {
 } from './functions';
 import { Response } from 'express';
 import { ISmartApiData, JsonFileStructure } from '../app.interface';
+import {
+  DELAY,
+  GET_LTP_DATA_API,
+  GET_MARGIN,
+  GET_POSITIONS,
+  MTMDATATHRESHOLD,
+  ORDER_API,
+  SCRIPMASTER,
+  TRANSACTION_TYPE_BUY,
+  TRANSACTION_TYPE_SELL,
+} from './constants';
 dotenv.config();
 type getLtpDataType = {
   exchange: string;
@@ -36,7 +47,7 @@ export const getLtpData = async ({
 
   const config = {
     method: 'post',
-    url: process.env.GET_LTP_DATA_API,
+    url: GET_LTP_DATA_API,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -71,7 +82,7 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
 };
 export const fetchData = async (): Promise<object> => {
   return await axios
-    .get(process.env.SCRIPMASTER)
+    .get(SCRIPMASTER)
     .then((response: object) => {
       let acData: object[] = get(response, 'data', []) || [];
       let scripMaster = acData.map((element, index) => {
@@ -132,12 +143,12 @@ export const getScrip = async ({
   }
 };
 export const getPositions = async () => {
-  await delay({ milliSeconds: process.env.DELAY });
+  await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   let config = {
     method: 'get',
-    url: process.env.GET_POSITIONS,
+    url: GET_POSITIONS,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -194,7 +205,7 @@ export const doOrder = async ({
   });
   let config = {
     method: 'post',
-    url: process.env.ORDER_API,
+    url: ORDER_API,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -234,12 +245,12 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
 };
 export const shortStraddle = async () => {
   //GET ATM STIKE PRICE
-  await delay({ milliSeconds: process.env.DELAY });
+  await delay({ milliSeconds: DELAY });
   const atmStrike = await getAtmStrikePrice();
   //GET CURRENT EXPIRY
   const expiryDate = getNextExpiry();
   //GET CALL DATA
-  await delay({ milliSeconds: process.env.DELAY });
+  await delay({ milliSeconds: DELAY });
   const ceToken = await getScrip({
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
@@ -247,24 +258,24 @@ export const shortStraddle = async () => {
     strikePrice: atmStrike.toString(),
   });
   //GET PUT DATA
-  await delay({ milliSeconds: process.env.DELAY });
+  await delay({ milliSeconds: DELAY });
   const peToken = await getScrip({
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
     optionType: 'PE',
     strikePrice: atmStrike.toString(),
   });
-  await delay({ milliSeconds: process.env.DELAY });
+  await delay({ milliSeconds: DELAY });
   const ceOrderData = await doOrder({
     tradingsymbol: get(ceToken, '0.symbol', ''),
     symboltoken: get(ceToken, '0.token', ''),
-    transactionType: process.env.TRANSACTION_TYPE_SELL,
+    transactionType: TRANSACTION_TYPE_SELL,
   });
-  await delay({ milliSeconds: process.env.DELAY });
+  await delay({ milliSeconds: DELAY });
   const peOrderData = await doOrder({
     tradingsymbol: get(peToken, '0.symbol', ''),
     symboltoken: get(peToken, '0.token', ''),
-    transactionType: process.env.TRANSACTION_TYPE_SELL,
+    transactionType: TRANSACTION_TYPE_SELL,
   });
   return {
     stikePrice: atmStrike.toString(),
@@ -281,7 +292,7 @@ export const getMarginDetails = async () => {
   const jwtToken = get(smartApiData, 'jwtToken');
   const config = {
     method: 'get',
-    url: process.env.GET_MARGIN,
+    url: GET_MARGIN,
     headers: {
       Authorization: `Bearer ${jwtToken}`,
       'Content-Type': 'application/json',
@@ -346,16 +357,16 @@ export const closeAllTrades = async () => {
       (trade.call.token !== '' && trade.call.closed === false) ||
       (trade.put.token !== '' && trade.put.closed === false)
     ) {
-      await delay({ milliSeconds: process.env.DELAY });
+      await delay({ milliSeconds: DELAY });
       const callStatus = await doOrder({
         tradingsymbol: trade.call.symbol,
-        transactionType: process.env.TRANSACTION_TYPE_BUY,
+        transactionType: TRANSACTION_TYPE_BUY,
         symboltoken: trade.call.token,
       });
-      await delay({ milliSeconds: process.env.DELAY });
+      await delay({ milliSeconds: DELAY });
       const putStatus = await doOrder({
         tradingsymbol: trade.put.symbol,
-        transactionType: process.env.TRANSACTION_TYPE_BUY,
+        transactionType: TRANSACTION_TYPE_BUY,
         symboltoken: trade.put.token,
       });
       trade.call.closed = callStatus.status;
@@ -425,9 +436,9 @@ export const executeTrade = async () => {
       data
     );
   }
-  await delay({ milliSeconds: process.env.DELAY });
+  await delay({ milliSeconds: DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
-  const mtmDataThreshold = process.env.MTMDATATHRESHOLD;
+  const mtmDataThreshold = MTMDATATHRESHOLD;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   if (
     (mtmDataThreshold && mtmData < -parseInt(mtmDataThreshold.toString())) ||
