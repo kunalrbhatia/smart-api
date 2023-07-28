@@ -102,7 +102,6 @@ export const isCurrentTimeGreater = ({
   const targetTime = moment()
     .tz('Asia/Kolkata')
     .set({ hours, minutes, seconds: 0 });
-  console.log(currentTime.format(), '< ----- >', targetTime.format());
   return currentTime.isAfter(targetTime);
 };
 export const getCurrentDate = (): string => {
