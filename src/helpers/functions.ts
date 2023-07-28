@@ -17,8 +17,7 @@ export const getNextExpiry = () => {
   // Get the year, month, and day of the coming Thursday
   const year = comingThursday.getFullYear();
   const month = comingThursday.getMonth() + 1;
-  const day = comingThursday.getDate();
-
+  const day = comingThursday.getDate().toString().padStart(2, '0');
   // Format the date as ddmmmyyyy
   const months = [
     'JAN',
