@@ -33,8 +33,8 @@ cron.schedule('*/5 * * * *', async () => {
   const istTz = new Date().toLocaleString('default', {
     timeZone: 'Asia/Kolkata',
   });
-  console.log('time ', istTz);
   if (isFridayMondayTuesday()) {
+    console.log('time ', istTz);
     const response = await runAlgo();
     console.log('response: ', response);
   } else {

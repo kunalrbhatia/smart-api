@@ -62,7 +62,6 @@ function findNearestStrike(options: object[], target: number) {
 }
 export const getAtmStrikePrice = async () => {
   const expiryDate = getNextExpiry();
-  console.log(expiryDate);
   const optionChain = await getScrip({
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
@@ -76,7 +75,6 @@ export const getAtmStrikePrice = async () => {
     optionChain,
     parseInt(get(ltp, 'ltp', ''))
   );
-  console.log(nearestStrike);
   return nearestStrike;
 };
 type delayType = {
