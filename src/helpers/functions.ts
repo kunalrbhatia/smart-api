@@ -106,6 +106,7 @@ export const isCurrentTimeGreater = ({
     minutes,
     0
   );
+  console.log(currentTime, '< ----- >', targetTime);
   return currentTime > targetTime;
 };
 export const getCurrentDate = (): string => {
