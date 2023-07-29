@@ -316,9 +316,9 @@ export const getMarginDetails = async () => {
 };
 export const repeatShortStraddle = async (
   difference: number,
-  data: JsonFileStructure,
   atmStrike: number
 ) => {
+  const data = readJsonFile();
   if (
     difference >= STRIKE_DIFFERENCE &&
     checkStrike(get(data, 'tradeDetails', []), atmStrike.toString()) === false
@@ -339,7 +339,7 @@ export const repeatShortStraddle = async (
       },
     });
   }
-  return data;
+  writeJsonFile(data);
 };
 export const areAllTradesClosed = (): boolean => {
   const tradeDetails = readJsonFile().tradeDetails;
@@ -386,18 +386,16 @@ export const closeTrade = async () => {
 };
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
-  previousTradeStrikePrice: number,
-  data: JsonFileStructure
+  previousTradeStrikePrice: number
 ) => {
-  let reformedData;
   if (atmStrike > previousTradeStrikePrice) {
     const difference = atmStrike - previousTradeStrikePrice;
-    reformedData = await repeatShortStraddle(difference, data, atmStrike);
-    writeJsonFile(reformedData);
+    await delay({ milliSeconds: DELAY });
+    await repeatShortStraddle(difference, atmStrike);
   } else if (atmStrike < previousTradeStrikePrice) {
     const difference = previousTradeStrikePrice - atmStrike;
-    reformedData = await repeatShortStraddle(difference, data, atmStrike);
-    writeJsonFile(reformedData);
+    await delay({ milliSeconds: DELAY });
+    await repeatShortStraddle(difference, atmStrike);
   }
 };
 export const executeTrade = async () => {
@@ -424,6 +422,7 @@ export const executeTrade = async () => {
       writeJsonFile(data);
     }
   } else {
+    await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.tradeDetails.length;
     const previousTradeStrikePrice = get(
@@ -431,20 +430,12 @@ export const executeTrade = async () => {
       `tradeDetails.${no_of_trades - 1}.call.strike`,
       ''
     );
-    checkToRepeatShortStraddle(
-      atmStrike,
-      parseInt(previousTradeStrikePrice),
-      data
-    );
+    checkToRepeatShortStraddle(atmStrike, parseInt(previousTradeStrikePrice));
   }
   await delay({ milliSeconds: DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
-  const mtmDataThreshold = MTMDATATHRESHOLD;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
-  if (
-    (mtmDataThreshold && mtmData < -parseInt(mtmDataThreshold.toString())) ||
-    isCurrentTimeGreater(closingTime)
-  ) {
+  if (mtmData < -MTMDATATHRESHOLD || isCurrentTimeGreater(closingTime)) {
     await closeTrade();
     return 'Trade Closed';
   } else {
