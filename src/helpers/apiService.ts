@@ -319,10 +319,16 @@ export const repeatShortStraddle = async (
   atmStrike: number
 ) => {
   const data = readJsonFile();
+  console.log(
+    difference,
+    STRIKE_DIFFERENCE,
+    checkStrike(get(data, 'tradeDetails', []), atmStrike.toString())
+  );
   if (
     difference >= STRIKE_DIFFERENCE &&
     checkStrike(get(data, 'tradeDetails', []), atmStrike.toString()) === false
   ) {
+    console.log('inside if of repeatShortStraddle');
     const shortStraddleData = await shortStraddle();
     data.tradeDetails.push({
       call: {
@@ -338,8 +344,8 @@ export const repeatShortStraddle = async (
         closed: false,
       },
     });
+    writeJsonFile(data);
   }
-  writeJsonFile(data);
 };
 export const areAllTradesClosed = (): boolean => {
   const tradeDetails = readJsonFile().tradeDetails;
@@ -380,6 +386,7 @@ export const closeTrade = async () => {
   while (areAllTradesClosed() === false) {
     await closeAllTrades();
   }
+  await delay({ milliSeconds: DELAY });
   const data = readJsonFile();
   data.isTradeClosed = true;
   writeJsonFile(data);
@@ -389,11 +396,17 @@ export const checkToRepeatShortStraddle = async (
   previousTradeStrikePrice: number
 ) => {
   if (atmStrike > previousTradeStrikePrice) {
+    console.log(
+      `when ${atmStrike} is greater than ${previousTradeStrikePrice}`
+    );
     const difference = atmStrike - previousTradeStrikePrice;
+    console.log(`difference: ${difference}`);
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
   } else if (atmStrike < previousTradeStrikePrice) {
+    console.log(`when ${atmStrike} is lesser than ${previousTradeStrikePrice}`);
     const difference = previousTradeStrikePrice - atmStrike;
+    console.log(`difference: ${difference}`);
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
   }
@@ -429,6 +442,9 @@ export const executeTrade = async () => {
       data,
       `tradeDetails.${no_of_trades - 1}.call.strike`,
       ''
+    );
+    console.log(
+      `atm stike: ${atmStrike}, no of trades: ${no_of_trades}, previous trade strike price: ${previousTradeStrikePrice}`
     );
     checkToRepeatShortStraddle(atmStrike, parseInt(previousTradeStrikePrice));
   }
