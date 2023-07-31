@@ -1,0 +1,3 @@
+Read positions from profile and make respective json out of it.
+Calculate timewise mtm and store it to json. Example: timewise_mtm:[time:'12:30',mtm:280]
+Keep Credentails outside
