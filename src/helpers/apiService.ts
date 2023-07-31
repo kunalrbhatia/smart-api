@@ -235,8 +235,8 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
       if (
-        trade.call.token === get(value, 'symboltoken', '') ||
-        trade.put.token === get(value, 'symboltoken', '')
+        (trade.call && trade.call.token === get(value, 'symboltoken', '')) ||
+        (trade.put && trade.put.token === get(value, 'symboltoken', ''))
       ) {
         mtm += parseInt(get(value, 'unrealised', ''));
       }
@@ -350,7 +350,10 @@ export const repeatShortStraddle = async (
 export const areAllTradesClosed = (): boolean => {
   const tradeDetails = readJsonFile().tradeDetails;
   for (const trade of tradeDetails) {
-    if (!trade.call.closed || !trade.put.closed) {
+    if (
+      (trade.call && !trade.call.closed) ||
+      (trade.put && !trade.put.closed)
+    ) {
       return false;
     }
   }
@@ -360,24 +363,25 @@ export const closeAllTrades = async () => {
   const data = readJsonFile();
   const tradeDetails = data.tradeDetails;
   for (const trade of tradeDetails) {
-    if (
-      (trade.call.token !== '' && trade.call.closed === false) ||
-      (trade.put.token !== '' && trade.put.closed === false)
-    ) {
+    if (trade.call || trade.put) {
       await delay({ milliSeconds: DELAY });
       const callStatus = await doOrder({
-        tradingsymbol: trade.call.symbol,
+        tradingsymbol: get(trade, 'call.symbol', ''),
         transactionType: TRANSACTION_TYPE_BUY,
-        symboltoken: trade.call.token,
+        symboltoken: get(trade, 'call.token', ''),
       });
       await delay({ milliSeconds: DELAY });
       const putStatus = await doOrder({
-        tradingsymbol: trade.put.symbol,
+        tradingsymbol: get(trade, 'put.symbol', ''),
         transactionType: TRANSACTION_TYPE_BUY,
-        symboltoken: trade.put.token,
+        symboltoken: get(trade, 'put.token', ''),
       });
-      trade.call.closed = callStatus.status;
-      trade.put.closed = putStatus.status;
+      if (trade.call) {
+        trade.call.closed = callStatus.status;
+      }
+      if (trade.put) {
+        trade.put.closed = putStatus.status;
+      }
     }
   }
   writeJsonFile(data);

@@ -1,5 +1,6 @@
 import { Server, createServer } from 'http';
 import cors from 'cors';
+import get from 'lodash/get';
 import express, {
   Request,
   Response,
@@ -13,10 +14,12 @@ import cron from 'node-cron';
 import {
   closeTrade,
   getLtpData,
+  getPositions,
   getScrip,
   runAlgo,
 } from './helpers/apiService';
-import { isFridayMondayTuesday } from './helpers/functions';
+import { isFridayMondayTuesday, readJsonFile } from './helpers/functions';
+import { JsonFileStructure, Position, TradeDetails } from './app.interface';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -75,6 +78,41 @@ app.post('/run-algo', async (req: Request, res: Response) => {
     res.json({
       mtm: 'Not a good time to take the the trade',
     });
+  }
+});
+app.post('/get-positions', async (req: Request, res: Response) => {
+  try {
+    const currentPositions = await getPositions();
+    const positions: Position[] = get(currentPositions, 'data', []) || [];
+    const openPositions = positions.filter((position: Position) => {
+      if (position.buyqty !== position.sellqty) return position;
+    });
+    const json: JsonFileStructure = readJsonFile();
+    const tradeDetails: TradeDetails[] = json.tradeDetails;
+    openPositions.forEach((position: Position) => {
+      if (position.optiontype === 'CE') {
+        tradeDetails.push({
+          call: {
+            strike: position.strikeprice,
+            symbol: position.symbolname,
+            token: position.symboltoken,
+            closed: false,
+          },
+        });
+      } else {
+        tradeDetails.push({
+          put: {
+            strike: position.strikeprice,
+            symbol: position.symbolname,
+            token: position.symboltoken,
+            closed: false,
+          },
+        });
+      }
+    });
+    res.json(json);
+  } catch (err) {
+    console.log(err);
   }
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
