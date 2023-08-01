@@ -4,8 +4,20 @@ export interface ISmartApiData {
   feedToken: string;
 }
 export interface TradeDetails {
-  call?: { strike: string; token: string; symbol: string; closed: boolean };
-  put?: { strike: string; token: string; symbol: string; closed: boolean };
+  call?: {
+    strike: string;
+    token: string;
+    symbol: string;
+    closed: boolean;
+    isAlgoCreatedPosition?: boolean;
+  };
+  put?: {
+    strike: string;
+    token: string;
+    symbol: string;
+    closed: boolean;
+    isAlgoCreatedPosition?: boolean;
+  };
 }
 export interface JsonFileStructure {
   isTradeExecuted: boolean;

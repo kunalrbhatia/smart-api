@@ -18,7 +18,7 @@ import {
   getScrip,
   runAlgo,
 } from './helpers/apiService';
-import { isFridayMondayTuesday, readJsonFile } from './helpers/functions';
+import { createJsonFile, isFridayMondayTuesday } from './helpers/functions';
 import { JsonFileStructure, Position, TradeDetails } from './app.interface';
 
 const app: Application = express();
@@ -81,39 +81,38 @@ app.post('/run-algo', async (req: Request, res: Response) => {
   }
 });
 app.post('/get-positions', async (req: Request, res: Response) => {
-  try {
-    const currentPositions = await getPositions();
-    const positions: Position[] = get(currentPositions, 'data', []) || [];
-    const openPositions = positions.filter((position: Position) => {
-      if (position.buyqty !== position.sellqty) return position;
-    });
-    const json: JsonFileStructure = readJsonFile();
-    const tradeDetails: TradeDetails[] = json.tradeDetails;
-    openPositions.forEach((position: Position) => {
-      if (position.optiontype === 'CE') {
-        tradeDetails.push({
-          call: {
-            strike: position.strikeprice,
-            symbol: position.symbolname,
-            token: position.symboltoken,
-            closed: false,
-          },
-        });
-      } else {
-        tradeDetails.push({
-          put: {
-            strike: position.strikeprice,
-            symbol: position.symbolname,
-            token: position.symboltoken,
-            closed: false,
-          },
-        });
-      }
-    });
-    res.json(json);
-  } catch (err) {
-    console.log(err);
-  }
+  // try {
+  //   const currentPositions = await getPositions();
+  //   const positions: Position[] = get(currentPositions, 'data', []) || [];
+  //   const openPositions = positions.filter((position: Position) => {
+  //     if (position.cfbuyqty !== position.cfsellqty) return position;
+  //   });
+  //   const trades: TradeDetails[] = createJsonFile().tradeDetails;
+  //   // console.log(openPositions);
+  //   // console.log(trades);
+  //   // if (position.optiontype === 'CE') {
+  //   //   tradeDetails.push({
+  //   //     call: {
+  //   //       strike: position.strikeprice,
+  //   //       symbol: position.symbolname,
+  //   //       token: position.symboltoken,
+  //   //       closed: false,
+  //   //     },
+  //   //   });
+  //   // } else {
+  //   //   tradeDetails.push({
+  //   //     put: {
+  //   //       strike: position.strikeprice,
+  //   //       symbol: position.symbolname,
+  //   //       token: position.symboltoken,
+  //   //       closed: false,
+  //   //     },
+  //   //   });
+  //   // }
+  //   res.json(trades);
+  // } catch (err) {
+  //   console.log(err);
+  // }
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());

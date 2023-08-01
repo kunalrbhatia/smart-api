@@ -3,3 +3,4 @@
 /target
 package-lock.json
 .env
+.json

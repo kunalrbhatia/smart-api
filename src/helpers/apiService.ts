@@ -336,12 +336,14 @@ export const repeatShortStraddle = async (
         token: shortStraddleData.ceOrderToken,
         symbol: shortStraddleData.ceOrderSymbol,
         closed: false,
+        isAlgoCreatedPosition: true,
       },
       put: {
         strike: shortStraddleData.stikePrice,
         token: shortStraddleData.peOrderToken,
         symbol: shortStraddleData.peOrderSymbol,
         closed: false,
+        isAlgoCreatedPosition: true,
       },
     });
     writeJsonFile(data);
@@ -428,12 +430,14 @@ export const executeTrade = async () => {
           token: shortStraddleData.ceOrderToken,
           symbol: shortStraddleData.ceOrderSymbol,
           closed: false,
+          isAlgoCreatedPosition: true,
         },
         put: {
           strike: shortStraddleData.stikePrice,
           token: shortStraddleData.peOrderToken,
           symbol: shortStraddleData.peOrderSymbol,
           closed: false,
+          isAlgoCreatedPosition: true,
         },
       });
       writeJsonFile(data);
