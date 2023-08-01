@@ -33,15 +33,19 @@ process.on('uncaughtException', function (err) {
   console.log(err);
 });
 cron.schedule('*/5 * * * *', async () => {
-  const istTz = new Date().toLocaleString('default', {
-    timeZone: 'Asia/Kolkata',
-  });
-  if (isFridayMondayTuesday()) {
-    console.log('time ', istTz);
-    const response = await runAlgo();
-    console.log('response: ', response);
-  } else {
-    console.log('Not a good time to take the the trade');
+  try {
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
+    if (isFridayMondayTuesday()) {
+      console.log('time ', istTz);
+      const response = await runAlgo();
+      console.log('response: ', response);
+    } else {
+      console.log('Not a good time to take the the trade');
+    }
+  } catch (err) {
+    console.log(err);
   }
 });
 app.post(
