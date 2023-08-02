@@ -16,7 +16,7 @@ import {
   writeJsonFile,
 } from './functions';
 import { Response } from 'express';
-import { ISmartApiData, JsonFileStructure } from '../app.interface';
+import { ISmartApiData, JsonFileStructure, Position } from '../app.interface';
 import {
   DELAY,
   GET_LTP_DATA_API,
@@ -469,5 +469,22 @@ export const checkMarketConditionsAndExecuteTrade = async () => {
     }
   } else {
     return MESSAGE_NOT_TAKE_TRADE;
+  }
+};
+type CheckPosition = { position: Position };
+export const checkPositionAlreadyExists = async ({
+  position,
+}: CheckPosition) => {
+  try {
+    await delay({ milliSeconds: DELAY });
+    const trades = createJsonFile().tradeDetails;
+    for (const trade of trades) {
+      if (trade.call?.strike === position.strikeprice) {
+        return trade;
+      }
+    }
+    return null;
+  } catch (err) {
+    return null;
   }
 };

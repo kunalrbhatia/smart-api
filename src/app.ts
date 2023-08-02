@@ -13,13 +13,14 @@ import createHttpError from 'http-errors';
 import cron from 'node-cron';
 import {
   checkMarketConditionsAndExecuteTrade,
+  checkPositionAlreadyExists,
   closeTrade,
   getLtpData,
   getPositions,
   getScrip,
 } from './helpers/apiService';
-import { createJsonFile } from './helpers/functions';
-import { JsonFileStructure, Position, TradeDetails } from './app.interface';
+import { createJsonFile, getOpenPositions } from './helpers/functions';
+import { Position } from './app.interface';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -78,32 +79,35 @@ app.post('/get-positions', async (req: Request, res: Response) => {
   try {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
-    const openPositions = positions.filter((position: Position) => {
-      if (position.cfbuyqty !== position.cfsellqty) return position;
-    });
-    const trades: TradeDetails[] = createJsonFile().tradeDetails;
-    // console.log(openPositions);
-    // console.log(trades);
-    // if (position.optiontype === 'CE') {
-    //   tradeDetails.push({
-    //     call: {
-    //       strike: position.strikeprice,
-    //       symbol: position.symbolname,
-    //       token: position.symboltoken,
-    //       closed: false,
-    //     },
-    //   });
-    // } else {
-    //   tradeDetails.push({
-    //     put: {
-    //       strike: position.strikeprice,
-    //       symbol: position.symbolname,
-    //       token: position.symboltoken,
-    //       closed: false,
-    //     },
-    //   });
-    // }
-    res.json(trades);
+    const openPositions = getOpenPositions(positions);
+    const tradeDetails = createJsonFile().tradeDetails;
+    for (const position of openPositions) {
+      const isTradeExists = await checkPositionAlreadyExists({ position });
+      if (isTradeExists === null) {
+        if (position.optiontype === 'CE') {
+          tradeDetails.push({
+            call: {
+              strike: position.strikeprice,
+              symbol: position.symbolname,
+              token: position.symboltoken,
+              closed: false,
+              isAlgoCreatedPosition: false,
+            },
+          });
+        } else {
+          tradeDetails.push({
+            put: {
+              strike: position.strikeprice,
+              symbol: position.symbolname,
+              token: position.symboltoken,
+              closed: false,
+              isAlgoCreatedPosition: false,
+            },
+          });
+        }
+      }
+    }
+    res.json(tradeDetails);
   } catch (err) {
     console.log(err);
   }

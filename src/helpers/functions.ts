@@ -1,7 +1,7 @@
 import { getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
-import { JsonFileStructure, TradeDetails } from '../app.interface';
+import { JsonFileStructure, Position, TradeDetails } from '../app.interface';
 import moment from 'moment-timezone';
 export const getNextExpiry = () => {
   /*
@@ -163,6 +163,16 @@ export const checkStrike = (
     }
   }
   return false;
+};
+export const getOpenPositions = (positions: Position[]): Position[] => {
+  const openPositions = [];
+  for (const position of positions) {
+    const netqty = parseInt(position.netqty);
+    if (netqty > 0 || netqty < 0) {
+      openPositions.push(position);
+    }
+  }
+  return openPositions;
 };
 export const isMarketClosed = () => {
   if (
