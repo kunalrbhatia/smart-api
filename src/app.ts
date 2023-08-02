@@ -20,6 +20,7 @@ import {
 } from './helpers/apiService';
 import { createJsonFile, isFridayMondayTuesday } from './helpers/functions';
 import { JsonFileStructure, Position, TradeDetails } from './app.interface';
+import { MESSAGE_NOT_TAKE_TRADE } from './helpers/constants';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -42,7 +43,7 @@ cron.schedule('*/5 * * * *', async () => {
       const response = await runAlgo();
       console.log('response: ', response);
     } else {
-      console.log('Not a good time to take the the trade');
+      console.log(MESSAGE_NOT_TAKE_TRADE);
     }
   } catch (err) {
     console.log(err);
@@ -80,7 +81,7 @@ app.post('/run-algo', async (req: Request, res: Response) => {
     });
   } else {
     res.json({
-      mtm: 'Not a good time to take the the trade',
+      mtm: MESSAGE_NOT_TAKE_TRADE,
     });
   }
 });
