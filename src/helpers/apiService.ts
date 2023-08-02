@@ -460,6 +460,10 @@ export const runAlgo = async () => {
   } else if (data.isTradeClosed) {
     return 'Trade already closed!';
   } else {
-    return await executeTrade();
+    try {
+      return await executeTrade();
+    } catch (err) {
+      return err;
+    }
   }
 };
