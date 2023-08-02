@@ -69,7 +69,7 @@ app.post('/close-trade', async (req: Request, res: Response) => {
   await closeTrade();
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  const response = await runAlgo();
+  const response = await checkMarketConditionsAndExecuteTrade();
   res.json({
     mtm: response,
   });
