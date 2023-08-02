@@ -3,30 +3,28 @@ import { get } from 'lodash';
 import fs from 'fs';
 import { JsonFileStructure, TradeDetails } from '../app.interface';
 import moment from 'moment-timezone';
-export const isFridayMondayTuesday = () => {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-
-  // Check if the current day is Friday, Monday, or Tuesday (5, 1, or 2 respectively)
-  return [1, 2, 5].includes(dayOfWeek);
-};
 export const getNextExpiry = () => {
+  /*
+   *const today = new Date('08/03/2023');
+   *For testing getNextExpiry logic
+   */
   const today = new Date();
   const dayOfWeek = today.getDay();
-  // Check if today is Thursday
   const isThursday = dayOfWeek === 4;
-  // Calculate days until the next Thursday
-  const daysUntilNextThursday = isThursday ? 7 : (11 - dayOfWeek) % 7;
+  const isWednesday = dayOfWeek === 3;
+  const daysUntilNextThursday = () => {
+    if (isWednesday) return 8;
+    else if (isThursday) return 7;
+    else return (11 - dayOfWeek) % 7;
+  };
   const comingThursday = new Date(
     today.getFullYear(),
     today.getMonth(),
-    today.getDate() + daysUntilNextThursday
+    today.getDate() + daysUntilNextThursday()
   );
-  // Get the year, month, and day of the coming Thursday
   const year = comingThursday.getFullYear();
   const month = comingThursday.getMonth() + 1;
   const day = comingThursday.getDate().toString().padStart(2, '0');
-  // Format the date as ddmmmyyyy
   const months = [
     'JAN',
     'FEB',

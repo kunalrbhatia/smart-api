@@ -18,7 +18,7 @@ import {
   getScrip,
   runAlgo,
 } from './helpers/apiService';
-import { createJsonFile, isFridayMondayTuesday } from './helpers/functions';
+import { createJsonFile } from './helpers/functions';
 import { JsonFileStructure, Position, TradeDetails } from './app.interface';
 import { MESSAGE_NOT_TAKE_TRADE } from './helpers/constants';
 
@@ -38,13 +38,9 @@ cron.schedule('*/5 * * * *', async () => {
     const istTz = new Date().toLocaleString('default', {
       timeZone: 'Asia/Kolkata',
     });
-    if (isFridayMondayTuesday()) {
-      console.log('time ', istTz);
-      const response = await runAlgo();
-      console.log('response: ', response);
-    } else {
-      console.log(MESSAGE_NOT_TAKE_TRADE);
-    }
+    console.log('time ', istTz);
+    const response = await runAlgo();
+    console.log('response: ', response);
   } catch (err) {
     console.log(err);
   }
@@ -74,16 +70,10 @@ app.post('/close-trade', async (req: Request, res: Response) => {
   await closeTrade();
 });
 app.post('/run-algo', async (req: Request, res: Response) => {
-  if (isFridayMondayTuesday()) {
-    const response = await runAlgo();
-    res.json({
-      mtm: response,
-    });
-  } else {
-    res.json({
-      mtm: MESSAGE_NOT_TAKE_TRADE,
-    });
-  }
+  const response = await runAlgo();
+  res.json({
+    mtm: response,
+  });
 });
 app.post('/get-positions', async (req: Request, res: Response) => {
   try {
