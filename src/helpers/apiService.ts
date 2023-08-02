@@ -22,6 +22,7 @@ import {
   GET_LTP_DATA_API,
   GET_MARGIN,
   GET_POSITIONS,
+  MESSAGE_NOT_TAKE_TRADE,
   MTMDATATHRESHOLD,
   ORDER_API,
   SCRIPMASTER,
@@ -451,19 +452,22 @@ export const executeTrade = async () => {
     return mtmData;
   }
 };
-export const runAlgo = async () => {
+const isTradeAllowed = (data: JsonFileStructure) => {
+  return (
+    !isMarketClosed() &&
+    isCurrentTimeGreater({ hours: 10, minutes: 15 }) &&
+    !data.isTradeClosed
+  );
+};
+export const checkMarketConditionsAndExecuteTrade = async () => {
   let data = createJsonFile();
-  if (isMarketClosed()) {
-    return 'Market closed';
-  } else if (!isCurrentTimeGreater({ hours: 10, minutes: 15 })) {
-    return 'Wait it is not over 10:15 am';
-  } else if (data.isTradeClosed) {
-    return 'Trade already closed!';
-  } else {
+  if (isTradeAllowed(data)) {
     try {
       return await executeTrade();
     } catch (err) {
       return err;
     }
+  } else {
+    return MESSAGE_NOT_TAKE_TRADE;
   }
 };

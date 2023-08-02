@@ -12,15 +12,14 @@ import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import cron from 'node-cron';
 import {
+  checkMarketConditionsAndExecuteTrade,
   closeTrade,
   getLtpData,
   getPositions,
   getScrip,
-  runAlgo,
 } from './helpers/apiService';
 import { createJsonFile } from './helpers/functions';
 import { JsonFileStructure, Position, TradeDetails } from './app.interface';
-import { MESSAGE_NOT_TAKE_TRADE } from './helpers/constants';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -39,7 +38,7 @@ cron.schedule('*/5 * * * *', async () => {
       timeZone: 'Asia/Kolkata',
     });
     console.log('time ', istTz);
-    const response = await runAlgo();
+    const response = await checkMarketConditionsAndExecuteTrade();
     console.log('response: ', response);
   } catch (err) {
     console.log(err);

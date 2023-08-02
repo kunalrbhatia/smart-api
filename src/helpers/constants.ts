@@ -31,4 +31,4 @@ export const TRANSACTION_TYPE_SELL = 'SELL';
 export const PORT = 8000;
 export const MTMDATATHRESHOLD = 2000;
 export const STRIKE_DIFFERENCE = 200;
-export const MESSAGE_NOT_TAKE_TRADE = 'Not a good day to take the trade';
+export const MESSAGE_NOT_TAKE_TRADE = 'Conditions not right to take trade';
