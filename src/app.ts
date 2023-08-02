@@ -86,38 +86,38 @@ app.post('/run-algo', async (req: Request, res: Response) => {
   }
 });
 app.post('/get-positions', async (req: Request, res: Response) => {
-  // try {
-  //   const currentPositions = await getPositions();
-  //   const positions: Position[] = get(currentPositions, 'data', []) || [];
-  //   const openPositions = positions.filter((position: Position) => {
-  //     if (position.cfbuyqty !== position.cfsellqty) return position;
-  //   });
-  //   const trades: TradeDetails[] = createJsonFile().tradeDetails;
-  //   // console.log(openPositions);
-  //   // console.log(trades);
-  //   // if (position.optiontype === 'CE') {
-  //   //   tradeDetails.push({
-  //   //     call: {
-  //   //       strike: position.strikeprice,
-  //   //       symbol: position.symbolname,
-  //   //       token: position.symboltoken,
-  //   //       closed: false,
-  //   //     },
-  //   //   });
-  //   // } else {
-  //   //   tradeDetails.push({
-  //   //     put: {
-  //   //       strike: position.strikeprice,
-  //   //       symbol: position.symbolname,
-  //   //       token: position.symboltoken,
-  //   //       closed: false,
-  //   //     },
-  //   //   });
-  //   // }
-  //   res.json(trades);
-  // } catch (err) {
-  //   console.log(err);
-  // }
+  try {
+    const currentPositions = await getPositions();
+    const positions: Position[] = get(currentPositions, 'data', []) || [];
+    const openPositions = positions.filter((position: Position) => {
+      if (position.cfbuyqty !== position.cfsellqty) return position;
+    });
+    const trades: TradeDetails[] = createJsonFile().tradeDetails;
+    // console.log(openPositions);
+    // console.log(trades);
+    // if (position.optiontype === 'CE') {
+    //   tradeDetails.push({
+    //     call: {
+    //       strike: position.strikeprice,
+    //       symbol: position.symbolname,
+    //       token: position.symboltoken,
+    //       closed: false,
+    //     },
+    //   });
+    // } else {
+    //   tradeDetails.push({
+    //     put: {
+    //       strike: position.strikeprice,
+    //       symbol: position.symbolname,
+    //       token: position.symboltoken,
+    //       closed: false,
+    //     },
+    //   });
+    // }
+    res.json(trades);
+  } catch (err) {
+    console.log(err);
+  }
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());

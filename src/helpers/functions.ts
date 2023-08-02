@@ -112,23 +112,23 @@ export const getCurrentDate = (): string => {
   return `${year}_${month}_${day}`;
 };
 export const createJsonFile = (): JsonFileStructure => {
-  let json: JsonFileStructure = {
-    isTradeExecuted: false,
-    accountDetails: {
-      capitalUsed: 0,
-    },
-    tradeDetails: [],
-    isTradeClosed: false,
-  };
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const exists = fs.existsSync(fileName);
   if (exists) {
-    json = readJsonFile();
+    return readJsonFile();
   } else {
+    let json: JsonFileStructure = {
+      isTradeExecuted: false,
+      accountDetails: {
+        capitalUsed: 0,
+      },
+      tradeDetails: [],
+      isTradeClosed: false,
+    };
     writeJsonFile(json);
+    return json;
   }
-  return json;
 };
 export const writeJsonFile = (data: JsonFileStructure) => {
   const currentDate = getCurrentDate();
