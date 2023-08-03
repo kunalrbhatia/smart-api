@@ -488,6 +488,8 @@ export const executeTrade = async () => {
   }
   await delay({ milliSeconds: DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
+  await delay({ milliSeconds: DELAY });
+  await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   if (mtmData < -MTMDATATHRESHOLD || isCurrentTimeGreater(closingTime)) {
     await closeTrade();
