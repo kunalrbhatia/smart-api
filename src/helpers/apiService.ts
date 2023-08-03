@@ -10,6 +10,7 @@ import {
   delay,
   getAtmStrikePrice,
   getNextExpiry,
+  getOpenPositions,
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
@@ -344,7 +345,45 @@ export const repeatShortStraddle = async (
     writeJsonFile(data);
   }
 };
-
+export const getPositionsJson = async () => {
+  try {
+    const currentPositions = await getPositions();
+    const positions: Position[] = get(currentPositions, 'data', []) || [];
+    const openPositions = getOpenPositions(positions);
+    const json = createJsonFile();
+    const tradeDetails = json.tradeDetails;
+    for (const position of openPositions) {
+      const isTradeExists = await checkPositionAlreadyExists({ position });
+      if (isTradeExists === null) {
+        if (position.optiontype === 'CE') {
+          tradeDetails.push({
+            call: {
+              strike: position.strikeprice,
+              symbol: position.symbolname,
+              token: position.symboltoken,
+              closed: false,
+              isAlgoCreatedPosition: false,
+            },
+          });
+        } else {
+          tradeDetails.push({
+            put: {
+              strike: position.strikeprice,
+              symbol: position.symbolname,
+              token: position.symboltoken,
+              closed: false,
+              isAlgoCreatedPosition: false,
+            },
+          });
+        }
+      }
+    }
+    writeJsonFile(json);
+    return json;
+  } catch (err) {
+    return err;
+  }
+};
 export const closeAllTrades = async () => {
   const data = readJsonFile();
   const tradeDetails = data.tradeDetails;
