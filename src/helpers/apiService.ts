@@ -344,18 +344,7 @@ export const repeatShortStraddle = async (
     writeJsonFile(data);
   }
 };
-export const areAllTradesClosed = (): boolean => {
-  const tradeDetails = readJsonFile().tradeDetails;
-  for (const trade of tradeDetails) {
-    if (
-      (trade.call && !trade.call.closed) ||
-      (trade.put && !trade.put.closed)
-    ) {
-      return false;
-    }
-  }
-  return true;
-};
+
 export const closeAllTrades = async () => {
   const data = readJsonFile();
   const tradeDetails = data.tradeDetails;
@@ -391,6 +380,22 @@ export const closeTrade = async () => {
   const data = readJsonFile();
   data.isTradeClosed = true;
   writeJsonFile(data);
+};
+export const areAllTradesClosed = (): boolean => {
+  const tradeDetails = readJsonFile().tradeDetails;
+  if (Array.isArray(tradeDetails)) {
+    for (const trade of tradeDetails) {
+      if (
+        (trade.call && !trade.call.closed) ||
+        (trade.put && !trade.put.closed)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
 };
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
