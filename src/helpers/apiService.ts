@@ -354,7 +354,7 @@ export const getPositionsJson = async () => {
     const tradeDetails = json.tradeDetails;
     for (const position of openPositions) {
       const isTradeExists = await checkPositionAlreadyExists({ position });
-      if (isTradeExists === null) {
+      if (isTradeExists === false) {
         if (position.optiontype === 'CE') {
           tradeDetails.push({
             call: {
@@ -388,7 +388,10 @@ export const closeAllTrades = async () => {
   const data = readJsonFile();
   const tradeDetails = data.tradeDetails;
   for (const trade of tradeDetails) {
-    if (trade.call || trade.put) {
+    if (
+      trade?.call?.isAlgoCreatedPosition ||
+      trade?.put?.isAlgoCreatedPosition
+    ) {
       await delay({ milliSeconds: DELAY });
       const callStatus = await doOrder({
         tradingsymbol: get(trade, 'call.symbol', ''),
@@ -488,8 +491,8 @@ export const executeTrade = async () => {
   }
   await delay({ milliSeconds: DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
-  await delay({ milliSeconds: DELAY });
-  await getPositionsJson();
+  // await delay({ milliSeconds: DELAY });
+  // await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   if (mtmData < -MTMDATATHRESHOLD || isCurrentTimeGreater(closingTime)) {
     await closeTrade();
@@ -525,12 +528,11 @@ export const checkPositionAlreadyExists = async ({
     await delay({ milliSeconds: DELAY });
     const trades = createJsonFile().tradeDetails;
     for (const trade of trades) {
-      if (trade.call?.strike === position.strikeprice) {
-        return trade;
-      }
+      if (trade.call?.strike === position.strikeprice) return true;
+      if (trade.put?.strike === position.strikeprice) return true;
     }
-    return null;
+    return false;
   } catch (err) {
-    return null;
+    return false;
   }
 };
