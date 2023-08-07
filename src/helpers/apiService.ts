@@ -398,32 +398,34 @@ export const getPositionsJson = async () => {
 export const closeAllTrades = async () => {
   const data = readJsonFile();
   const tradeDetails = data.tradeDetails;
-  for (const trade of tradeDetails) {
-    if (
-      trade?.call?.isAlgoCreatedPosition ||
-      trade?.put?.isAlgoCreatedPosition
-    ) {
-      await delay({ milliSeconds: DELAY });
-      const callStatus = await doOrder({
-        tradingsymbol: get(trade, 'call.symbol', ''),
-        transactionType: TRANSACTION_TYPE_BUY,
-        symboltoken: get(trade, 'call.token', ''),
-      });
-      await delay({ milliSeconds: DELAY });
-      const putStatus = await doOrder({
-        tradingsymbol: get(trade, 'put.symbol', ''),
-        transactionType: TRANSACTION_TYPE_BUY,
-        symboltoken: get(trade, 'put.token', ''),
-      });
-      if (trade.call) {
-        trade.call.closed = callStatus.status;
-      }
-      if (trade.put) {
-        trade.put.closed = putStatus.status;
+  if (Array.isArray(tradeDetails)) {
+    for (const trade of tradeDetails) {
+      if (
+        trade?.call?.isAlgoCreatedPosition ||
+        trade?.put?.isAlgoCreatedPosition
+      ) {
+        await delay({ milliSeconds: DELAY });
+        const callStatus = await doOrder({
+          tradingsymbol: get(trade, 'call.symbol', ''),
+          transactionType: TRANSACTION_TYPE_BUY,
+          symboltoken: get(trade, 'call.token', ''),
+        });
+        await delay({ milliSeconds: DELAY });
+        const putStatus = await doOrder({
+          tradingsymbol: get(trade, 'put.symbol', ''),
+          transactionType: TRANSACTION_TYPE_BUY,
+          symboltoken: get(trade, 'put.token', ''),
+        });
+        if (trade.call) {
+          trade.call.closed = callStatus.status;
+        }
+        if (trade.put) {
+          trade.put.closed = putStatus.status;
+        }
       }
     }
+    writeJsonFile(data);
   }
-  writeJsonFile(data);
 };
 export const closeTrade = async () => {
   while (areAllTradesClosed() === false) {
