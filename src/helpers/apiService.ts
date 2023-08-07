@@ -456,6 +456,7 @@ export const checkToRepeatShortStraddle = async (
 export const executeTrade = async () => {
   let data = readJsonFile();
   if (!data.isTradeExecuted) {
+    console.log(`executing trade`);
     const shortStraddleData = await shortStraddle();
     if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
       data.isTradeExecuted = true;
@@ -479,6 +480,9 @@ export const executeTrade = async () => {
       writeJsonFile(data);
     }
   } else {
+    console.log(
+      `trade executed already checing conditions to repeat the trade`
+    );
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.tradeDetails.length;
@@ -489,19 +493,33 @@ export const executeTrade = async () => {
     );
     checkToRepeatShortStraddle(atmStrike, parseInt(previousTradeStrikePrice));
   }
+  console.log(`calculating mtm...`);
   await delay({ milliSeconds: DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
+  console.log(`mtm: ${mtmData}`);
   // await delay({ milliSeconds: DELAY });
   // await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
+  console.log(
+    `checking condition hasTimePassed15:15: ${isCurrentTimeGreater(
+      closingTime
+    )}`
+  );
   if (mtmData < -MTMDATATHRESHOLD || isCurrentTimeGreater(closingTime)) {
+    console.log(`closing the trade`);
     await closeTrade();
     return 'Trade Closed';
   } else {
+    console.log(`returning mtm to api response`);
     return mtmData;
   }
 };
 const isTradeAllowed = (data: JsonFileStructure) => {
+  console.log(
+    `checking conditions, isMarketClosed: ${isMarketClosed()}, hasTimePassed10:15am: ${isCurrentTimeGreater(
+      { hours: 10, minutes: 15 }
+    )}, isTradeClosed: ${data.isTradeClosed}`
+  );
   return (
     !isMarketClosed() &&
     isCurrentTimeGreater({ hours: 10, minutes: 15 }) &&
