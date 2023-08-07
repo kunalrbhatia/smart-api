@@ -321,10 +321,19 @@ export const repeatShortStraddle = async (
   atmStrike: number
 ) => {
   const data = readJsonFile();
+  console.log(
+    `checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE: ${
+      difference >= STRIKE_DIFFERENCE
+    }\n 2. if this same strike is already traded: ${checkStrike(
+      get(data, 'tradeDetails', []),
+      atmStrike.toString()
+    )}`
+  );
   if (
     difference >= STRIKE_DIFFERENCE &&
     checkStrike(get(data, 'tradeDetails', []), atmStrike.toString()) === false
   ) {
+    console.log(`executing trade repeat ...`);
     const shortStraddleData = await shortStraddle();
     data.tradeDetails.push({
       call: {
@@ -342,6 +351,8 @@ export const repeatShortStraddle = async (
         isAlgoCreatedPosition: true,
       },
     });
+    console.log(`details: `);
+    console.log(data.tradeDetails);
     writeJsonFile(data);
   }
 };
@@ -443,12 +454,21 @@ export const checkToRepeatShortStraddle = async (
   atmStrike: number,
   previousTradeStrikePrice: number
 ) => {
+  console.log(
+    `atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
+  );
   if (atmStrike > previousTradeStrikePrice) {
     const difference = atmStrike - previousTradeStrikePrice;
+    console.log(
+      `atm strike is greater than previous traded strike price. The difference is ${difference}`
+    );
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
   } else if (atmStrike < previousTradeStrikePrice) {
     const difference = previousTradeStrikePrice - atmStrike;
+    console.log(
+      `atm strike is lesser than previous traded strike price. The difference is ${difference}`
+    );
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
   }
