@@ -324,14 +324,14 @@ export const repeatShortStraddle = async (
   console.log(
     `checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE: ${
       difference >= STRIKE_DIFFERENCE
-    }\n 2. if this same strike is already traded: ${checkStrike(
-      get(data, 'tradeDetails', []),
+    }\n2. if this same strike is already traded: ${checkStrike(
+      data.tradeDetails,
       atmStrike.toString()
     )}`
   );
   if (
     difference >= STRIKE_DIFFERENCE &&
-    checkStrike(get(data, 'tradeDetails', []), atmStrike.toString()) === false
+    checkStrike(data.tradeDetails, atmStrike.toString()) === false
   ) {
     console.log(`executing trade repeat ...`);
     const shortStraddleData = await shortStraddle();
