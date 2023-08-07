@@ -481,7 +481,7 @@ export const executeTrade = async () => {
     }
   } else {
     console.log(
-      `trade executed already checing conditions to repeat the trade`
+      `trade executed already checking conditions to repeat the trade`
     );
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
