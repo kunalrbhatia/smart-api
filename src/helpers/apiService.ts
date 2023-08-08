@@ -19,10 +19,12 @@ import {
 import { Response } from 'express';
 import { ISmartApiData, JsonFileStructure, Position } from '../app.interface';
 import {
+  ALGO,
   DELAY,
   GET_LTP_DATA_API,
   GET_MARGIN,
   GET_POSITIONS,
+  ME,
   MESSAGE_NOT_TAKE_TRADE,
   MTMDATATHRESHOLD,
   ORDER_API,
@@ -322,7 +324,7 @@ export const repeatShortStraddle = async (
 ) => {
   const data = readJsonFile();
   console.log(
-    `checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE: ${
+    `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE: ${
       difference >= STRIKE_DIFFERENCE
     }\n2. if this same strike is already traded: ${checkStrike(
       data.tradeDetails,
@@ -333,7 +335,7 @@ export const repeatShortStraddle = async (
     difference >= STRIKE_DIFFERENCE &&
     checkStrike(data.tradeDetails, atmStrike.toString()) === false
   ) {
-    console.log(`executing trade repeat ...`);
+    console.log(`${ALGO}: executing trade repeat ...`);
     const shortStraddleData = await shortStraddle();
     data.tradeDetails.push({
       call: {
@@ -351,7 +353,7 @@ export const repeatShortStraddle = async (
         isAlgoCreatedPosition: true,
       },
     });
-    console.log(`details: `);
+    console.log(`${ALGO}: details: `);
     console.log(data.tradeDetails);
     writeJsonFile(data);
   }
@@ -428,7 +430,9 @@ export const closeAllTrades = async () => {
   }
 };
 export const closeTrade = async () => {
+  console.log(`${ME}: check if all the trades are closed.`);
   while (areAllTradesClosed() === false) {
+    console.log(`${ALGO}: all trades are not closed, closing trades...`);
     await closeAllTrades();
   }
   await delay({ milliSeconds: DELAY });
@@ -437,6 +441,7 @@ export const closeTrade = async () => {
   writeJsonFile(data);
 };
 export const areAllTradesClosed = (): boolean => {
+  console.log(`${ALGO}: checking if all the trades are closed.`);
   const tradeDetails = readJsonFile().tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
@@ -457,19 +462,19 @@ export const checkToRepeatShortStraddle = async (
   previousTradeStrikePrice: number
 ) => {
   console.log(
-    `atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
+    `${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
   );
   if (atmStrike > previousTradeStrikePrice) {
     const difference = atmStrike - previousTradeStrikePrice;
     console.log(
-      `atm strike is greater than previous traded strike price. The difference is ${difference}`
+      `${ALGO}: atm strike is greater than previous traded strike price. The difference is ${difference}`
     );
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
   } else if (atmStrike < previousTradeStrikePrice) {
     const difference = previousTradeStrikePrice - atmStrike;
     console.log(
-      `atm strike is lesser than previous traded strike price. The difference is ${difference}`
+      `${ALGO}: atm strike is lesser than previous traded strike price. The difference is ${difference}`
     );
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
@@ -478,7 +483,7 @@ export const checkToRepeatShortStraddle = async (
 export const executeTrade = async () => {
   let data = readJsonFile();
   if (!data.isTradeExecuted) {
-    console.log(`executing trade`);
+    console.log(`${ALGO}: executing trade`);
     const shortStraddleData = await shortStraddle();
     if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
       data.isTradeExecuted = true;
@@ -503,7 +508,7 @@ export const executeTrade = async () => {
     }
   } else {
     console.log(
-      `trade executed already checking conditions to repeat the trade`
+      `${ALGO}: trade executed already checking conditions to repeat the trade`
     );
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
@@ -515,30 +520,30 @@ export const executeTrade = async () => {
     );
     checkToRepeatShortStraddle(atmStrike, parseInt(previousTradeStrikePrice));
   }
-  console.log(`calculating mtm...`);
+  console.log(`${ALGO}: calculating mtm...`);
   await delay({ milliSeconds: DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
-  console.log(`mtm: ${mtmData}`);
+  console.log(`${ALGO}: mtm: ${mtmData}`);
   // await delay({ milliSeconds: DELAY });
   // await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   console.log(
-    `checking condition hasTimePassed15:15: ${isCurrentTimeGreater(
+    `${ALGO}: checking condition hasTimePassed15:15: ${isCurrentTimeGreater(
       closingTime
     )}`
   );
   if (mtmData < -MTMDATATHRESHOLD || isCurrentTimeGreater(closingTime)) {
-    console.log(`closing the trade`);
+    console.log(`${ALGO}: closing the trade`);
     await closeTrade();
-    return 'Trade Closed';
+    return '${ALGO}: Trade Closed';
   } else {
-    console.log(`returning mtm to api response`);
+    console.log(`${ALGO}: returning mtm to api response`);
     return mtmData;
   }
 };
 const isTradeAllowed = (data: JsonFileStructure) => {
   console.log(
-    `checking conditions, isMarketClosed: ${isMarketClosed()}, hasTimePassed10:15am: ${isCurrentTimeGreater(
+    `${ALGO}: checking conditions, isMarketClosed: ${isMarketClosed()}, hasTimePassed10:15am: ${isCurrentTimeGreater(
       { hours: 10, minutes: 15 }
     )}, isTradeClosed: ${data.isTradeClosed}`
   );

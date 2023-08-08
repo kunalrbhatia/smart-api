@@ -3,6 +3,7 @@ import { get } from 'lodash';
 import fs from 'fs';
 import { JsonFileStructure, Position, TradeDetails } from '../app.interface';
 import moment from 'moment-timezone';
+import { ALGO } from './constants';
 export const getNextExpiry = () => {
   /*
    *const today = new Date('08/03/2023');
@@ -132,12 +133,12 @@ export const writeJsonFile = (data: JsonFileStructure) => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const dataToStoreString = JSON.stringify(data);
-  console.log('json data: ', dataToStoreString);
+  console.log(`${ALGO}: json data: `, dataToStoreString);
   fs.writeFile(fileName, dataToStoreString, (err) => {
     if (err) {
-      console.error('Error writing data to file:', err);
+      console.error(`${ALGO}: Error writing data to file:`, err);
     } else {
-      console.log(`Data stored successfully in file: ${fileName}`);
+      console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
     }
   });
 };

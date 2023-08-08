@@ -32,3 +32,5 @@ export const PORT = 8000;
 export const MTMDATATHRESHOLD = 2000;
 export const STRIKE_DIFFERENCE = 200;
 export const MESSAGE_NOT_TAKE_TRADE = 'Conditions not right to take trade';
+export const ME = 'Kunal';
+export const ALGO = 'Algo';

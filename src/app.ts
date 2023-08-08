@@ -17,6 +17,7 @@ import {
   getPositionsJson,
   getScrip,
 } from './helpers/apiService';
+import { ALGO } from './helpers/constants';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -33,9 +34,9 @@ cron.schedule('*/5 * * * *', async () => {
     const istTz = new Date().toLocaleString('default', {
       timeZone: 'Asia/Kolkata',
     });
-    console.log('time ', istTz);
+    console.log(`${ALGO}: time, ${istTz}`);
     const response = await checkMarketConditionsAndExecuteTrade();
-    console.log('response: ', response);
+    console.log(`response: ${response}`);
   } catch (err) {
     console.log(err);
   }
