@@ -400,6 +400,7 @@ export const getPositionsJson = async () => {
 export const closeAllTrades = async () => {
   await delay({ milliSeconds: DELAY });
   const data = readJsonFile();
+  await delay({ milliSeconds: DELAY });
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
@@ -433,7 +434,7 @@ export const closeAllTrades = async () => {
 };
 export const closeTrade = async () => {
   console.log(`${ME}: check if all the trades are closed.`);
-  while (areAllTradesClosed() === false) {
+  while ((await areAllTradesClosed()) === false) {
     console.log(`${ALGO}: all trades are not closed, closing trades...`);
     await closeAllTrades();
   }
@@ -444,9 +445,12 @@ export const closeTrade = async () => {
   await delay({ milliSeconds: DELAY });
   writeJsonFile(data);
 };
-export const areAllTradesClosed = (): boolean => {
+export const areAllTradesClosed = async () => {
   console.log(`${ALGO}: checking if all the trades are closed.`);
-  const tradeDetails = readJsonFile().tradeDetails;
+  await delay({ milliSeconds: DELAY });
+  const data = readJsonFile();
+  await delay({ milliSeconds: DELAY });
+  const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
       if (
@@ -528,6 +532,15 @@ export const executeTrade = async () => {
   await delay({ milliSeconds: DELAY });
   let mtmData = await calculateMtm({ data: readJsonFile() });
   console.log(`${ALGO}: mtm: ${mtmData}`);
+  await delay({ milliSeconds: DELAY });
+  const istTz = new Date().toLocaleString('default', {
+    timeZone: 'Asia/Kolkata',
+  });
+  data = readJsonFile();
+  const mtm = data.mtm;
+  mtm.push({ time: istTz, value: mtmData.toString() });
+  await delay({ milliSeconds: DELAY });
+  writeJsonFile(data);
   // await delay({ milliSeconds: DELAY });
   // await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };

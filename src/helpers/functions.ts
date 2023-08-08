@@ -124,6 +124,7 @@ export const createJsonFile = (): JsonFileStructure => {
       },
       tradeDetails: [],
       isTradeClosed: false,
+      mtm: [],
     };
     writeJsonFile(json);
     return json;
@@ -143,7 +144,8 @@ export const writeJsonFile = (data: JsonFileStructure) => {
   const fileName = `${currentDate}_trades.json`;
   const dataToStoreString = JSON.stringify(data);
   console.log(`${ALGO}: json data: `, dataToStoreString);
-  if (isJson(dataToStoreString))
+  if (isJson(dataToStoreString)) {
+    console.log(`${ALGO}: writing into json file with name ${fileName}`);
     fs.writeFile(fileName, dataToStoreString, (err) => {
       if (err) {
         console.error(`${ALGO}: Error writing data to file:`, err);
@@ -151,11 +153,13 @@ export const writeJsonFile = (data: JsonFileStructure) => {
         console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
       }
     });
+  }
 };
 
 export const readJsonFile = (): JsonFileStructure => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
+  console.log(`${ALGO}: reading from json file with name ${fileName}`);
   const dataFromFile = fs.readFileSync(fileName, 'utf-8');
   const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);
   return dataFromFileJson;

@@ -19,6 +19,10 @@ export interface TradeDetails {
     isAlgoCreatedPosition?: boolean;
   };
 }
+export interface MtmValue {
+  time: string;
+  value: string;
+}
 export interface JsonFileStructure {
   isTradeExecuted: boolean;
   accountDetails: {
@@ -26,6 +30,7 @@ export interface JsonFileStructure {
   };
   tradeDetails: TradeDetails[];
   isTradeClosed: boolean;
+  mtm: MtmValue[];
 }
 export type Position = {
   symboltoken: string;
