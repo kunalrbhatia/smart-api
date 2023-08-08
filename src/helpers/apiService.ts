@@ -543,7 +543,7 @@ export const executeTrade = async () => {
 };
 const isTradeAllowed = (data: JsonFileStructure) => {
   console.log(
-    `${ALGO}: checking conditions, isMarketClosed: ${isMarketClosed()}, hasTimePassed10:15am: ${isCurrentTimeGreater(
+    `${ALGO}: checking conditions, isMarketClosed: ${isMarketClosed()}, hasTimePassed 09:45am: ${isCurrentTimeGreater(
       { hours: 9, minutes: 45 }
     )}, isTradeClosed: ${data.isTradeClosed}`
   );
