@@ -129,26 +129,35 @@ export const createJsonFile = (): JsonFileStructure => {
     return json;
   }
 };
+export const isJson = (string: string) => {
+  console.log(`${ALGO}: checking if json is proper.`);
+  try {
+    JSON.parse(string);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
 export const writeJsonFile = (data: JsonFileStructure) => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const dataToStoreString = JSON.stringify(data);
   console.log(`${ALGO}: json data: `, dataToStoreString);
-  fs.writeFile(fileName, dataToStoreString, (err) => {
-    if (err) {
-      console.error(`${ALGO}: Error writing data to file:`, err);
-    } else {
-      console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
-    }
-  });
+  if (isJson(dataToStoreString))
+    fs.writeFile(fileName, dataToStoreString, (err) => {
+      if (err) {
+        console.error(`${ALGO}: Error writing data to file:`, err);
+      } else {
+        console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
+      }
+    });
 };
+
 export const readJsonFile = (): JsonFileStructure => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const dataFromFile = fs.readFileSync(fileName, 'utf-8');
-  const dataFromFileJson = JSON.parse(
-    dataFromFile || JSON.stringify({ data: 'defualt value' })
-  );
+  const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);
   return dataFromFileJson;
 };
 export const checkStrike = (

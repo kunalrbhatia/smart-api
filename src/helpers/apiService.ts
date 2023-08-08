@@ -398,6 +398,7 @@ export const getPositionsJson = async () => {
   }
 };
 export const closeAllTrades = async () => {
+  await delay({ milliSeconds: DELAY });
   const data = readJsonFile();
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
@@ -426,6 +427,7 @@ export const closeAllTrades = async () => {
         }
       }
     }
+    await delay({ milliSeconds: DELAY });
     writeJsonFile(data);
   }
 };
@@ -435,9 +437,11 @@ export const closeTrade = async () => {
     console.log(`${ALGO}: all trades are not closed, closing trades...`);
     await closeAllTrades();
   }
+  console.log(`${ALGO}: Yes, all the trades are closed.`);
   await delay({ milliSeconds: DELAY });
   const data = readJsonFile();
   data.isTradeClosed = true;
+  await delay({ milliSeconds: DELAY });
   writeJsonFile(data);
 };
 export const areAllTradesClosed = (): boolean => {
