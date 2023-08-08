@@ -544,12 +544,12 @@ export const executeTrade = async () => {
 const isTradeAllowed = (data: JsonFileStructure) => {
   console.log(
     `${ALGO}: checking conditions, isMarketClosed: ${isMarketClosed()}, hasTimePassed10:15am: ${isCurrentTimeGreater(
-      { hours: 10, minutes: 15 }
+      { hours: 9, minutes: 45 }
     )}, isTradeClosed: ${data.isTradeClosed}`
   );
   return (
     !isMarketClosed() &&
-    isCurrentTimeGreater({ hours: 10, minutes: 15 }) &&
+    isCurrentTimeGreater({ hours: 9, minutes: 45 }) &&
     !data.isTradeClosed
   );
 };
