@@ -60,23 +60,28 @@ export const findNearestStrike = (options: object[], target: number) => {
 export const getAtmStrikePrice = async () => {
   const expiryDate = getNextExpiry();
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
-  const optionChain = await getScrip({
-    scriptName: 'BANKNIFTY',
-    expiryDate: expiryDate,
-  });
-  console.log(
-    `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
-  );
-  const ltp = await getLtpData({
-    exchange: 'NSE',
-    tradingsymbol: 'BANKNIFTY',
-    symboltoken: '26009',
-  });
-  const ltpPrice = parseInt(get(ltp, 'ltp', ''));
-  console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
-  const nearestStrike = findNearestStrike(optionChain, ltpPrice);
-  console.log(`${ALGO}: nearestStrike is ${nearestStrike}`);
-  return nearestStrike;
+  try {
+    const optionChain = await getScrip({
+      scriptName: 'BANKNIFTY',
+      expiryDate: expiryDate,
+    });
+    console.log(
+      `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
+    );
+    const ltp = await getLtpData({
+      exchange: 'NSE',
+      tradingsymbol: 'BANKNIFTY',
+      symboltoken: '26009',
+    });
+    const ltpPrice = parseInt(get(ltp, 'ltp', ''));
+    console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
+    const nearestStrike = findNearestStrike(optionChain, ltpPrice);
+    console.log(`${ALGO}: nearestStrike is ${nearestStrike}`);
+    return nearestStrike;
+  } catch (error) {
+    console.error(`${ALGO}: Error - ${error}`);
+    throw error; // This will immediately stop further execution
+  }
 };
 type delayType = {
   milliSeconds: number | undefined | string;
