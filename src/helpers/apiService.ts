@@ -89,6 +89,8 @@ export const fetchData = async (): Promise<object> => {
   return await axios
     .get(SCRIPMASTER)
     .then((response: object) => {
+      // console.log(`${ALGO}: response if script master api is `);
+      // console.log(response);
       let acData: object[] = get(response, 'data', []) || [];
       let scripMaster = acData.map((element, index) => {
         return {
@@ -525,6 +527,9 @@ export const executeTrade = async () => {
       data,
       `tradeDetails.${no_of_trades - 1}.call.strike`,
       ''
+    );
+    console.log(
+      `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
     );
     checkToRepeatShortStraddle(atmStrike, parseInt(previousTradeStrikePrice));
   }

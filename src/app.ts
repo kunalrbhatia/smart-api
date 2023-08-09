@@ -18,6 +18,7 @@ import {
   getScrip,
 } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
+import { getAtmStrikePrice } from './helpers/functions';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -39,7 +40,12 @@ cron.schedule('*/5 * * * *', async () => {
     console.log(`response: ${response}`);
   } catch (err) {
     console.log(err);
+  } finally {
+    console.log(`--------------------------------------`);
   }
+});
+app.post('/get-atm-strike-price', async (req: Request, res: Response) => {
+  res.json({ atm: await getAtmStrikePrice() });
 });
 app.post(
   '/script/details/get-script-ltp',
