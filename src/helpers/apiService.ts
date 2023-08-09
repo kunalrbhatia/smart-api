@@ -66,10 +66,14 @@ export const getLtpData = async ({
     },
     data: data,
   };
-
-  return axios(config).then((response: object) => {
+  try {
+    const response = await axios(config);
     return get(response, 'data.data', {}) || {};
-  });
+  } catch (error) {
+    console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`);
+    console.log(error);
+    return {};
+  }
 };
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const smart_api = new SmartAPI({
