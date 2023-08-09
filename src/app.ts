@@ -34,7 +34,7 @@ cron.schedule('*/5 * * * *', async () => {
     const istTz = new Date().toLocaleString('default', {
       timeZone: 'Asia/Kolkata',
     });
-    console.log(`${ALGO}: time, ${istTz}`);
+    console.log(`\n${ALGO}: time, ${istTz}`);
     const response = await checkMarketConditionsAndExecuteTrade();
     console.log(`response: ${response}`);
   } catch (err) {
