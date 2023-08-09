@@ -74,7 +74,6 @@ export const getAtmStrikePrice = async () => {
     symboltoken: '26009',
   });
   console.log(`${ALGO}: fetched ltp`);
-  console.log(ltp);
   const nearestStrike = findNearestStrike(
     optionChain,
     parseInt(get(ltp, 'ltp', ''))
