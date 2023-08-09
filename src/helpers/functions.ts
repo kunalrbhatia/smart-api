@@ -44,22 +44,19 @@ export const getNextExpiry = () => {
   const formattedDate = `${day}${monthName}${year}`;
   return formattedDate;
 };
-function findNearestStrike(options: object[], target: number) {
-  let nearestStrike = parseInt(get(options, '0.strike', '') || '') / 100; // Assume the first strike as the nearest initially
-  let nearestDiff = Math.abs(target - nearestStrike); // Calculate the difference
-  // Iterate through the remaining strikes to find the nearest one
-  for (let i = 1; i < options.length; i++) {
-    let currentDiff = Math.abs(
-      target - parseInt(get(options, `${i}.strike`, '')) / 100
-    );
+export const findNearestStrike = (options: object[], target: number) => {
+  let nearestStrike = Infinity;
+  let nearestDiff = Infinity;
+  for (const option of options) {
+    const strike = parseInt(get(option, 'strike', '')) / 100;
+    const currentDiff = Math.abs(target - strike);
     if (currentDiff < nearestDiff) {
       nearestDiff = currentDiff;
-      nearestStrike = parseInt(get(options, `${i}.strike`, '')) / 100;
+      nearestStrike = strike;
     }
   }
-
   return nearestStrike;
-}
+};
 export const getAtmStrikePrice = async () => {
   const expiryDate = getNextExpiry();
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
