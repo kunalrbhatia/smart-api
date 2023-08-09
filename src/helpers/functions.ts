@@ -67,21 +67,19 @@ export const getAtmStrikePrice = async () => {
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
   });
-  // console.log(`${ALGO}: optionChain is`);
-  // console.log(optionChain);
+  console.log(`${ALGO}: fetched optionChain`);
   const ltp = await getLtpData({
     exchange: 'NSE',
     tradingsymbol: 'BANKNIFTY',
     symboltoken: '26009',
   });
-  console.log(`${ALGO}: ltp is`);
+  console.log(`${ALGO}: fetched ltp`);
   console.log(ltp);
   const nearestStrike = findNearestStrike(
     optionChain,
     parseInt(get(ltp, 'ltp', ''))
   );
-  console.log(`${ALGO}: nearestStrike is`);
-  console.log(nearestStrike);
+  console.log(`${ALGO}: nearestStrike is ${nearestStrike}`);
   return nearestStrike;
 };
 type delayType = {
