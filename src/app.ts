@@ -31,18 +31,18 @@ process.on('uncaughtException', function (err) {
   console.log(err);
 });
 cron.schedule('*/5 * * * *', async () => {
+  console.log(`${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', {
       timeZone: 'Asia/Kolkata',
     });
-    console.log(`\n${ALGO}: time, ${istTz}`);
+    console.log(`${ALGO}: time, ${istTz}`);
     const response = await checkMarketConditionsAndExecuteTrade();
     console.log(`response: ${response}`);
   } catch (err) {
     console.log(err);
-  } finally {
-    console.log(`--------------------------------------`);
   }
+  console.log(`${ALGO}: --------------------------------`);
 });
 app.post('/get-atm-strike-price', async (req: Request, res: Response) => {
   res.json({ atm: await getAtmStrikePrice() });

@@ -85,7 +85,7 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
       return ex;
     });
 };
-export const fetchData = async (): Promise<object> => {
+export const fetchData = async (): Promise<object[]> => {
   return await axios
     .get(SCRIPMASTER)
     .then((response: object) => {
@@ -117,8 +117,14 @@ export const getScrip = async ({
   optionType,
   expiryDate,
 }: getScripType): Promise<object[]> => {
-  let scripMaster = await fetchData();
+  let scripMaster: object[] = await fetchData();
+  console.log(
+    `${ALGO}:scriptName: ${scriptName}, is scrip master an array: ${isArray(
+      scripMaster
+    )}, its length is: ${scripMaster.length}`
+  );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
+    console.log(`${ALGO} all check cleared getScrip call`);
     let scrips = scripMaster.filter((scrip) => {
       const _scripName: string = get(scrip, 'name', '') || '';
       const _symbol: string = get(scrip, 'symbol', '') || '';
@@ -126,8 +132,8 @@ export const getScrip = async ({
 
       return (
         (_scripName.includes(scriptName) || _scripName === scriptName) &&
-        get(scrip, 'exch_seg', '') === 'NFO' &&
-        get(scrip, 'instrumenttype', '') === 'OPTIDX' &&
+        get(scrip, 'exch_seg') === 'NFO' &&
+        get(scrip, 'instrumenttype') === 'OPTIDX' &&
         (strikePrice === undefined || _symbol.includes(strikePrice)) &&
         (optionType === undefined || _symbol.includes(optionType)) &&
         _expiry === expiryDate
