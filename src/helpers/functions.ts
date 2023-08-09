@@ -3,7 +3,7 @@ import { get } from 'lodash';
 import fs from 'fs';
 import { JsonFileStructure, Position, TradeDetails } from '../app.interface';
 import moment from 'moment-timezone';
-import { ALGO } from './constants';
+import { ALGO, DELAY } from './constants';
 export const getNextExpiry = () => {
   /*
    *const today = new Date('08/03/2023');
@@ -143,7 +143,7 @@ export const isJson = (string: string) => {
     return false;
   }
 };
-export const writeJsonFile = (data: JsonFileStructure) => {
+export const writeJsonFile = async (data: JsonFileStructure) => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const dataToStoreString = JSON.stringify(data);
@@ -157,6 +157,7 @@ export const writeJsonFile = (data: JsonFileStructure) => {
         console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
       }
     });
+    await delay({ milliSeconds: DELAY });
   }
 };
 
