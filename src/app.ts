@@ -31,7 +31,7 @@ process.on('uncaughtException', function (err) {
   console.log(err);
 });
 cron.schedule('*/5 * * * *', async () => {
-  console.log(`${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', {
       timeZone: 'Asia/Kolkata',

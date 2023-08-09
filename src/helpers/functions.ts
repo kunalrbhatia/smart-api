@@ -67,17 +67,17 @@ export const getAtmStrikePrice = async () => {
     scriptName: 'BANKNIFTY',
     expiryDate: expiryDate,
   });
-  console.log(`${ALGO}: fetched optionChain`);
+  console.log(
+    `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
+  );
   const ltp = await getLtpData({
     exchange: 'NSE',
     tradingsymbol: 'BANKNIFTY',
     symboltoken: '26009',
   });
-  console.log(`${ALGO}: fetched ltp`);
-  const nearestStrike = findNearestStrike(
-    optionChain,
-    parseInt(get(ltp, 'ltp', ''))
-  );
+  const ltpPrice = parseInt(get(ltp, 'ltp', ''));
+  console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
+  const nearestStrike = findNearestStrike(optionChain, ltpPrice);
   console.log(`${ALGO}: nearestStrike is ${nearestStrike}`);
   return nearestStrike;
 };
