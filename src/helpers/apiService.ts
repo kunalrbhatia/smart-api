@@ -17,7 +17,12 @@ import {
   writeJsonFile,
 } from './functions';
 import { Response } from 'express';
-import { ISmartApiData, JsonFileStructure, Position } from '../app.interface';
+import {
+  ISmartApiData,
+  JsonFileStructure,
+  Position,
+  TradeDetails,
+} from '../app.interface';
 import {
   ALGO,
   DELAY,
@@ -72,7 +77,7 @@ export const getLtpData = async ({
   } catch (error) {
     console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`);
     console.log(error);
-    return {};
+    throw error;
   }
 };
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
@@ -86,7 +91,9 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
       return get(response, 'data');
     })
     .catch((ex: object) => {
-      return ex;
+      console.log(`${ALGO}: generateSmartSession failed error below`);
+      console.log(ex);
+      throw ex;
     });
 };
 export const fetchData = async (): Promise<object[]> => {
@@ -106,7 +113,9 @@ export const fetchData = async (): Promise<object[]> => {
       return scripMaster;
     })
     .catch((evt: object) => {
-      return evt;
+      console.log(`${ALGO}: fetchData failed error below`);
+      console.log(evt);
+      throw evt;
     });
 };
 type getScripType = {
@@ -156,7 +165,9 @@ export const getScrip = async ({
     });
     return scrips;
   } else {
-    return [{ message: 'pending' }];
+    const errorMessage = `${ALGO}: getScrip failed`;
+    console.log(errorMessage);
+    throw errorMessage;
   }
 };
 export const getPositions = async () => {
@@ -184,7 +195,10 @@ export const getPositions = async () => {
       return get(response, 'data');
     })
     .catch(function (error: object) {
-      return error;
+      const errorMessage = `${ALGO}: getPositions failed error below`;
+      console.log(errorMessage);
+      console.log(error);
+      throw error;
     });
 };
 type doOrderType = {
@@ -241,7 +255,10 @@ export const doOrder = async ({
       return get(response, 'data');
     })
     .catch(function (error: Response) {
-      return error;
+      const errorMessage = `${ALGO}: doOrder failed error below`;
+      console.log(errorMessage);
+      console.log(error);
+      throw error;
     });
 };
 export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
@@ -261,48 +278,55 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   return mtm;
 };
 export const shortStraddle = async () => {
-  //GET ATM STIKE PRICE
-  await delay({ milliSeconds: DELAY });
-  const atmStrike = await getAtmStrikePrice();
-  //GET CURRENT EXPIRY
-  const expiryDate = getNextExpiry();
-  //GET CALL DATA
-  await delay({ milliSeconds: DELAY });
-  const ceToken = await getScrip({
-    scriptName: 'BANKNIFTY',
-    expiryDate: expiryDate,
-    optionType: 'CE',
-    strikePrice: atmStrike.toString(),
-  });
-  //GET PUT DATA
-  await delay({ milliSeconds: DELAY });
-  const peToken = await getScrip({
-    scriptName: 'BANKNIFTY',
-    expiryDate: expiryDate,
-    optionType: 'PE',
-    strikePrice: atmStrike.toString(),
-  });
-  await delay({ milliSeconds: DELAY });
-  const ceOrderData = await doOrder({
-    tradingsymbol: get(ceToken, '0.symbol', ''),
-    symboltoken: get(ceToken, '0.token', ''),
-    transactionType: TRANSACTION_TYPE_SELL,
-  });
-  await delay({ milliSeconds: DELAY });
-  const peOrderData = await doOrder({
-    tradingsymbol: get(peToken, '0.symbol', ''),
-    symboltoken: get(peToken, '0.token', ''),
-    transactionType: TRANSACTION_TYPE_SELL,
-  });
-  return {
-    stikePrice: atmStrike.toString(),
-    ceOrderToken: get(ceToken, '0.token', ''),
-    peOrderToken: get(peToken, '0.token', ''),
-    ceOrderSymbol: get(ceToken, '0.symbol', ''),
-    peOrderSymbol: get(peToken, '0.symbol', ''),
-    ceOrderStatus: ceOrderData.status,
-    peOrderStatus: peOrderData.status,
-  };
+  try {
+    //GET ATM STIKE PRICE
+    await delay({ milliSeconds: DELAY });
+    const atmStrike = await getAtmStrikePrice();
+    //GET CURRENT EXPIRY
+    const expiryDate = getNextExpiry();
+    //GET CALL DATA
+    await delay({ milliSeconds: DELAY });
+    const ceToken = await getScrip({
+      scriptName: 'BANKNIFTY',
+      expiryDate: expiryDate,
+      optionType: 'CE',
+      strikePrice: atmStrike.toString(),
+    });
+    //GET PUT DATA
+    await delay({ milliSeconds: DELAY });
+    const peToken = await getScrip({
+      scriptName: 'BANKNIFTY',
+      expiryDate: expiryDate,
+      optionType: 'PE',
+      strikePrice: atmStrike.toString(),
+    });
+    await delay({ milliSeconds: DELAY });
+    const ceOrderData = await doOrder({
+      tradingsymbol: get(ceToken, '0.symbol', ''),
+      symboltoken: get(ceToken, '0.token', ''),
+      transactionType: TRANSACTION_TYPE_SELL,
+    });
+    await delay({ milliSeconds: DELAY });
+    const peOrderData = await doOrder({
+      tradingsymbol: get(peToken, '0.symbol', ''),
+      symboltoken: get(peToken, '0.token', ''),
+      transactionType: TRANSACTION_TYPE_SELL,
+    });
+    return {
+      stikePrice: atmStrike.toString(),
+      ceOrderToken: get(ceToken, '0.token', ''),
+      peOrderToken: get(peToken, '0.token', ''),
+      ceOrderSymbol: get(ceToken, '0.symbol', ''),
+      peOrderSymbol: get(peToken, '0.symbol', ''),
+      ceOrderStatus: ceOrderData.status,
+      peOrderStatus: peOrderData.status,
+    };
+  } catch (error) {
+    const errorMessage = `${ALGO}: shortStraddle failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
+  }
 };
 export const getMarginDetails = async () => {
   const smartApiData: ISmartApiData = await generateSmartSession();
@@ -327,47 +351,57 @@ export const getMarginDetails = async () => {
       return get(response, 'data');
     })
     .catch(function (error: Response) {
-      return error;
+      const errorMessage = `${ALGO}: getMarginDetails failed error below`;
+      console.log(errorMessage);
+      console.log(error);
+      throw error;
     });
 };
 export const repeatShortStraddle = async (
   difference: number,
   atmStrike: number
 ) => {
-  const data = readJsonFile();
-  console.log(
-    `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE: ${
-      difference >= STRIKE_DIFFERENCE
-    }\n2. if this same strike is already traded: ${checkStrike(
-      data.tradeDetails,
-      atmStrike.toString()
-    )}`
-  );
-  if (
-    difference >= STRIKE_DIFFERENCE &&
-    checkStrike(data.tradeDetails, atmStrike.toString()) === false
-  ) {
-    console.log(`${ALGO}: executing trade repeat ...`);
-    const shortStraddleData = await shortStraddle();
-    data.tradeDetails.push({
-      call: {
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.ceOrderToken,
-        symbol: shortStraddleData.ceOrderSymbol,
-        closed: false,
-        isAlgoCreatedPosition: true,
-      },
-      put: {
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.peOrderToken,
-        symbol: shortStraddleData.peOrderSymbol,
-        closed: false,
-        isAlgoCreatedPosition: true,
-      },
-    });
-    console.log(`${ALGO}: details: `);
-    console.log(data.tradeDetails);
-    await writeJsonFile(data);
+  try {
+    const data = readJsonFile();
+    console.log(
+      `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE: ${
+        difference >= STRIKE_DIFFERENCE
+      }\n2. if this same strike is already traded: ${checkStrike(
+        data.tradeDetails,
+        atmStrike.toString()
+      )}`
+    );
+    if (
+      difference >= STRIKE_DIFFERENCE &&
+      checkStrike(data.tradeDetails, atmStrike.toString()) === false
+    ) {
+      console.log(`${ALGO}: executing trade repeat ...`);
+      const shortStraddleData = await shortStraddle();
+      data.tradeDetails.push({
+        call: {
+          strike: shortStraddleData.stikePrice,
+          token: shortStraddleData.ceOrderToken,
+          symbol: shortStraddleData.ceOrderSymbol,
+          closed: false,
+          isAlgoCreatedPosition: true,
+        },
+        put: {
+          strike: shortStraddleData.stikePrice,
+          token: shortStraddleData.peOrderToken,
+          symbol: shortStraddleData.peOrderSymbol,
+          closed: false,
+          isAlgoCreatedPosition: true,
+        },
+      });
+      console.log(`${ALGO}: details: `);
+      console.log(data.tradeDetails);
+      await writeJsonFile(data);
+    }
+  } catch (error) {
+    const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
   }
 };
 export const getPositionsJson = async () => {
@@ -405,43 +439,63 @@ export const getPositionsJson = async () => {
     }
     await writeJsonFile(json);
     return json;
-  } catch (err) {
-    return err;
+  } catch (error) {
+    const errorMessage = `${ALGO}: getPositionsJson failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
   }
 };
 export const closeAllTrades = async () => {
-  await delay({ milliSeconds: DELAY });
-  const data = readJsonFile();
-  await delay({ milliSeconds: DELAY });
-  const tradeDetails = data.tradeDetails;
-  if (Array.isArray(tradeDetails)) {
-    for (const trade of tradeDetails) {
-      if (
-        trade?.call?.isAlgoCreatedPosition ||
-        trade?.put?.isAlgoCreatedPosition
-      ) {
-        await delay({ milliSeconds: DELAY });
-        const callStatus = await doOrder({
-          tradingsymbol: get(trade, 'call.symbol', ''),
-          transactionType: TRANSACTION_TYPE_BUY,
-          symboltoken: get(trade, 'call.token', ''),
-        });
-        await delay({ milliSeconds: DELAY });
-        const putStatus = await doOrder({
-          tradingsymbol: get(trade, 'put.symbol', ''),
-          transactionType: TRANSACTION_TYPE_BUY,
-          symboltoken: get(trade, 'put.token', ''),
-        });
-        if (trade.call) {
-          trade.call.closed = callStatus.status;
-        }
-        if (trade.put) {
-          trade.put.closed = putStatus.status;
-        }
-      }
-    }
+  try {
     await delay({ milliSeconds: DELAY });
-    await writeJsonFile(data);
+    const data = readJsonFile();
+    await delay({ milliSeconds: DELAY });
+    const tradeDetails = data.tradeDetails;
+    const closeTrade = async ({ trade }: { trade: TradeDetails }) => {
+      try {
+        if (
+          trade?.call?.isAlgoCreatedPosition ||
+          trade?.put?.isAlgoCreatedPosition
+        ) {
+          await delay({ milliSeconds: DELAY });
+          const callStatus = await doOrder({
+            tradingsymbol: get(trade, 'call.symbol', ''),
+            transactionType: TRANSACTION_TYPE_BUY,
+            symboltoken: get(trade, 'call.token', ''),
+          });
+          await delay({ milliSeconds: DELAY });
+          const putStatus = await doOrder({
+            tradingsymbol: get(trade, 'put.symbol', ''),
+            transactionType: TRANSACTION_TYPE_BUY,
+            symboltoken: get(trade, 'put.token', ''),
+          });
+          if (trade.call) {
+            trade.call.closed = callStatus.status;
+          }
+          if (trade.put) {
+            trade.put.closed = putStatus.status;
+          }
+        }
+      } catch (error) {
+        const errorMessage = `${ALGO}: closeTrade failed error below`;
+        console.log(errorMessage);
+        console.log(error);
+        throw error;
+      }
+    };
+    if (Array.isArray(tradeDetails)) {
+      for (const trade of tradeDetails) {
+        await closeTrade({ trade });
+      }
+      await delay({ milliSeconds: DELAY });
+      await writeJsonFile(data);
+    }
+  } catch (error) {
+    const errorMessage = `${ALGO}: closeAllTrades failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
   }
 };
 export const closeTrade = async () => {
