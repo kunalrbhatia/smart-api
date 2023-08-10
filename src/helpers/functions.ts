@@ -116,7 +116,7 @@ export const getCurrentDate = (): string => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}_${month}_${day}`;
 };
-export const createJsonFile = (): JsonFileStructure => {
+export const createJsonFile = async (): Promise<JsonFileStructure> => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;
   const exists = fs.existsSync(fileName);
@@ -132,7 +132,7 @@ export const createJsonFile = (): JsonFileStructure => {
       isTradeClosed: false,
       mtm: [],
     };
-    writeJsonFile(json);
+    await writeJsonFile(json);
     return json;
   }
 };

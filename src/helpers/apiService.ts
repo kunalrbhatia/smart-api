@@ -367,7 +367,7 @@ export const repeatShortStraddle = async (
     });
     console.log(`${ALGO}: details: `);
     console.log(data.tradeDetails);
-    writeJsonFile(data);
+    await writeJsonFile(data);
   }
 };
 export const getPositionsJson = async () => {
@@ -375,7 +375,7 @@ export const getPositionsJson = async () => {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
     const openPositions = getOpenPositions(positions);
-    const json = createJsonFile();
+    const json = await createJsonFile();
     const tradeDetails = json.tradeDetails;
     for (const position of openPositions) {
       const isTradeExists = await checkPositionAlreadyExists({ position });
@@ -403,7 +403,7 @@ export const getPositionsJson = async () => {
         }
       }
     }
-    writeJsonFile(json);
+    await writeJsonFile(json);
     return json;
   } catch (err) {
     return err;
@@ -441,7 +441,7 @@ export const closeAllTrades = async () => {
       }
     }
     await delay({ milliSeconds: DELAY });
-    writeJsonFile(data);
+    await writeJsonFile(data);
   }
 };
 export const closeTrade = async () => {
@@ -455,7 +455,7 @@ export const closeTrade = async () => {
   const data = readJsonFile();
   data.isTradeClosed = true;
   await delay({ milliSeconds: DELAY });
-  writeJsonFile(data);
+  await writeJsonFile(data);
 };
 export const areAllTradesClosed = async () => {
   console.log(`${ALGO}: checking if all the trades are closed.`);
@@ -524,7 +524,7 @@ export const executeTrade = async () => {
           isAlgoCreatedPosition: true,
         },
       });
-      writeJsonFile(data);
+      await writeJsonFile(data);
     }
   } else {
     console.log(
@@ -555,7 +555,7 @@ export const executeTrade = async () => {
   const mtm = data.mtm;
   mtm.push({ time: istTz, value: mtmData.toString() });
   await delay({ milliSeconds: DELAY });
-  writeJsonFile(data);
+  await writeJsonFile(data);
   // await delay({ milliSeconds: DELAY });
   // await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
@@ -586,7 +586,7 @@ const isTradeAllowed = (data: JsonFileStructure) => {
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async () => {
-  let data = createJsonFile();
+  let data = await createJsonFile();
   if (isTradeAllowed(data)) {
     try {
       return await executeTrade();
@@ -603,7 +603,8 @@ export const checkPositionAlreadyExists = async ({
 }: CheckPosition) => {
   try {
     await delay({ milliSeconds: DELAY });
-    const trades = createJsonFile().tradeDetails;
+    const data = await createJsonFile();
+    const trades = data.tradeDetails;
     for (const trade of trades) {
       if (trade.call?.strike === position.strikeprice) return true;
       if (trade.put?.strike === position.strikeprice) return true;
