@@ -175,7 +175,7 @@ export const checkStrike = (
   strike: string
 ): boolean => {
   for (const trade of tradeDetails) {
-    if (trade?.call?.strike === strike || trade?.put?.strike === strike) {
+    if (trade.strike === strike) {
       return true;
     }
   }
