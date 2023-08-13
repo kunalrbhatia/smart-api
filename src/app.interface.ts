@@ -4,20 +4,14 @@ export interface ISmartApiData {
   feedToken: string;
 }
 export interface TradeDetails {
-  call?: {
-    strike: string;
-    token: string;
-    symbol: string;
-    closed: boolean;
-    isAlgoCreatedPosition?: boolean;
-  };
-  put?: {
-    strike: string;
-    token: string;
-    symbol: string;
-    closed: boolean;
-    isAlgoCreatedPosition?: boolean;
-  };
+  netQty: string;
+  optionType: 'CE' | 'PE';
+  strike: string;
+  token: string;
+  symbol: string;
+  closed: boolean;
+  expireDate: string;
+  isAlgoCreatedPosition?: boolean;
 }
 export interface MtmValue {
   time: string;
@@ -48,7 +42,7 @@ export type Position = {
   tradingsymbol: string;
   symbolgroup: string;
   strikeprice: string;
-  optiontype: string;
+  optiontype: 'CE' | 'PE';
   expirydate: string;
   lotsize: string;
   cfbuyqty: string;

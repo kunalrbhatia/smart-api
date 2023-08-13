@@ -100,9 +100,10 @@ export const fetchData = async (): Promise<object[]> => {
   return await axios
     .get(SCRIPMASTER)
     .then((response: object) => {
-      // console.log(`${ALGO}: response if script master api is `);
-      // console.log(response);
       let acData: object[] = get(response, 'data', []) || [];
+      console.log(
+        `${ALGO}: response if script master api loaded and its length is ${acData.length}`
+      );
       let scripMaster = acData.map((element, index) => {
         return {
           ...element,
@@ -267,10 +268,7 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   let mtm = 0;
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
-      if (
-        (trade.call && trade.call.token === get(value, 'symboltoken', '')) ||
-        (trade.put && trade.put.token === get(value, 'symboltoken', ''))
-      ) {
+      if (trade && trade.token === get(value, 'symboltoken', '')) {
         mtm += parseInt(get(value, 'unrealised', ''));
       }
     });
@@ -314,6 +312,8 @@ export const shortStraddle = async () => {
     });
     return {
       stikePrice: atmStrike.toString(),
+      expiryDate: expiryDate,
+      netQty: '-15',
       ceOrderToken: get(ceToken, '0.token', ''),
       peOrderToken: get(peToken, '0.token', ''),
       ceOrderSymbol: get(ceToken, '0.symbol', ''),
@@ -378,20 +378,24 @@ export const repeatShortStraddle = async (
       console.log(`${ALGO}: executing trade repeat ...`);
       const shortStraddleData = await shortStraddle();
       data.tradeDetails.push({
-        call: {
-          strike: shortStraddleData.stikePrice,
-          token: shortStraddleData.ceOrderToken,
-          symbol: shortStraddleData.ceOrderSymbol,
-          closed: false,
-          isAlgoCreatedPosition: true,
-        },
-        put: {
-          strike: shortStraddleData.stikePrice,
-          token: shortStraddleData.peOrderToken,
-          symbol: shortStraddleData.peOrderSymbol,
-          closed: false,
-          isAlgoCreatedPosition: true,
-        },
+        optionType: 'CE',
+        netQty: shortStraddleData.netQty,
+        expireDate: shortStraddleData.expiryDate,
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.ceOrderToken,
+        symbol: shortStraddleData.ceOrderSymbol,
+        closed: false,
+        isAlgoCreatedPosition: true,
+      });
+      data.tradeDetails.push({
+        optionType: 'PE',
+        netQty: shortStraddleData.netQty,
+        expireDate: shortStraddleData.expiryDate,
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.peOrderToken,
+        symbol: shortStraddleData.peOrderSymbol,
+        closed: false,
+        isAlgoCreatedPosition: true,
       });
       console.log(`${ALGO}: details: `);
       console.log(data.tradeDetails);
@@ -409,32 +413,25 @@ export const getPositionsJson = async () => {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
     const openPositions = getOpenPositions(positions);
+    console.log(
+      `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
+    );
     const json = await createJsonFile();
     const tradeDetails = json.tradeDetails;
     for (const position of openPositions) {
       const isTradeExists = await checkPositionAlreadyExists({ position });
       if (isTradeExists === false) {
-        if (position.optiontype === 'CE') {
-          tradeDetails.push({
-            call: {
-              strike: position.strikeprice,
-              symbol: position.symbolname,
-              token: position.symboltoken,
-              closed: false,
-              isAlgoCreatedPosition: false,
-            },
-          });
-        } else {
-          tradeDetails.push({
-            put: {
-              strike: position.strikeprice,
-              symbol: position.symbolname,
-              token: position.symboltoken,
-              closed: false,
-              isAlgoCreatedPosition: false,
-            },
-          });
-        }
+        const trade: TradeDetails = {
+          netQty: position.netqty,
+          optionType: position.optiontype,
+          expireDate: position.expirydate,
+          strike: position.strikeprice,
+          symbol: position.symbolname,
+          token: position.symboltoken,
+          closed: false,
+          isAlgoCreatedPosition: false,
+        };
+        tradeDetails.push(trade);
       }
     }
     await writeJsonFile(json);
@@ -454,28 +451,14 @@ export const closeAllTrades = async () => {
     const tradeDetails = data.tradeDetails;
     const closeTrade = async ({ trade }: { trade: TradeDetails }) => {
       try {
-        if (
-          trade?.call?.isAlgoCreatedPosition ||
-          trade?.put?.isAlgoCreatedPosition
-        ) {
+        if (trade.isAlgoCreatedPosition) {
           await delay({ milliSeconds: DELAY });
-          const callStatus = await doOrder({
-            tradingsymbol: get(trade, 'call.symbol', ''),
+          const transactionStatus = await doOrder({
+            tradingsymbol: trade.symbol,
             transactionType: TRANSACTION_TYPE_BUY,
-            symboltoken: get(trade, 'call.token', ''),
+            symboltoken: trade.token,
           });
-          await delay({ milliSeconds: DELAY });
-          const putStatus = await doOrder({
-            tradingsymbol: get(trade, 'put.symbol', ''),
-            transactionType: TRANSACTION_TYPE_BUY,
-            symboltoken: get(trade, 'put.token', ''),
-          });
-          if (trade.call) {
-            trade.call.closed = callStatus.status;
-          }
-          if (trade.put) {
-            trade.put.closed = putStatus.status;
-          }
+          trade.closed = transactionStatus.status;
         }
       } catch (error) {
         const errorMessage = `${ALGO}: closeTrade failed error below`;
@@ -519,10 +502,7 @@ export const areAllTradesClosed = async () => {
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
-      if (
-        (trade.call && !trade.call.closed) ||
-        (trade.put && !trade.put.closed)
-      ) {
+      if (trade.closed === false) {
         return false;
       }
     }
@@ -563,20 +543,24 @@ export const executeTrade = async () => {
       data.isTradeExecuted = true;
       data.isTradeClosed = false;
       data.tradeDetails.push({
-        call: {
-          strike: shortStraddleData.stikePrice,
-          token: shortStraddleData.ceOrderToken,
-          symbol: shortStraddleData.ceOrderSymbol,
-          closed: false,
-          isAlgoCreatedPosition: true,
-        },
-        put: {
-          strike: shortStraddleData.stikePrice,
-          token: shortStraddleData.peOrderToken,
-          symbol: shortStraddleData.peOrderSymbol,
-          closed: false,
-          isAlgoCreatedPosition: true,
-        },
+        optionType: 'CE',
+        netQty: shortStraddleData.netQty,
+        expireDate: shortStraddleData.expiryDate,
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.ceOrderToken,
+        symbol: shortStraddleData.ceOrderSymbol,
+        closed: false,
+        isAlgoCreatedPosition: true,
+      });
+      data.tradeDetails.push({
+        optionType: 'PE',
+        netQty: shortStraddleData.netQty,
+        expireDate: shortStraddleData.expiryDate,
+        strike: shortStraddleData.stikePrice,
+        token: shortStraddleData.peOrderToken,
+        symbol: shortStraddleData.peOrderSymbol,
+        closed: false,
+        isAlgoCreatedPosition: true,
       });
       await writeJsonFile(data);
     }
@@ -610,8 +594,8 @@ export const executeTrade = async () => {
   mtm.push({ time: istTz, value: mtmData.toString() });
   await delay({ milliSeconds: DELAY });
   await writeJsonFile(data);
-  // await delay({ milliSeconds: DELAY });
-  // await getPositionsJson();
+  await delay({ milliSeconds: DELAY });
+  await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   console.log(
     `${ALGO}: checking condition hasTimePassed15:15: ${isCurrentTimeGreater(
@@ -660,8 +644,7 @@ export const checkPositionAlreadyExists = async ({
     const data = await createJsonFile();
     const trades = data.tradeDetails;
     for (const trade of trades) {
-      if (trade.call?.strike === position.strikeprice) return true;
-      if (trade.put?.strike === position.strikeprice) return true;
+      if (trade.strike === position.strikeprice) return true;
     }
     return false;
   } catch (err) {
