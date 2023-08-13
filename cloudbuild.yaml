@@ -1,7 +1,12 @@
 steps:
-  - name: 'gcr.io/cloud-builders/npm'
-    args: ['install']
-  - name: 'gcr.io/cloud-builders/npm'
-    args: ['run', 'build']  # Replace 'build' with your build script if needed
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['app', 'deploy']  # Replace 'app' with your deployment command if needed
+  # Build the container image.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/smart-api-840b7', '.']
+
+  # Push the container image to Container Registry.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/smart-api-840b7']
+
+  # Deploy the container image to Cloud Run.
+  - name: 'gcloud'
+    args: ['run', 'deploy', 'smart-api', '--image=gcr.io/smart-api-840b7', '--region=global']
