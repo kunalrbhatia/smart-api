@@ -50,11 +50,8 @@ export const getLtpData = async ({
   symboltoken,
 }: getLtpDataType): Promise<object> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
-
   const jwtToken = get(smartApiData, 'jwtToken');
-
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
-
   const config = {
     method: 'post',
     url: GET_LTP_DATA_API,
