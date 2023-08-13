@@ -1,0 +1,6 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'build', '-t', 'us-central1-docker.pkg.dev/smart-api-840b7/cloud-run-source-deploy/smart-api-image:tag1', '.' ]
+images:
+- 'us-central1-docker.pkg.dev/smart-api-840b7/cloud-run-source-deploy/smart-api-image:tag1'
+
