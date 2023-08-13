@@ -18,6 +18,6 @@ steps:
            'us-central1-docker.pkg.dev/smart-api-840b7/smart-api-docker-repo/smart-api-image:tag1']
   env:
       - 'CLOUDSDK_COMPUTE_REGION=us-central1'
-      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-a'           
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'           
 images:
 - 'us-central1-docker.pkg.dev/smart-api-840b7/smart-api-docker-repo/smart-api-image:tag1'
