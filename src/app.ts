@@ -31,7 +31,7 @@ process.on('uncaughtException', function (err) {
   console.log(err);
 });
 cron.schedule('*/5 * * * *', async () => {
-  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', {
       timeZone: 'Asia/Kolkata',
@@ -42,7 +42,7 @@ cron.schedule('*/5 * * * *', async () => {
   } catch (err) {
     console.log(err);
   }
-  console.log(`${ALGO}: --------------------------------`);
+  console.log(`${ALGO}: -----------------------------------`);
 });
 app.post('/get-atm-strike-price', async (req: Request, res: Response) => {
   res.json({ atm: await getAtmStrikePrice() });
