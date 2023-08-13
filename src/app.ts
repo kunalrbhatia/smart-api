@@ -68,15 +68,6 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
   const expiryDate: string = req.body.expiryDate;
   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
 });
-app.post('/close-trade', async (req: Request, res: Response) => {
-  await closeTrade();
-});
-app.post('/run-algo', async (req: Request, res: Response) => {
-  const response = await checkMarketConditionsAndExecuteTrade();
-  res.json({
-    mtm: response,
-  });
-});
 app.post('/get-positions', async (req: Request, res: Response) => {
   const response = await getPositionsJson();
   res.send(response);
