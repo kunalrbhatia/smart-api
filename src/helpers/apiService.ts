@@ -503,7 +503,7 @@ export const areAllTradesClosed = async () => {
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
-      if (trade.closed === false) {
+      if (trade.isAlgoCreatedPosition && trade.closed === false) {
         return false;
       }
     }
