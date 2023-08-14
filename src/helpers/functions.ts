@@ -162,6 +162,15 @@ export const writeJsonFile = async (data: JsonFileStructure) => {
     await delay({ milliSeconds: DELAY });
   }
 };
+export const getOnlyAlgoTradedPositions = (): TradeDetails[] => {
+  let data = readJsonFile();
+  let trades = data.tradeDetails;
+  const algoTradedPositions: TradeDetails[] = [];
+  trades.forEach((trade) => {
+    if (trade.isAlgoCreatedPosition) algoTradedPositions.push(trade);
+  });
+  return algoTradedPositions;
+};
 export const readJsonFile = (): JsonFileStructure => {
   const currentDate = getCurrentDate();
   const fileName = `${currentDate}_trades.json`;

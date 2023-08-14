@@ -10,6 +10,7 @@ import {
   delay,
   getAtmStrikePrice,
   getNextExpiry,
+  getOnlyAlgoTradedPositions,
   getOpenPositions,
   isCurrentTimeGreater,
   isMarketClosed,
@@ -399,8 +400,6 @@ export const repeatShortStraddle = async (
         closed: false,
         isAlgoCreatedPosition: true,
       });
-      console.log(`${ALGO}: details: `);
-      console.log(data.tradeDetails);
       await writeJsonFile(data);
     }
   } catch (error) {
@@ -573,11 +572,9 @@ export const executeTrade = async () => {
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.tradeDetails.length;
-    const previousTradeStrikePrice = get(
-      data,
-      `tradeDetails.${no_of_trades - 1}.call.strike`,
-      ''
-    );
+    const getAlgoTrades = getOnlyAlgoTradedPositions();
+    const previousTradeStrikePrice =
+      getAlgoTrades[getAlgoTrades.length - 1].strike;
     console.log(
       `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
     );
