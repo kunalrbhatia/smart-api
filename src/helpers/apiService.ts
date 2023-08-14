@@ -34,6 +34,7 @@ import {
   MTMDATATHRESHOLD,
   ORDER_API,
   SCRIPMASTER,
+  SHORT_DELAY,
   STRIKE_DIFFERENCE,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
@@ -265,7 +266,11 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   let mtm = 0;
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
-      if (trade && trade.token === get(value, 'symboltoken', '')) {
+      if (
+        trade &&
+        trade.token === get(value, 'symboltoken', '') &&
+        trade.isAlgoCreatedPosition === true
+      ) {
         mtm += parseInt(get(value, 'unrealised', ''));
       }
     });
@@ -639,9 +644,11 @@ export const checkPositionAlreadyExists = async ({
   try {
     await delay({ milliSeconds: DELAY });
     const data = await createJsonFile();
+    await delay({ milliSeconds: SHORT_DELAY });
     const trades = data.tradeDetails;
     for (const trade of trades) {
-      if (trade.strike === position.strikeprice) return true;
+      if (parseInt(trade.strike) === parseInt(position.strikeprice))
+        return true;
     }
     return false;
   } catch (err) {
