@@ -420,7 +420,10 @@ export const getPositionsJson = async () => {
     const json = await createJsonFile();
     const tradeDetails = json.tradeDetails;
     for (const position of openPositions) {
-      const isTradeExists = await checkPositionAlreadyExists({ position });
+      const isTradeExists = await checkPositionAlreadyExists({
+        position,
+        trades: tradeDetails,
+      });
       if (isTradeExists === false) {
         const trade: TradeDetails = {
           netQty: position.netqty,
@@ -634,21 +637,13 @@ export const checkMarketConditionsAndExecuteTrade = async () => {
     return MESSAGE_NOT_TAKE_TRADE;
   }
 };
-type CheckPosition = { position: Position };
+type CheckPosition = { position: Position; trades: TradeDetails[] };
 export const checkPositionAlreadyExists = async ({
   position,
+  trades,
 }: CheckPosition) => {
-  try {
-    await delay({ milliSeconds: DELAY });
-    const data = await createJsonFile();
-    await delay({ milliSeconds: SHORT_DELAY });
-    const trades = data.tradeDetails;
-    for (const trade of trades) {
-      if (parseInt(trade.strike) === parseInt(position.strikeprice))
-        return true;
-    }
-    return false;
-  } catch (err) {
-    return false;
+  for (const trade of trades) {
+    if (parseInt(trade.strike) === parseInt(position.strikeprice)) return true;
   }
+  return false;
 };
