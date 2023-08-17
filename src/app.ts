@@ -24,7 +24,7 @@ app.use(cors());
 const server: Server = createServer(app);
 server.listen(process.env.PORT, () => {});
 app.get('/', (req: Request, res: Response) => {
-  res.json({ status: 'ok', lastUpdated: '2023-07-27, 21:07:20' });
+  res.json({ status: 'ok', lastUpdated: '2023-08-17, 21:43:00' });
 });
 process.on('uncaughtException', function (err) {
   console.log(err);
