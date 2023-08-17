@@ -12,7 +12,6 @@ import createHttpError from 'http-errors';
 import cron from 'node-cron';
 import {
   checkMarketConditionsAndExecuteTrade,
-  closeTrade,
   getLtpData,
   getPositionsJson,
   getScrip,
