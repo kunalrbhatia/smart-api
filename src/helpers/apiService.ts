@@ -642,7 +642,11 @@ export const checkPositionAlreadyExists = async ({
   trades,
 }: CheckPosition) => {
   for (const trade of trades) {
-    if (parseInt(trade.strike) === parseInt(position.strikeprice)) return true;
+    if (
+      parseInt(trade.strike) === parseInt(position.strikeprice) &&
+      trade.optionType === position.optiontype
+    )
+      return true;
   }
   return false;
 };
