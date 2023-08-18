@@ -53,8 +53,10 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     console.log(`${ALGO}: time, ${istTz}`);
     const response = await checkMarketConditionsAndExecuteTrade();
     console.log(`response: ${response}`);
+    res.send({ response: response });
   } catch (err) {
     console.log(err);
+    res.send({ response: err });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
