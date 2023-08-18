@@ -44,7 +44,7 @@ process.on('uncaughtException', function (err) {
 //   }
 //   console.log(`${ALGO}: -----------------------------------`);
 // });
-app.post('run-short-straddle-algo', async (req: Request, res: Response) => {
+app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', {
