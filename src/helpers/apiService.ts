@@ -1,4 +1,4 @@
-import { get, isArray } from 'lodash';
+import { get, isArray, isEmpty } from 'lodash';
 let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
@@ -617,21 +617,25 @@ export const executeTrade = async () => {
     return mtmData;
   }
 };
-const isTradeAllowed = (data: JsonFileStructure) => {
+const isTradeAllowed = async (data: JsonFileStructure) => {
+  const smartSession = await generateSmartSession();
+  const isMarketOpen = !isMarketClosed();
+  const hasTimePassedToTakeTrade = isCurrentTimeGreater({
+    hours: 9,
+    minutes: 45,
+  });
+  const isTradeOpen = !data.isTradeClosed;
+  const isSmartAPIWorking = !isEmpty(smartSession);
   console.log(
-    `${ALGO}: checking conditions, isMarketClosed: ${isMarketClosed()}, hasTimePassed 09:45am: ${isCurrentTimeGreater(
-      { hours: 9, minutes: 45 }
-    )}, isTradeClosed: ${data.isTradeClosed}`
+    `${ALGO}: checking conditions, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}`
   );
   return (
-    !isMarketClosed() &&
-    isCurrentTimeGreater({ hours: 9, minutes: 45 }) &&
-    !data.isTradeClosed
+    isMarketOpen && hasTimePassedToTakeTrade && isTradeOpen && isSmartAPIWorking
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async () => {
   let data = await createJsonFile();
-  if (isTradeAllowed(data)) {
+  if (await isTradeAllowed(data)) {
     try {
       return await executeTrade();
     } catch (err) {
