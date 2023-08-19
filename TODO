@@ -1,7 +1,8 @@
 Read positions from profile and make respective json out of it. -- DONE
 Calculate timewise mtm and store it to json. Example: timewise_mtm:[time:'12:30',mtm:280] -- DONE
-Keep Credentails outside
+Keep Credentails outside -- DONE
 Wrap await inside try catch statement -- DONE
-Deploy on GCP 
-Run cron job in every 5 mins for 24 hours
-Find a way to see log whenever needed
+Deploy on GCP -- DONE
+Run cron job in every 5 mins for 24 hours -- DONE
+Find a way to see log whenever needed -- DONE
+Find a way to backtest 
