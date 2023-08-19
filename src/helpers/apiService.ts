@@ -521,20 +521,25 @@ export const checkToRepeatShortStraddle = async (
   console.log(
     `${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
   );
-  if (atmStrike > previousTradeStrikePrice) {
-    const difference = atmStrike - previousTradeStrikePrice;
-    console.log(
-      `${ALGO}: atm strike is greater than previous traded strike price. The difference is ${difference}`
-    );
-    await delay({ milliSeconds: DELAY });
-    await repeatShortStraddle(difference, atmStrike);
-  } else if (atmStrike < previousTradeStrikePrice) {
-    const difference = previousTradeStrikePrice - atmStrike;
-    console.log(
-      `${ALGO}: atm strike is lesser than previous traded strike price. The difference is ${difference}`
-    );
-    await delay({ milliSeconds: DELAY });
-    await repeatShortStraddle(difference, atmStrike);
+  if (isFinite(atmStrike)) {
+    if (atmStrike > previousTradeStrikePrice) {
+      const difference = atmStrike - previousTradeStrikePrice;
+      console.log(
+        `${ALGO}: atm strike is greater than previous traded strike price. The difference is ${difference}`
+      );
+      await delay({ milliSeconds: DELAY });
+      await repeatShortStraddle(difference, atmStrike);
+    } else if (atmStrike < previousTradeStrikePrice) {
+      const difference = previousTradeStrikePrice - atmStrike;
+      console.log(
+        `${ALGO}: atm strike is lesser than previous traded strike price. The difference is ${difference}`
+      );
+      await delay({ milliSeconds: DELAY });
+      await repeatShortStraddle(difference, atmStrike);
+    }
+  } else {
+    console.log(`${ALGO}: Oops, 'atmStrike' is infinity! Stopping operations.`);
+    throw new Error(`Oops, atmStrike is infinity! Stopping operations.`);
   }
 };
 export const executeTrade = async () => {

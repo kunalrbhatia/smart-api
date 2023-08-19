@@ -11,13 +11,14 @@ import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
 import cron from 'node-cron';
 import {
+  calculateMtm,
   checkMarketConditionsAndExecuteTrade,
   getLtpData,
   getPositionsJson,
   getScrip,
 } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
-import { getAtmStrikePrice } from './helpers/functions';
+import { getAtmStrikePrice, readJsonFile } from './helpers/functions';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -29,7 +30,21 @@ app.get('/', (req: Request, res: Response) => {
 process.on('uncaughtException', function (err) {
   console.log(err);
 });
-cron.schedule('*/5 * * * *', async () => {
+// cron.schedule('*/5 * * * *', async () => {
+//   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+//   try {
+//     const istTz = new Date().toLocaleString('default', {
+//       timeZone: 'Asia/Kolkata',
+//     });
+//     console.log(`${ALGO}: time, ${istTz}`);
+//     const response = await checkMarketConditionsAndExecuteTrade();
+//     console.log(`response: ${response}`);
+//   } catch (err) {
+//     console.log(err);
+//   }
+//   console.log(`${ALGO}: -----------------------------------`);
+// });
+app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', {
@@ -38,8 +53,10 @@ cron.schedule('*/5 * * * *', async () => {
     console.log(`${ALGO}: time, ${istTz}`);
     const response = await checkMarketConditionsAndExecuteTrade();
     console.log(`response: ${response}`);
+    res.send({ response: response });
   } catch (err) {
     console.log(err);
+    res.send({ response: err });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -70,6 +87,10 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
 app.post('/get-positions', async (req: Request, res: Response) => {
   const response = await getPositionsJson();
   res.send(response);
+});
+app.post('/calc-mtm', async (req: Request, res: Response) => {
+  const response = await calculateMtm({ data: readJsonFile() });
+  res.jsonp({ mtm: response });
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());

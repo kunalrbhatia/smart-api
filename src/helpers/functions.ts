@@ -75,9 +75,14 @@ export const getAtmStrikePrice = async () => {
     });
     const ltpPrice = parseInt(get(ltp, 'ltp', ''));
     console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
-    const nearestStrike = findNearestStrike(optionChain, ltpPrice);
-    console.log(`${ALGO}: nearestStrike is ${nearestStrike}`);
-    return nearestStrike;
+    if (typeof ltpPrice === 'number' && !isNaN(ltpPrice)) {
+      return findNearestStrike(optionChain, ltpPrice);
+    } else {
+      console.log(
+        `${ALGO}: Oops, 'ltpPrice' is not a valid number! Cannot execute further.`
+      );
+      throw new Error(`ltpPrice is not a valid number!`);
+    }
   } catch (error) {
     console.error(`${ALGO}: Error - ${error}`);
     throw error; // This will immediately stop further execution
