@@ -38,6 +38,7 @@
   "scripts": {
     "dev": "nodemon ./src/app.ts",
     "start": "ts-node ./src/app.ts",
-    "build": "babel src -d dist"
+    "build": "babel src -d dist",
+    "watch": "npm run build -- --watch"
   }
 }

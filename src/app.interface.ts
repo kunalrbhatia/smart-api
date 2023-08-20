@@ -71,3 +71,9 @@ export type Position = {
   ltp: string;
   close: string;
 };
+export type Credentails = {
+  APIKEY: string;
+  CLIENT_CODE: string;
+  CLIENT_PIN: string;
+  CLIENT_TOTP_PIN: string;
+};

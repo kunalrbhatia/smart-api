@@ -6,3 +6,4 @@ Deploy on GCP -- DONE
 Run cron job in every 5 mins for 24 hours -- DONE
 Find a way to see log whenever needed -- DONE
 Find a way to backtest 
+write a positional algo

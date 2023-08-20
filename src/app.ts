@@ -9,7 +9,6 @@ import express, {
 } from 'express';
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
-import cron from 'node-cron';
 import {
   calculateMtm,
   checkMarketConditionsAndExecuteTrade,
@@ -19,6 +18,8 @@ import {
 } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
 import { getAtmStrikePrice, readJsonFile } from './helpers/functions';
+import { Credentails } from './app.interface';
+import DataStore from './store/dataStore';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -30,20 +31,6 @@ app.get('/', (req: Request, res: Response) => {
 process.on('uncaughtException', function (err) {
   console.log(err);
 });
-// cron.schedule('*/5 * * * *', async () => {
-//   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
-//   try {
-//     const istTz = new Date().toLocaleString('default', {
-//       timeZone: 'Asia/Kolkata',
-//     });
-//     console.log(`${ALGO}: time, ${istTz}`);
-//     const response = await checkMarketConditionsAndExecuteTrade();
-//     console.log(`response: ${response}`);
-//   } catch (err) {
-//     console.log(err);
-//   }
-//   console.log(`${ALGO}: -----------------------------------`);
-// });
 app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
@@ -51,6 +38,13 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
       timeZone: 'Asia/Kolkata',
     });
     console.log(`${ALGO}: time, ${istTz}`);
+    const creds: Credentails = {
+      APIKEY: req.body.api_key,
+      CLIENT_CODE: req.body.client_code,
+      CLIENT_PIN: req.body.client_pin,
+      CLIENT_TOTP_PIN: req.body.client_totp_pin,
+    };
+    DataStore.getInstance().setPostData(creds);
     const response = await checkMarketConditionsAndExecuteTrade();
     console.log(`response: ${response}`);
     res.send({ response: response });

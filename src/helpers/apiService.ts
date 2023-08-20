@@ -2,7 +2,6 @@ import { get, isArray, isEmpty } from 'lodash';
 let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
-import dotenv from 'dotenv';
 import {
   TimeComparisonType,
   checkStrike,
@@ -39,7 +38,7 @@ import {
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
 } from './constants';
-dotenv.config();
+import DataStore from '../store/dataStore';
 type getLtpDataType = {
   exchange: string;
   tradingsymbol: string;
@@ -53,6 +52,7 @@ export const getLtpData = async ({
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
+  const cred = DataStore.getInstance().getPostData();
   const config = {
     method: 'post',
     url: GET_LTP_DATA_API,
@@ -65,7 +65,7 @@ export const getLtpData = async ({
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': process.env.API_KEY,
+      'X-PrivateKey': cred.APIKEY,
     },
     data: data,
   };
@@ -79,12 +79,13 @@ export const getLtpData = async ({
   }
 };
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
+  const cred = DataStore.getInstance().getPostData();
   const smart_api = new SmartAPI({
-    api_key: process.env.API_KEY,
+    api_key: cred.APIKEY,
   });
-  const TOTP = totp(process.env.CLIENT_TOTP_KEY);
+  const TOTP = totp(cred.CLIENT_TOTP_PIN);
   return smart_api
-    .generateSession(process.env.CLIENT_CODE, process.env.CLIENT_PIN, TOTP)
+    .generateSession(cred.CLIENT_CODE, cred.CLIENT_PIN, TOTP)
     .then(async (response: object) => {
       return get(response, 'data');
     })
@@ -173,6 +174,7 @@ export const getPositions = async () => {
   await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
+  const cred = DataStore.getInstance().getPostData();
   let config = {
     method: 'get',
     url: GET_POSITIONS,
@@ -185,7 +187,7 @@ export const getPositions = async () => {
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': process.env.API_KEY,
+      'X-PrivateKey': cred.APIKEY,
     },
     data: '',
   };
@@ -233,6 +235,7 @@ export const doOrder = async ({
     producttype: 'CARRYFORWARD',
     duration: 'DAY',
   });
+  const cred = DataStore.getInstance().getPostData();
   let config = {
     method: 'post',
     url: ORDER_API,
@@ -245,7 +248,7 @@ export const doOrder = async ({
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': process.env.API_KEY,
+      'X-PrivateKey': cred.APIKEY,
     },
     data: data,
   };
@@ -333,6 +336,7 @@ export const shortStraddle = async () => {
 export const getMarginDetails = async () => {
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
+  const cred = DataStore.getInstance().getPostData();
   const config = {
     method: 'get',
     url: GET_MARGIN,
@@ -345,7 +349,7 @@ export const getMarginDetails = async () => {
       'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
       'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
       'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': process.env.API_KEY,
+      'X-PrivateKey': cred.APIKEY,
     },
   };
   return axios(config)
