@@ -1,9 +1,25 @@
 import { getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
-import { JsonFileStructure, Position, TradeDetails } from '../app.interface';
+import {
+  Credentails,
+  JsonFileStructure,
+  Position,
+  TradeDetails,
+} from '../app.interface';
 import moment from 'moment-timezone';
 import { ALGO, DELAY } from './constants';
+import { Request } from 'express';
+import DataStore from '../store/dataStore';
+export const setCred = (req: Request) => {
+  const creds: Credentails = {
+    APIKEY: req.body.api_key,
+    CLIENT_CODE: req.body.client_code,
+    CLIENT_PIN: req.body.client_pin,
+    CLIENT_TOTP_PIN: req.body.client_totp_pin,
+  };
+  DataStore.getInstance().setPostData(creds);
+};
 export const getNextExpiry = () => {
   /*
    *const today = new Date('08/03/2023');
