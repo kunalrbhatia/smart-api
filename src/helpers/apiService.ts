@@ -631,8 +631,9 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   const isTradeOpen = !data.isTradeClosed;
   const isSmartAPIWorking = !isEmpty(smartSession);
   console.log(
-    `${ALGO}: checking conditions, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}`
+    `${ALGO}: checking conditions, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}, smartAPISessionObject below}`
   );
+  console.log(smartSession);
   return (
     isMarketOpen && hasTimePassedToTakeTrade && isTradeOpen && isSmartAPIWorking
   );
