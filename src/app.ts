@@ -12,13 +12,22 @@ import createHttpError from 'http-errors';
 import {
   calculateMtm,
   checkMarketConditionsAndExecuteTrade,
+  checkPositionToClose,
   getLtpData,
+  getPositions,
   getPositionsJson,
   getScrip,
 } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
-import { getAtmStrikePrice, readJsonFile, setCred } from './helpers/functions';
+import {
+  getAtmStrikePrice,
+  getOpenPositions,
+  readJsonFile,
+  setCred,
+} from './helpers/functions';
 import dotenv from 'dotenv';
+import { Position } from './app.interface';
+import { get } from 'lodash';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -32,6 +41,14 @@ app.get('/', (req: Request, res: Response) => {
 });
 process.on('uncaughtException', function (err) {
   console.log(err);
+});
+app.post('/check-positions-to-close', async (req: Request, res: Response) => {
+  setCred(req);
+  const currentPositions = await getPositions();
+  const positions: Position[] = get(currentPositions, 'data', []) || [];
+  const openPositions = getOpenPositions(positions);
+  checkPositionToClose({ openPositions: openPositions });
+  res.send().status(200);
 });
 app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);

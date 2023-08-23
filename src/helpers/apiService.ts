@@ -44,11 +44,21 @@ type getLtpDataType = {
   tradingsymbol: string;
   symboltoken: string;
 };
+type LtpDataType = {
+  exchange: string;
+  tradingsymbol: string;
+  symboltoken: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  ltp: number;
+};
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
   symboltoken,
-}: getLtpDataType): Promise<object> => {
+}: getLtpDataType): Promise<LtpDataType> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
@@ -315,6 +325,16 @@ export const shortStraddle = async () => {
       symboltoken: get(peToken, '0.token', ''),
       transactionType: TRANSACTION_TYPE_SELL,
     });
+    console.log(
+      `${ALGO}: ceOrderData 
+      symbol: ${get(ceToken, '0.symbol')} 
+      status: ${ceOrderData.status}`
+    );
+    console.log(
+      `${ALGO}: peOrderData 
+      symbol: ${get(peToken, '0.symbol')} 
+      status: ${peOrderData.status}`
+    );
     return {
       stikePrice: atmStrike.toString(),
       expiryDate: expiryDate,
@@ -403,10 +423,79 @@ export const repeatShortStraddle = async (
         closed: false,
         isAlgoCreatedPosition: true,
       });
+      console.log(`${ALGO}: executing writeJsonFile from repeatShortStraddle`);
+      console.log(`${ALGO}: repeatShortStraddle data`);
+      console.log(data);
       await writeJsonFile(data);
     }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
+  }
+};
+
+export const checkPositionToClose = async ({
+  openPositions,
+}: {
+  openPositions: Position[];
+}) => {
+  try {
+    const data = readJsonFile();
+    const tradeDetails = data.tradeDetails;
+    for (const position of openPositions) {
+      for (const trade of tradeDetails) {
+        if (trade && trade.token === position.symboltoken) {
+          trade.tradedPrice = parseInt(position.netprice);
+
+          trade.exchange = position.exchange;
+          trade.tradingSymbol = position.tradingsymbol;
+          console.log(position);
+          console.log(trade);
+        }
+      }
+    }
+    await writeJsonFile(data);
+    type shouldCloseTradeType = {
+      ltp: number;
+      avg: number;
+      trade: TradeDetails;
+    };
+    const shouldCloseTrade = async ({
+      ltp,
+      avg,
+      trade,
+    }: shouldCloseTradeType) => {
+      const halfPlusTradedPrice = avg * 1.5;
+      if (parseInt(trade.netQty) < 0 && ltp > halfPlusTradedPrice) {
+        console.log(`${ALGO}: shouldCloseTrade true`);
+        await closeParticularTrade({ trade });
+      }
+    };
+    for (const trade of tradeDetails) {
+      if (
+        trade &&
+        trade.isAlgoCreatedPosition === true &&
+        trade.exchange === 'NFO' &&
+        trade.tradingSymbol &&
+        trade.tradedPrice
+      ) {
+        const ltpData = await getLtpData({
+          exchange: trade.exchange,
+          symboltoken: trade.token,
+          tradingsymbol: trade.tradingSymbol,
+        });
+        const currentLtpPrice = ltpData.ltp;
+        await shouldCloseTrade({
+          ltp: currentLtpPrice,
+          avg: trade.tradedPrice,
+          trade: trade,
+        });
+      }
+    }
+  } catch (error) {
+    const errorMessage = `${ALGO}: checkPositionToClose failed error below`;
     console.log(errorMessage);
     console.log(error);
     throw error;
@@ -417,6 +506,7 @@ export const getPositionsJson = async () => {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
     const openPositions = getOpenPositions(positions);
+    await checkPositionToClose({ openPositions });
     console.log(
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
     );
@@ -450,33 +540,34 @@ export const getPositionsJson = async () => {
     throw error;
   }
 };
+const closeParticularTrade = async ({ trade }: { trade: TradeDetails }) => {
+  try {
+    if (trade.isAlgoCreatedPosition) {
+      await delay({ milliSeconds: DELAY });
+      const transactionStatus = await doOrder({
+        tradingsymbol: trade.symbol,
+        transactionType: TRANSACTION_TYPE_BUY,
+        symboltoken: trade.token,
+      });
+      trade.closed = transactionStatus.status;
+    }
+  } catch (error) {
+    const errorMessage = `${ALGO}: closeTrade failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
+  }
+};
 export const closeAllTrades = async () => {
   try {
     await delay({ milliSeconds: DELAY });
     const data = readJsonFile();
     await delay({ milliSeconds: DELAY });
     const tradeDetails = data.tradeDetails;
-    const closeTrade = async ({ trade }: { trade: TradeDetails }) => {
-      try {
-        if (trade.isAlgoCreatedPosition) {
-          await delay({ milliSeconds: DELAY });
-          const transactionStatus = await doOrder({
-            tradingsymbol: trade.symbol,
-            transactionType: TRANSACTION_TYPE_BUY,
-            symboltoken: trade.token,
-          });
-          trade.closed = transactionStatus.status;
-        }
-      } catch (error) {
-        const errorMessage = `${ALGO}: closeTrade failed error below`;
-        console.log(errorMessage);
-        console.log(error);
-        throw error;
-      }
-    };
+
     if (Array.isArray(tradeDetails)) {
       for (const trade of tradeDetails) {
-        await closeTrade({ trade });
+        await closeParticularTrade({ trade });
       }
       await delay({ milliSeconds: DELAY });
       await writeJsonFile(data);
@@ -529,17 +620,21 @@ export const checkToRepeatShortStraddle = async (
     if (atmStrike > previousTradeStrikePrice) {
       const difference = atmStrike - previousTradeStrikePrice;
       console.log(
-        `${ALGO}: atm strike is greater than previous traded strike price. The difference is ${difference}`
+        `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`
       );
       await delay({ milliSeconds: DELAY });
       await repeatShortStraddle(difference, atmStrike);
     } else if (atmStrike < previousTradeStrikePrice) {
       const difference = previousTradeStrikePrice - atmStrike;
       console.log(
-        `${ALGO}: atm strike is lesser than previous traded strike price. The difference is ${difference}`
+        `${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`
       );
       await delay({ milliSeconds: DELAY });
       await repeatShortStraddle(difference, atmStrike);
+    } else {
+      console.log(
+        `${ALGO}: atm strike is equal to previously traded strike price`
+      );
     }
   } else {
     console.log(`${ALGO}: Oops, 'atmStrike' is infinity! Stopping operations.`);

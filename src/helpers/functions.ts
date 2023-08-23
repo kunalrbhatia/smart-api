@@ -89,7 +89,7 @@ export const getAtmStrikePrice = async () => {
       tradingsymbol: 'BANKNIFTY',
       symboltoken: '26009',
     });
-    const ltpPrice = parseInt(get(ltp, 'ltp', ''));
+    const ltpPrice = ltp.ltp;
     console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
     if (typeof ltpPrice === 'number' && !isNaN(ltpPrice)) {
       return findNearestStrike(optionChain, ltpPrice);
