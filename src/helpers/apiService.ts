@@ -3,7 +3,6 @@ let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
-  TimeComparisonType,
   checkStrike,
   createJsonFile,
   delay,
@@ -18,10 +17,19 @@ import {
 } from './functions';
 import { Response } from 'express';
 import {
+  CheckPosition,
   ISmartApiData,
   JsonFileStructure,
+  LtpDataType,
   Position,
+  TimeComparisonType,
   TradeDetails,
+  doOrderResponse,
+  doOrderType,
+  getLtpDataType,
+  getPositionByTokenType,
+  getScripType,
+  shouldCloseTradeType,
 } from '../app.interface';
 import {
   ALGO,
@@ -39,21 +47,6 @@ import {
   TRANSACTION_TYPE_SELL,
 } from './constants';
 import DataStore from '../store/dataStore';
-type getLtpDataType = {
-  exchange: string;
-  tradingsymbol: string;
-  symboltoken: string;
-};
-type LtpDataType = {
-  exchange: string;
-  tradingsymbol: string;
-  symboltoken: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  ltp: number;
-};
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
@@ -127,12 +120,6 @@ export const fetchData = async (): Promise<object[]> => {
       console.log(evt);
       throw evt;
     });
-};
-type getScripType = {
-  scriptName: string;
-  strikePrice?: string;
-  optionType?: 'CE' | 'PE';
-  expiryDate: string;
 };
 export const getScrip = async ({
   scriptName,
@@ -212,20 +199,7 @@ export const getPositions = async () => {
       throw error;
     });
 };
-type doOrderType = {
-  tradingsymbol: string;
-  symboltoken: string;
-  transactionType: string | undefined;
-};
-type doOrderResponse = {
-  status: boolean;
-  message: string;
-  errorcode: string;
-  data: {
-    script: string;
-    orderid: string;
-  };
-};
+
 export const doOrder = async ({
   tradingsymbol,
   transactionType,
@@ -435,7 +409,17 @@ export const repeatShortStraddle = async (
     throw error;
   }
 };
-
+export const getPositionByToken = ({
+  positions,
+  token,
+}: getPositionByTokenType) => {
+  for (const position of positions) {
+    if (position.symboltoken === token) {
+      return position;
+    }
+  }
+  return null;
+};
 export const checkPositionToClose = async ({
   openPositions,
 }: {
@@ -454,18 +438,13 @@ export const checkPositionToClose = async ({
       }
     }
     await writeJsonFile(data);
-    type shouldCloseTradeType = {
-      ltp: number;
-      avg: number;
-      trade: TradeDetails;
-    };
     const shouldCloseTrade = async ({
       ltp,
       avg,
       trade,
     }: shouldCloseTradeType) => {
-      const halfPlusTradedPrice = avg * 1.5;
-      if (parseInt(trade.netQty) < 0 && ltp > halfPlusTradedPrice) {
+      const doubledPrice = avg * 2;
+      if (parseInt(trade.netQty) < 0 && ltp >= doubledPrice) {
         console.log(`${ALGO}: shouldCloseTrade true`);
         await closeParticularTrade({ trade });
       }
@@ -478,14 +457,14 @@ export const checkPositionToClose = async ({
         trade.tradingSymbol &&
         trade.tradedPrice
       ) {
-        const ltpData = await getLtpData({
-          exchange: trade.exchange,
-          symboltoken: trade.token,
-          tradingsymbol: trade.tradingSymbol,
-        });
-        const currentLtpPrice = ltpData.ltp;
+        const currentLtpPrice = getPositionByToken({
+          positions: openPositions,
+          token: trade.token,
+        })?.ltp;
+
         await shouldCloseTrade({
-          ltp: currentLtpPrice,
+          ltp:
+            typeof currentLtpPrice === 'string' ? parseInt(currentLtpPrice) : 0,
           avg: trade.tradedPrice,
           trade: trade,
         });
@@ -742,7 +721,6 @@ export const checkMarketConditionsAndExecuteTrade = async () => {
     return MESSAGE_NOT_TAKE_TRADE;
   }
 };
-type CheckPosition = { position: Position; trades: TradeDetails[] };
 export const checkPositionAlreadyExists = async ({
   position,
   trades,

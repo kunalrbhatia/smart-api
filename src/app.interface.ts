@@ -80,3 +80,52 @@ export type Credentails = {
   CLIENT_PIN: string;
   CLIENT_TOTP_PIN: string;
 };
+export type CheckPosition = { position: Position; trades: TradeDetails[] };
+export type getLtpDataType = {
+  exchange: string;
+  tradingsymbol: string;
+  symboltoken: string;
+};
+export type LtpDataType = {
+  exchange: string;
+  tradingsymbol: string;
+  symboltoken: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  ltp: number;
+};
+export type getScripType = {
+  scriptName: string;
+  strikePrice?: string;
+  optionType?: 'CE' | 'PE';
+  expiryDate: string;
+};
+export type doOrderType = {
+  tradingsymbol: string;
+  symboltoken: string;
+  transactionType: string | undefined;
+};
+export type doOrderResponse = {
+  status: boolean;
+  message: string;
+  errorcode: string;
+  data: {
+    script: string;
+    orderid: string;
+  };
+};
+export type getPositionByTokenType = {
+  positions: Position[];
+  token: string;
+};
+export type shouldCloseTradeType = {
+  ltp: number;
+  avg: number;
+  trade: TradeDetails;
+};
+export type delayType = {
+  milliSeconds: number | undefined | string;
+};
+export type TimeComparisonType = { hours: number; minutes: number };

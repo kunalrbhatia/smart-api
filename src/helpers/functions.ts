@@ -5,7 +5,9 @@ import {
   Credentails,
   JsonFileStructure,
   Position,
+  TimeComparisonType,
   TradeDetails,
+  delayType,
 } from '../app.interface';
 import moment from 'moment-timezone';
 import { ALGO, DELAY } from './constants';
@@ -104,9 +106,6 @@ export const getAtmStrikePrice = async () => {
     throw error; // This will immediately stop further execution
   }
 };
-type delayType = {
-  milliSeconds: number | undefined | string;
-};
 export const delay = ({ milliSeconds }: delayType) => {
   const FIVE_MINUTES = 5 * 60 * 1000;
   let delayInMilliseconds = 0;
@@ -119,7 +118,6 @@ export const delay = ({ milliSeconds }: delayType) => {
     setTimeout(resolve, delayInMilliseconds);
   });
 };
-export type TimeComparisonType = { hours: number; minutes: number };
 export const isCurrentTimeGreater = ({
   hours,
   minutes,
