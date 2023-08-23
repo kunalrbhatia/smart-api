@@ -420,6 +420,13 @@ export const getPositionByToken = ({
   }
   return null;
 };
+const shouldCloseTrade = async ({ ltp, avg, trade }: shouldCloseTradeType) => {
+  const doubledPrice = avg * 2;
+  if (parseInt(trade.netQty) < 0 && ltp >= doubledPrice) {
+    console.log(`${ALGO}: shouldCloseTrade true`);
+    await closeParticularTrade({ trade });
+  }
+};
 export const checkPositionToClose = async ({
   openPositions,
 }: {
@@ -438,17 +445,6 @@ export const checkPositionToClose = async ({
       }
     }
     await writeJsonFile(data);
-    const shouldCloseTrade = async ({
-      ltp,
-      avg,
-      trade,
-    }: shouldCloseTradeType) => {
-      const doubledPrice = avg * 2;
-      if (parseInt(trade.netQty) < 0 && ltp >= doubledPrice) {
-        console.log(`${ALGO}: shouldCloseTrade true`);
-        await closeParticularTrade({ trade });
-      }
-    };
     for (const trade of tradeDetails) {
       if (
         trade &&
@@ -461,7 +457,6 @@ export const checkPositionToClose = async ({
           positions: openPositions,
           token: trade.token,
         })?.ltp;
-
         await shouldCloseTrade({
           ltp:
             typeof currentLtpPrice === 'string' ? parseInt(currentLtpPrice) : 0,
