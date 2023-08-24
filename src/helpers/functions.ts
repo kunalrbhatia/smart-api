@@ -192,12 +192,18 @@ export const getOnlyAlgoTradedPositions = (): TradeDetails[] => {
   return algoTradedPositions;
 };
 export const readJsonFile = (): JsonFileStructure => {
-  const currentDate = getCurrentDate();
-  const fileName = `${currentDate}_trades.json`;
-  console.log(`${ALGO}: reading from json file with name ${fileName}`);
-  const dataFromFile = fs.readFileSync(fileName, 'utf-8');
-  const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);
-  return dataFromFileJson;
+  try {
+    const currentDate = getCurrentDate();
+    const fileName = `${currentDate}_trades.json`;
+    console.log(`${ALGO}: reading from json file with name ${fileName}`);
+    const dataFromFile = fs.readFileSync(fileName, 'utf-8');
+    const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);
+    return dataFromFileJson;
+  } catch (error) {
+    console.log(`${ALGO}: Error reading from json file`);
+    console.log(error);
+    throw error;
+  }
 };
 export const checkStrike = (
   tradeDetails: TradeDetails[],
