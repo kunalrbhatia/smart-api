@@ -28,7 +28,7 @@ export const getNextExpiry = () => {
    *const today = new Date('08/03/2023');
    *For testing getNextExpiry logic
    */
-  const today = new Date();
+  const today = new Date(Date.now());
   const dayOfWeek = today.getDay();
   const isThursday = dayOfWeek === 4;
   const isWednesday = dayOfWeek === 3;
