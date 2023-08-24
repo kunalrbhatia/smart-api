@@ -33,7 +33,7 @@ var getNextExpiry = function getNextExpiry() {
    *const today = new Date('08/03/2023');
    *For testing getNextExpiry logic
    */
-  var today = new Date();
+  var today = new Date(Date.now());
   var dayOfWeek = today.getDay();
   var isThursday = dayOfWeek === 4;
   var isWednesday = dayOfWeek === 3;

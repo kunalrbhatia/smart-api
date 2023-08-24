@@ -123,7 +123,7 @@ export const isCurrentTimeGreater = ({
   hours,
   minutes,
 }: TimeComparisonType): boolean => {
-  const currentTime = moment().tz('Asia/Kolkata'); // Set your local time zone here (IST)
+  const currentTime = moment().tz('Asia/Kolkata');
   const targetTime = moment()
     .tz('Asia/Kolkata')
     .set({ hours, minutes, seconds: 0 });
