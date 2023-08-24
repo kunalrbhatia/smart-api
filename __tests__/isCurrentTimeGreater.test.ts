@@ -1,8 +1,8 @@
 import { isCurrentTimeGreater } from '../src/helpers/functions';
-function mockDateNow(isoDate: string) {
+const mockDateNow = (isoDate: string) => {
   const dateNow = jest.spyOn(Date, 'now');
   dateNow.mockImplementation(() => new Date(isoDate).getTime());
-}
+};
 describe('isCurrentTimeGreater function', () => {
   beforeAll(() => {
     mockDateNow('2023-08-24T15:22:00Z');
