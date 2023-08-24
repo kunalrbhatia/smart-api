@@ -9,6 +9,7 @@ import express, {
 } from 'express';
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
+import cron from 'node-cron';
 import {
   calculateMtm,
   checkMarketConditionsAndExecuteTrade,
@@ -26,7 +27,7 @@ import {
   setCred,
 } from './helpers/functions';
 import dotenv from 'dotenv';
-import { Position } from './app.interface';
+import { Position, bodyType, reqType } from './app.interface';
 import { get } from 'lodash';
 const app: Application = express();
 app.use(bodyParser.json());
@@ -67,6 +68,32 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
+if (process.env.NODE_ENV === 'development') {
+  cron.schedule('*/5 * * * *', async () => {
+    console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+    try {
+      const istTz = new Date().toLocaleString('default', {
+        timeZone: 'Asia/Kolkata',
+      });
+      console.log(`${ALGO}: time, ${istTz}`);
+      const body: bodyType = {
+        api_key: process.env.API_KEY ?? '',
+        client_code: process.env.CLIENT_CODE ?? '',
+        client_pin: process.env.CLIENT_PIN ?? '',
+        client_totp_pin: process.env.CLIENT_TOTP_PIN ?? '',
+      };
+      const req: reqType = {
+        body: body,
+      };
+      setCred(req);
+      const response = await checkMarketConditionsAndExecuteTrade();
+      console.log(`response: ${response}`);
+    } catch (err) {
+      console.log(err);
+    }
+    console.log(`${ALGO}: -----------------------------------`);
+  });
+}
 app.post('/get-atm-strike-price', async (req: Request, res: Response) => {
   setCred(req);
   res.json({ atm: await getAtmStrikePrice() });

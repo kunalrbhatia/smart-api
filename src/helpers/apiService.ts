@@ -420,11 +420,23 @@ export const getPositionByToken = ({
   }
   return null;
 };
-const shouldCloseTrade = async ({ ltp, avg, trade }: shouldCloseTradeType) => {
+export const shouldCloseTrade = async ({
+  ltp,
+  avg,
+  trade,
+}: shouldCloseTradeType) => {
   const doubledPrice = avg * 2;
+  console.log(
+    `${ALGO}: checking shouldCloseTrade, ltp: ${ltp}, doubledPrice: ${doubledPrice}`
+  );
   if (parseInt(trade.netQty) < 0 && ltp >= doubledPrice) {
     console.log(`${ALGO}: shouldCloseTrade true`);
-    await closeParticularTrade({ trade });
+    try {
+      return await closeParticularTrade({ trade });
+    } catch (error) {
+      console.log(`${ALGO}: closeParticularTrade could not be called`);
+      throw error;
+    }
   }
 };
 export const checkPositionToClose = async ({
@@ -511,7 +523,11 @@ export const getPositionsJson = async () => {
     throw error;
   }
 };
-const closeParticularTrade = async ({ trade }: { trade: TradeDetails }) => {
+export const closeParticularTrade = async ({
+  trade,
+}: {
+  trade: TradeDetails;
+}) => {
   try {
     if (trade.isAlgoCreatedPosition) {
       await delay({ milliSeconds: DELAY });
@@ -521,6 +537,7 @@ const closeParticularTrade = async ({ trade }: { trade: TradeDetails }) => {
         symboltoken: trade.token,
       });
       trade.closed = transactionStatus.status;
+      return transactionStatus.status;
     }
   } catch (error) {
     const errorMessage = `${ALGO}: closeTrade failed error below`;
@@ -595,6 +612,7 @@ export const checkToRepeatShortStraddle = async (
       );
       await delay({ milliSeconds: DELAY });
       await repeatShortStraddle(difference, atmStrike);
+      console.log(`${ALGO}: repeatShortStraddle executed successfully`);
     } else if (atmStrike < previousTradeStrikePrice) {
       const difference = previousTradeStrikePrice - atmStrike;
       console.log(
@@ -602,6 +620,7 @@ export const checkToRepeatShortStraddle = async (
       );
       await delay({ milliSeconds: DELAY });
       await repeatShortStraddle(difference, atmStrike);
+      console.log(`${ALGO}: repeatShortStraddle executed successfully`);
     } else {
       console.log(
         `${ALGO}: atm strike is equal to previously traded strike price`
@@ -697,9 +716,8 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   const isTradeOpen = !data.isTradeClosed;
   const isSmartAPIWorking = !isEmpty(smartSession);
   console.log(
-    `${ALGO}: checking conditions, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}, smartAPISessionObject below}`
+    `${ALGO}: checking conditions, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}`
   );
-  console.log(smartSession);
   return (
     isMarketOpen && hasTimePassedToTakeTrade && isTradeOpen && isSmartAPIWorking
   );

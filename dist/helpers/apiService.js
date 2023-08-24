@@ -4,7 +4,7 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.shortStraddle = exports.repeatShortStraddle = exports.getScrip = exports.getPositionsJson = exports.getPositions = exports.getMarginDetails = exports.getLtpData = exports.generateSmartSession = exports.fetchData = exports.executeTrade = exports.doOrder = exports.closeTrade = exports.closeAllTrades = exports.checkToRepeatShortStraddle = exports.checkPositionAlreadyExists = exports.checkMarketConditionsAndExecuteTrade = exports.calculateMtm = exports.areAllTradesClosed = void 0;
+exports.shouldCloseTrade = exports.shortStraddle = exports.repeatShortStraddle = exports.getScrip = exports.getPositionsJson = exports.getPositions = exports.getPositionByToken = exports.getMarginDetails = exports.getLtpData = exports.generateSmartSession = exports.fetchData = exports.executeTrade = exports.doOrder = exports.closeTrade = exports.closeParticularTrade = exports.closeAllTrades = exports.checkToRepeatShortStraddle = exports.checkPositionToClose = exports.checkPositionAlreadyExists = exports.checkMarketConditionsAndExecuteTrade = exports.calculateMtm = exports.areAllTradesClosed = void 0;
 var _lodash = require("lodash");
 var _functions = require("./functions");
 var _constants = require("./constants");
@@ -536,40 +536,193 @@ var repeatShortStraddle = /*#__PURE__*/function () {
   };
 }();
 exports.repeatShortStraddle = repeatShortStraddle;
-var getPositionsJson = /*#__PURE__*/function () {
-  var _ref16 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee12() {
-    var currentPositions, positions, openPositions, json, tradeDetails, _iterator, _step, position, isTradeExists, trade, errorMessage;
+var getPositionByToken = function getPositionByToken(_ref16) {
+  var positions = _ref16.positions,
+    token = _ref16.token;
+  var _iterator = _createForOfIteratorHelper(positions),
+    _step;
+  try {
+    for (_iterator.s(); !(_step = _iterator.n()).done;) {
+      var position = _step.value;
+      if (position.symboltoken === token) {
+        return position;
+      }
+    }
+  } catch (err) {
+    _iterator.e(err);
+  } finally {
+    _iterator.f();
+  }
+  return null;
+};
+exports.getPositionByToken = getPositionByToken;
+var shouldCloseTrade = /*#__PURE__*/function () {
+  var _ref18 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee12(_ref17) {
+    var ltp, avg, trade, doubledPrice;
     return _regeneratorRuntime().wrap(function _callee12$(_context12) {
       while (1) switch (_context12.prev = _context12.next) {
         case 0:
-          _context12.prev = 0;
-          _context12.next = 3;
-          return getPositions();
-        case 3:
-          currentPositions = _context12.sent;
-          positions = (0, _lodash.get)(currentPositions, 'data', []) || [];
-          openPositions = (0, _functions.getOpenPositions)(positions);
-          _context12.next = 8;
-          return (0, _functions.createJsonFile)();
-        case 8:
-          json = _context12.sent;
-          tradeDetails = json.tradeDetails;
-          _iterator = _createForOfIteratorHelper(openPositions);
-          _context12.prev = 11;
-          _iterator.s();
-        case 13:
-          if ((_step = _iterator.n()).done) {
-            _context12.next = 21;
+          ltp = _ref17.ltp, avg = _ref17.avg, trade = _ref17.trade;
+          doubledPrice = avg * 2;
+          if (!(parseInt(trade.netQty) < 0 && ltp >= doubledPrice)) {
+            _context12.next = 12;
             break;
           }
-          position = _step.value;
-          _context12.next = 17;
+          _context12.prev = 3;
+          _context12.next = 6;
+          return closeParticularTrade({
+            trade: trade
+          });
+        case 6:
+          return _context12.abrupt("return", _context12.sent);
+        case 9:
+          _context12.prev = 9;
+          _context12.t0 = _context12["catch"](3);
+          throw _context12.t0;
+        case 12:
+        case "end":
+          return _context12.stop();
+      }
+    }, _callee12, null, [[3, 9]]);
+  }));
+  return function shouldCloseTrade(_x8) {
+    return _ref18.apply(this, arguments);
+  };
+}();
+exports.shouldCloseTrade = shouldCloseTrade;
+var checkPositionToClose = /*#__PURE__*/function () {
+  var _ref20 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee13(_ref19) {
+    var openPositions, data, tradeDetails, _iterator2, _step2, position, _iterator4, _step4, trade, _iterator3, _step3, _trade, _getPositionByToken, currentLtpPrice, errorMessage;
+    return _regeneratorRuntime().wrap(function _callee13$(_context13) {
+      while (1) switch (_context13.prev = _context13.next) {
+        case 0:
+          openPositions = _ref19.openPositions;
+          _context13.prev = 1;
+          data = (0, _functions.readJsonFile)();
+          tradeDetails = data.tradeDetails;
+          _iterator2 = _createForOfIteratorHelper(openPositions);
+          try {
+            for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+              position = _step2.value;
+              _iterator4 = _createForOfIteratorHelper(tradeDetails);
+              try {
+                for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+                  trade = _step4.value;
+                  if (trade && trade.token === position.symboltoken) {
+                    trade.tradedPrice = parseInt(position.netprice);
+                    trade.exchange = position.exchange;
+                    trade.tradingSymbol = position.tradingsymbol;
+                  }
+                }
+              } catch (err) {
+                _iterator4.e(err);
+              } finally {
+                _iterator4.f();
+              }
+            }
+          } catch (err) {
+            _iterator2.e(err);
+          } finally {
+            _iterator2.f();
+          }
+          _context13.next = 8;
+          return (0, _functions.writeJsonFile)(data);
+        case 8:
+          _iterator3 = _createForOfIteratorHelper(tradeDetails);
+          _context13.prev = 9;
+          _iterator3.s();
+        case 11:
+          if ((_step3 = _iterator3.n()).done) {
+            _context13.next = 19;
+            break;
+          }
+          _trade = _step3.value;
+          if (!(_trade && _trade.isAlgoCreatedPosition === true && _trade.exchange === 'NFO' && _trade.tradingSymbol && _trade.tradedPrice)) {
+            _context13.next = 17;
+            break;
+          }
+          currentLtpPrice = (_getPositionByToken = getPositionByToken({
+            positions: openPositions,
+            token: _trade.token
+          })) === null || _getPositionByToken === void 0 ? void 0 : _getPositionByToken.ltp;
+          _context13.next = 17;
+          return shouldCloseTrade({
+            ltp: typeof currentLtpPrice === 'string' ? parseInt(currentLtpPrice) : 0,
+            avg: _trade.tradedPrice,
+            trade: _trade
+          });
+        case 17:
+          _context13.next = 11;
+          break;
+        case 19:
+          _context13.next = 24;
+          break;
+        case 21:
+          _context13.prev = 21;
+          _context13.t0 = _context13["catch"](9);
+          _iterator3.e(_context13.t0);
+        case 24:
+          _context13.prev = 24;
+          _iterator3.f();
+          return _context13.finish(24);
+        case 27:
+          _context13.next = 33;
+          break;
+        case 29:
+          _context13.prev = 29;
+          _context13.t1 = _context13["catch"](1);
+          errorMessage = "".concat(_constants.ALGO, ": checkPositionToClose failed error below");
+          throw _context13.t1;
+        case 33:
+        case "end":
+          return _context13.stop();
+      }
+    }, _callee13, null, [[1, 29], [9, 21, 24, 27]]);
+  }));
+  return function checkPositionToClose(_x9) {
+    return _ref20.apply(this, arguments);
+  };
+}();
+exports.checkPositionToClose = checkPositionToClose;
+var getPositionsJson = /*#__PURE__*/function () {
+  var _ref21 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee14() {
+    var currentPositions, positions, openPositions, json, tradeDetails, _iterator5, _step5, position, isTradeExists, trade, errorMessage;
+    return _regeneratorRuntime().wrap(function _callee14$(_context14) {
+      while (1) switch (_context14.prev = _context14.next) {
+        case 0:
+          _context14.prev = 0;
+          _context14.next = 3;
+          return getPositions();
+        case 3:
+          currentPositions = _context14.sent;
+          positions = (0, _lodash.get)(currentPositions, 'data', []) || [];
+          openPositions = (0, _functions.getOpenPositions)(positions);
+          _context14.next = 8;
+          return checkPositionToClose({
+            openPositions: openPositions
+          });
+        case 8:
+          _context14.next = 10;
+          return (0, _functions.createJsonFile)();
+        case 10:
+          json = _context14.sent;
+          tradeDetails = json.tradeDetails;
+          _iterator5 = _createForOfIteratorHelper(openPositions);
+          _context14.prev = 13;
+          _iterator5.s();
+        case 15:
+          if ((_step5 = _iterator5.n()).done) {
+            _context14.next = 23;
+            break;
+          }
+          position = _step5.value;
+          _context14.next = 19;
           return checkPositionAlreadyExists({
             position: position,
             trades: tradeDetails
           });
-        case 17:
-          isTradeExists = _context12.sent;
+        case 19:
+          isTradeExists = _context14.sent;
           if (isTradeExists === false) {
             trade = {
               netQty: position.netqty,
@@ -583,343 +736,348 @@ var getPositionsJson = /*#__PURE__*/function () {
             };
             tradeDetails.push(trade);
           }
-        case 19:
-          _context12.next = 13;
-          break;
         case 21:
-          _context12.next = 26;
+          _context14.next = 15;
           break;
         case 23:
-          _context12.prev = 23;
-          _context12.t0 = _context12["catch"](11);
-          _iterator.e(_context12.t0);
-        case 26:
-          _context12.prev = 26;
-          _iterator.f();
-          return _context12.finish(26);
-        case 29:
-          _context12.next = 31;
-          return (0, _functions.writeJsonFile)(json);
+          _context14.next = 28;
+          break;
+        case 25:
+          _context14.prev = 25;
+          _context14.t0 = _context14["catch"](13);
+          _iterator5.e(_context14.t0);
+        case 28:
+          _context14.prev = 28;
+          _iterator5.f();
+          return _context14.finish(28);
         case 31:
-          return _context12.abrupt("return", json);
-        case 34:
-          _context12.prev = 34;
-          _context12.t1 = _context12["catch"](0);
+          _context14.next = 33;
+          return (0, _functions.writeJsonFile)(json);
+        case 33:
+          return _context14.abrupt("return", json);
+        case 36:
+          _context14.prev = 36;
+          _context14.t1 = _context14["catch"](0);
           errorMessage = "".concat(_constants.ALGO, ": getPositionsJson failed error below");
-          throw _context12.t1;
-        case 38:
+          throw _context14.t1;
+        case 40:
         case "end":
-          return _context12.stop();
+          return _context14.stop();
       }
-    }, _callee12, null, [[0, 34], [11, 23, 26, 29]]);
+    }, _callee14, null, [[0, 36], [13, 25, 28, 31]]);
   }));
   return function getPositionsJson() {
-    return _ref16.apply(this, arguments);
+    return _ref21.apply(this, arguments);
   };
 }();
 exports.getPositionsJson = getPositionsJson;
-var closeAllTrades = /*#__PURE__*/function () {
-  var _ref17 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee14() {
-    var data, tradeDetails, _closeTrade, _iterator2, _step2, trade, errorMessage;
-    return _regeneratorRuntime().wrap(function _callee14$(_context14) {
-      while (1) switch (_context14.prev = _context14.next) {
+var closeParticularTrade = /*#__PURE__*/function () {
+  var _ref23 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee15(_ref22) {
+    var trade, transactionStatus, errorMessage;
+    return _regeneratorRuntime().wrap(function _callee15$(_context15) {
+      while (1) switch (_context15.prev = _context15.next) {
         case 0:
-          _context14.prev = 0;
-          _context14.next = 3;
+          trade = _ref22.trade;
+          _context15.prev = 1;
+          if (!trade.isAlgoCreatedPosition) {
+            _context15.next = 10;
+            break;
+          }
+          _context15.next = 5;
+          return (0, _functions.delay)({
+            milliSeconds: _constants.DELAY
+          });
+        case 5:
+          _context15.next = 7;
+          return doOrder({
+            tradingsymbol: trade.symbol,
+            transactionType: _constants.TRANSACTION_TYPE_BUY,
+            symboltoken: trade.token
+          });
+        case 7:
+          transactionStatus = _context15.sent;
+          trade.closed = transactionStatus.status;
+          return _context15.abrupt("return", transactionStatus.status);
+        case 10:
+          _context15.next = 16;
+          break;
+        case 12:
+          _context15.prev = 12;
+          _context15.t0 = _context15["catch"](1);
+          errorMessage = "".concat(_constants.ALGO, ": closeTrade failed error below");
+          throw _context15.t0;
+        case 16:
+        case "end":
+          return _context15.stop();
+      }
+    }, _callee15, null, [[1, 12]]);
+  }));
+  return function closeParticularTrade(_x10) {
+    return _ref23.apply(this, arguments);
+  };
+}();
+exports.closeParticularTrade = closeParticularTrade;
+var closeAllTrades = /*#__PURE__*/function () {
+  var _ref24 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee16() {
+    var data, tradeDetails, _iterator6, _step6, trade, errorMessage;
+    return _regeneratorRuntime().wrap(function _callee16$(_context16) {
+      while (1) switch (_context16.prev = _context16.next) {
+        case 0:
+          _context16.prev = 0;
+          _context16.next = 3;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 3:
           data = (0, _functions.readJsonFile)();
-          _context14.next = 6;
+          _context16.next = 6;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 6:
           tradeDetails = data.tradeDetails;
-          _closeTrade = /*#__PURE__*/function () {
-            var _ref19 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee13(_ref18) {
-              var trade, transactionStatus, errorMessage;
-              return _regeneratorRuntime().wrap(function _callee13$(_context13) {
-                while (1) switch (_context13.prev = _context13.next) {
-                  case 0:
-                    trade = _ref18.trade;
-                    _context13.prev = 1;
-                    if (!trade.isAlgoCreatedPosition) {
-                      _context13.next = 9;
-                      break;
-                    }
-                    _context13.next = 5;
-                    return (0, _functions.delay)({
-                      milliSeconds: _constants.DELAY
-                    });
-                  case 5:
-                    _context13.next = 7;
-                    return doOrder({
-                      tradingsymbol: trade.symbol,
-                      transactionType: _constants.TRANSACTION_TYPE_BUY,
-                      symboltoken: trade.token
-                    });
-                  case 7:
-                    transactionStatus = _context13.sent;
-                    trade.closed = transactionStatus.status;
-                  case 9:
-                    _context13.next = 15;
-                    break;
-                  case 11:
-                    _context13.prev = 11;
-                    _context13.t0 = _context13["catch"](1);
-                    errorMessage = "".concat(_constants.ALGO, ": closeTrade failed error below");
-                    throw _context13.t0;
-                  case 15:
-                  case "end":
-                    return _context13.stop();
-                }
-              }, _callee13, null, [[1, 11]]);
-            }));
-            return function _closeTrade(_x8) {
-              return _ref19.apply(this, arguments);
-            };
-          }();
           if (!Array.isArray(tradeDetails)) {
-            _context14.next = 30;
+            _context16.next = 29;
             break;
           }
-          _iterator2 = _createForOfIteratorHelper(tradeDetails);
-          _context14.prev = 10;
-          _iterator2.s();
-        case 12:
-          if ((_step2 = _iterator2.n()).done) {
-            _context14.next = 18;
+          _iterator6 = _createForOfIteratorHelper(tradeDetails);
+          _context16.prev = 9;
+          _iterator6.s();
+        case 11:
+          if ((_step6 = _iterator6.n()).done) {
+            _context16.next = 17;
             break;
           }
-          trade = _step2.value;
-          _context14.next = 16;
-          return _closeTrade({
+          trade = _step6.value;
+          _context16.next = 15;
+          return closeParticularTrade({
             trade: trade
           });
-        case 16:
-          _context14.next = 12;
+        case 15:
+          _context16.next = 11;
           break;
-        case 18:
-          _context14.next = 23;
+        case 17:
+          _context16.next = 22;
           break;
-        case 20:
-          _context14.prev = 20;
-          _context14.t0 = _context14["catch"](10);
-          _iterator2.e(_context14.t0);
-        case 23:
-          _context14.prev = 23;
-          _iterator2.f();
-          return _context14.finish(23);
-        case 26:
-          _context14.next = 28;
+        case 19:
+          _context16.prev = 19;
+          _context16.t0 = _context16["catch"](9);
+          _iterator6.e(_context16.t0);
+        case 22:
+          _context16.prev = 22;
+          _iterator6.f();
+          return _context16.finish(22);
+        case 25:
+          _context16.next = 27;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
-        case 28:
-          _context14.next = 30;
+        case 27:
+          _context16.next = 29;
           return (0, _functions.writeJsonFile)(data);
-        case 30:
-          _context14.next = 36;
+        case 29:
+          _context16.next = 35;
           break;
-        case 32:
-          _context14.prev = 32;
-          _context14.t1 = _context14["catch"](0);
+        case 31:
+          _context16.prev = 31;
+          _context16.t1 = _context16["catch"](0);
           errorMessage = "".concat(_constants.ALGO, ": closeAllTrades failed error below");
-          throw _context14.t1;
-        case 36:
+          throw _context16.t1;
+        case 35:
         case "end":
-          return _context14.stop();
+          return _context16.stop();
       }
-    }, _callee14, null, [[0, 32], [10, 20, 23, 26]]);
+    }, _callee16, null, [[0, 31], [9, 19, 22, 25]]);
   }));
   return function closeAllTrades() {
-    return _ref17.apply(this, arguments);
+    return _ref24.apply(this, arguments);
   };
 }();
 exports.closeAllTrades = closeAllTrades;
 var closeTrade = /*#__PURE__*/function () {
-  var _ref20 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee15() {
+  var _ref25 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee17() {
     var data;
-    return _regeneratorRuntime().wrap(function _callee15$(_context15) {
-      while (1) switch (_context15.prev = _context15.next) {
+    return _regeneratorRuntime().wrap(function _callee17$(_context17) {
+      while (1) switch (_context17.prev = _context17.next) {
         case 0:
-          _context15.next = 2;
+          _context17.next = 2;
           return areAllTradesClosed();
         case 2:
-          _context15.t0 = _context15.sent;
-          if (!(_context15.t0 === false)) {
-            _context15.next = 8;
+          _context17.t0 = _context17.sent;
+          if (!(_context17.t0 === false)) {
+            _context17.next = 8;
             break;
           }
-          _context15.next = 6;
+          _context17.next = 6;
           return closeAllTrades();
         case 6:
-          _context15.next = 0;
+          _context17.next = 0;
           break;
         case 8:
-          _context15.next = 10;
+          _context17.next = 10;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 10:
           data = (0, _functions.readJsonFile)();
           data.isTradeClosed = true;
-          _context15.next = 14;
+          _context17.next = 14;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 14:
-          _context15.next = 16;
+          _context17.next = 16;
           return (0, _functions.writeJsonFile)(data);
         case 16:
         case "end":
-          return _context15.stop();
+          return _context17.stop();
       }
-    }, _callee15);
+    }, _callee17);
   }));
   return function closeTrade() {
-    return _ref20.apply(this, arguments);
+    return _ref25.apply(this, arguments);
   };
 }();
 exports.closeTrade = closeTrade;
 var areAllTradesClosed = /*#__PURE__*/function () {
-  var _ref21 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee16() {
-    var data, tradeDetails, _iterator3, _step3, trade;
-    return _regeneratorRuntime().wrap(function _callee16$(_context16) {
-      while (1) switch (_context16.prev = _context16.next) {
+  var _ref26 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee18() {
+    var data, tradeDetails, _iterator7, _step7, trade;
+    return _regeneratorRuntime().wrap(function _callee18$(_context18) {
+      while (1) switch (_context18.prev = _context18.next) {
         case 0:
-          _context16.next = 2;
+          _context18.next = 2;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 2:
           data = (0, _functions.readJsonFile)();
-          _context16.next = 5;
+          _context18.next = 5;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 5:
           tradeDetails = data.tradeDetails;
           if (!Array.isArray(tradeDetails)) {
-            _context16.next = 27;
+            _context18.next = 27;
             break;
           }
-          _iterator3 = _createForOfIteratorHelper(tradeDetails);
-          _context16.prev = 8;
-          _iterator3.s();
+          _iterator7 = _createForOfIteratorHelper(tradeDetails);
+          _context18.prev = 8;
+          _iterator7.s();
         case 10:
-          if ((_step3 = _iterator3.n()).done) {
-            _context16.next = 16;
+          if ((_step7 = _iterator7.n()).done) {
+            _context18.next = 16;
             break;
           }
-          trade = _step3.value;
+          trade = _step7.value;
           if (!(trade.isAlgoCreatedPosition && trade.closed === false)) {
-            _context16.next = 14;
+            _context18.next = 14;
             break;
           }
-          return _context16.abrupt("return", false);
+          return _context18.abrupt("return", false);
         case 14:
-          _context16.next = 10;
+          _context18.next = 10;
           break;
         case 16:
-          _context16.next = 21;
+          _context18.next = 21;
           break;
         case 18:
-          _context16.prev = 18;
-          _context16.t0 = _context16["catch"](8);
-          _iterator3.e(_context16.t0);
+          _context18.prev = 18;
+          _context18.t0 = _context18["catch"](8);
+          _iterator7.e(_context18.t0);
         case 21:
-          _context16.prev = 21;
-          _iterator3.f();
-          return _context16.finish(21);
+          _context18.prev = 21;
+          _iterator7.f();
+          return _context18.finish(21);
         case 24:
-          return _context16.abrupt("return", true);
+          return _context18.abrupt("return", true);
         case 27:
-          return _context16.abrupt("return", false);
+          return _context18.abrupt("return", false);
         case 28:
         case "end":
-          return _context16.stop();
+          return _context18.stop();
       }
-    }, _callee16, null, [[8, 18, 21, 24]]);
+    }, _callee18, null, [[8, 18, 21, 24]]);
   }));
   return function areAllTradesClosed() {
-    return _ref21.apply(this, arguments);
+    return _ref26.apply(this, arguments);
   };
 }();
 exports.areAllTradesClosed = areAllTradesClosed;
 var checkToRepeatShortStraddle = /*#__PURE__*/function () {
-  var _ref22 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee17(atmStrike, previousTradeStrikePrice) {
+  var _ref27 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee19(atmStrike, previousTradeStrikePrice) {
     var difference, _difference;
-    return _regeneratorRuntime().wrap(function _callee17$(_context17) {
-      while (1) switch (_context17.prev = _context17.next) {
+    return _regeneratorRuntime().wrap(function _callee19$(_context19) {
+      while (1) switch (_context19.prev = _context19.next) {
         case 0:
           if (!isFinite(atmStrike)) {
-            _context17.next = 17;
+            _context19.next = 19;
             break;
           }
           if (!(atmStrike > previousTradeStrikePrice)) {
-            _context17.next = 9;
+            _context19.next = 9;
             break;
           }
           difference = atmStrike - previousTradeStrikePrice;
-          _context17.next = 5;
+          _context19.next = 5;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 5:
-          _context17.next = 7;
+          _context19.next = 7;
           return repeatShortStraddle(difference, atmStrike);
         case 7:
-          _context17.next = 15;
+          _context19.next = 17;
           break;
         case 9:
           if (!(atmStrike < previousTradeStrikePrice)) {
-            _context17.next = 15;
+            _context19.next = 17;
             break;
           }
           _difference = previousTradeStrikePrice - atmStrike;
-          _context17.next = 13;
+          _context19.next = 13;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 13:
-          _context17.next = 15;
+          _context19.next = 15;
           return repeatShortStraddle(_difference, atmStrike);
         case 15:
-          _context17.next = 18;
+          _context19.next = 17;
           break;
         case 17:
+          _context19.next = 20;
+          break;
+        case 19:
           throw new Error("Oops, atmStrike is infinity! Stopping operations.");
-        case 18:
+        case 20:
         case "end":
-          return _context17.stop();
+          return _context19.stop();
       }
-    }, _callee17);
+    }, _callee19);
   }));
-  return function checkToRepeatShortStraddle(_x9, _x10) {
-    return _ref22.apply(this, arguments);
+  return function checkToRepeatShortStraddle(_x11, _x12) {
+    return _ref27.apply(this, arguments);
   };
 }();
 exports.checkToRepeatShortStraddle = checkToRepeatShortStraddle;
 var executeTrade = /*#__PURE__*/function () {
-  var _ref23 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee18() {
+  var _ref28 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee20() {
     var data, shortStraddleData, atmStrike, no_of_trades, getAlgoTrades, previousTradeStrikePrice, mtmData, istTz, mtm, closingTime;
-    return _regeneratorRuntime().wrap(function _callee18$(_context18) {
-      while (1) switch (_context18.prev = _context18.next) {
+    return _regeneratorRuntime().wrap(function _callee20$(_context20) {
+      while (1) switch (_context20.prev = _context20.next) {
         case 0:
           data = (0, _functions.readJsonFile)();
           if (data.isTradeExecuted) {
-            _context18.next = 14;
+            _context20.next = 14;
             break;
           }
-          _context18.next = 4;
+          _context20.next = 4;
           return shortStraddle();
         case 4:
-          shortStraddleData = _context18.sent;
+          shortStraddleData = _context20.sent;
           if (!(shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus)) {
-            _context18.next = 12;
+            _context20.next = 12;
             break;
           }
           data.isTradeExecuted = true;
@@ -944,38 +1102,38 @@ var executeTrade = /*#__PURE__*/function () {
             closed: false,
             isAlgoCreatedPosition: true
           });
-          _context18.next = 12;
+          _context20.next = 12;
           return (0, _functions.writeJsonFile)(data);
         case 12:
-          _context18.next = 23;
+          _context20.next = 23;
           break;
         case 14:
-          _context18.next = 16;
+          _context20.next = 16;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 16:
-          _context18.next = 18;
+          _context20.next = 18;
           return (0, _functions.getAtmStrikePrice)();
         case 18:
-          atmStrike = _context18.sent;
+          atmStrike = _context20.sent;
           no_of_trades = data.tradeDetails.length;
           getAlgoTrades = (0, _functions.getOnlyAlgoTradedPositions)();
           previousTradeStrikePrice = getAlgoTrades[getAlgoTrades.length - 1].strike;
           checkToRepeatShortStraddle(atmStrike, parseInt(previousTradeStrikePrice));
         case 23:
-          _context18.next = 25;
+          _context20.next = 25;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 25:
-          _context18.next = 27;
+          _context20.next = 27;
           return calculateMtm({
             data: (0, _functions.readJsonFile)()
           });
         case 27:
-          mtmData = _context18.sent;
-          _context18.next = 30;
+          mtmData = _context20.sent;
+          _context20.next = 30;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
@@ -989,20 +1147,20 @@ var executeTrade = /*#__PURE__*/function () {
             time: istTz,
             value: mtmData.toString()
           });
-          _context18.next = 36;
+          _context20.next = 36;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 36:
-          _context18.next = 38;
+          _context20.next = 38;
           return (0, _functions.writeJsonFile)(data);
         case 38:
-          _context18.next = 40;
+          _context20.next = 40;
           return (0, _functions.delay)({
             milliSeconds: _constants.DELAY
           });
         case 40:
-          _context18.next = 42;
+          _context20.next = 42;
           return getPositionsJson();
         case 42:
           closingTime = {
@@ -1010,36 +1168,36 @@ var executeTrade = /*#__PURE__*/function () {
             minutes: 15
           };
           if (!(mtmData < -_constants.MTMDATATHRESHOLD || (0, _functions.isCurrentTimeGreater)(closingTime))) {
-            _context18.next = 49;
+            _context20.next = 49;
             break;
           }
-          _context18.next = 46;
+          _context20.next = 46;
           return closeTrade();
         case 46:
-          return _context18.abrupt("return", '${ALGO}: Trade Closed');
+          return _context20.abrupt("return", '${ALGO}: Trade Closed');
         case 49:
-          return _context18.abrupt("return", mtmData);
+          return _context20.abrupt("return", mtmData);
         case 50:
         case "end":
-          return _context18.stop();
+          return _context20.stop();
       }
-    }, _callee18);
+    }, _callee20);
   }));
   return function executeTrade() {
-    return _ref23.apply(this, arguments);
+    return _ref28.apply(this, arguments);
   };
 }();
 exports.executeTrade = executeTrade;
 var isTradeAllowed = /*#__PURE__*/function () {
-  var _ref24 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee19(data) {
+  var _ref29 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee21(data) {
     var smartSession, isMarketOpen, hasTimePassedToTakeTrade, isTradeOpen, isSmartAPIWorking;
-    return _regeneratorRuntime().wrap(function _callee19$(_context19) {
-      while (1) switch (_context19.prev = _context19.next) {
+    return _regeneratorRuntime().wrap(function _callee21$(_context21) {
+      while (1) switch (_context21.prev = _context21.next) {
         case 0:
-          _context19.next = 2;
+          _context21.next = 2;
           return generateSmartSession();
         case 2:
-          smartSession = _context19.sent;
+          smartSession = _context21.sent;
           isMarketOpen = !(0, _functions.isMarketClosed)();
           hasTimePassedToTakeTrade = (0, _functions.isCurrentTimeGreater)({
             hours: 9,
@@ -1047,104 +1205,104 @@ var isTradeAllowed = /*#__PURE__*/function () {
           });
           isTradeOpen = !data.isTradeClosed;
           isSmartAPIWorking = !(0, _lodash.isEmpty)(smartSession);
-          return _context19.abrupt("return", isMarketOpen && hasTimePassedToTakeTrade && isTradeOpen && isSmartAPIWorking);
+          return _context21.abrupt("return", isMarketOpen && hasTimePassedToTakeTrade && isTradeOpen && isSmartAPIWorking);
         case 8:
         case "end":
-          return _context19.stop();
+          return _context21.stop();
       }
-    }, _callee19);
+    }, _callee21);
   }));
-  return function isTradeAllowed(_x11) {
-    return _ref24.apply(this, arguments);
+  return function isTradeAllowed(_x13) {
+    return _ref29.apply(this, arguments);
   };
 }();
 var checkMarketConditionsAndExecuteTrade = /*#__PURE__*/function () {
-  var _ref25 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee20() {
+  var _ref30 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee22() {
     var data;
-    return _regeneratorRuntime().wrap(function _callee20$(_context20) {
-      while (1) switch (_context20.prev = _context20.next) {
+    return _regeneratorRuntime().wrap(function _callee22$(_context22) {
+      while (1) switch (_context22.prev = _context22.next) {
         case 0:
-          _context20.next = 2;
+          _context22.next = 2;
           return (0, _functions.createJsonFile)();
         case 2:
-          data = _context20.sent;
-          _context20.next = 5;
+          data = _context22.sent;
+          _context22.next = 5;
           return isTradeAllowed(data);
         case 5:
-          if (!_context20.sent) {
-            _context20.next = 17;
+          if (!_context22.sent) {
+            _context22.next = 17;
             break;
           }
-          _context20.prev = 6;
-          _context20.next = 9;
+          _context22.prev = 6;
+          _context22.next = 9;
           return executeTrade();
         case 9:
-          return _context20.abrupt("return", _context20.sent);
+          return _context22.abrupt("return", _context22.sent);
         case 12:
-          _context20.prev = 12;
-          _context20.t0 = _context20["catch"](6);
-          return _context20.abrupt("return", _context20.t0);
+          _context22.prev = 12;
+          _context22.t0 = _context22["catch"](6);
+          return _context22.abrupt("return", _context22.t0);
         case 15:
-          _context20.next = 18;
+          _context22.next = 18;
           break;
         case 17:
-          return _context20.abrupt("return", _constants.MESSAGE_NOT_TAKE_TRADE);
+          return _context22.abrupt("return", _constants.MESSAGE_NOT_TAKE_TRADE);
         case 18:
         case "end":
-          return _context20.stop();
+          return _context22.stop();
       }
-    }, _callee20, null, [[6, 12]]);
+    }, _callee22, null, [[6, 12]]);
   }));
   return function checkMarketConditionsAndExecuteTrade() {
-    return _ref25.apply(this, arguments);
+    return _ref30.apply(this, arguments);
   };
 }();
 exports.checkMarketConditionsAndExecuteTrade = checkMarketConditionsAndExecuteTrade;
 var checkPositionAlreadyExists = /*#__PURE__*/function () {
-  var _ref27 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee21(_ref26) {
-    var position, trades, _iterator4, _step4, trade;
-    return _regeneratorRuntime().wrap(function _callee21$(_context21) {
-      while (1) switch (_context21.prev = _context21.next) {
+  var _ref32 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee23(_ref31) {
+    var position, trades, _iterator8, _step8, trade;
+    return _regeneratorRuntime().wrap(function _callee23$(_context23) {
+      while (1) switch (_context23.prev = _context23.next) {
         case 0:
-          position = _ref26.position, trades = _ref26.trades;
-          _iterator4 = _createForOfIteratorHelper(trades);
-          _context21.prev = 2;
-          _iterator4.s();
+          position = _ref31.position, trades = _ref31.trades;
+          _iterator8 = _createForOfIteratorHelper(trades);
+          _context23.prev = 2;
+          _iterator8.s();
         case 4:
-          if ((_step4 = _iterator4.n()).done) {
-            _context21.next = 10;
+          if ((_step8 = _iterator8.n()).done) {
+            _context23.next = 10;
             break;
           }
-          trade = _step4.value;
+          trade = _step8.value;
           if (!(parseInt(trade.strike) === parseInt(position.strikeprice) && trade.optionType === position.optiontype)) {
-            _context21.next = 8;
+            _context23.next = 8;
             break;
           }
-          return _context21.abrupt("return", true);
+          return _context23.abrupt("return", true);
         case 8:
-          _context21.next = 4;
+          _context23.next = 4;
           break;
         case 10:
-          _context21.next = 15;
+          _context23.next = 15;
           break;
         case 12:
-          _context21.prev = 12;
-          _context21.t0 = _context21["catch"](2);
-          _iterator4.e(_context21.t0);
+          _context23.prev = 12;
+          _context23.t0 = _context23["catch"](2);
+          _iterator8.e(_context23.t0);
         case 15:
-          _context21.prev = 15;
-          _iterator4.f();
-          return _context21.finish(15);
+          _context23.prev = 15;
+          _iterator8.f();
+          return _context23.finish(15);
         case 18:
-          return _context21.abrupt("return", false);
+          return _context23.abrupt("return", false);
         case 19:
         case "end":
-          return _context21.stop();
+          return _context23.stop();
       }
-    }, _callee21, null, [[2, 12, 15, 18]]);
+    }, _callee23, null, [[2, 12, 15, 18]]);
   }));
-  return function checkPositionAlreadyExists(_x12) {
-    return _ref27.apply(this, arguments);
+  return function checkPositionAlreadyExists(_x14) {
+    return _ref32.apply(this, arguments);
   };
 }();
 exports.checkPositionAlreadyExists = checkPositionAlreadyExists;

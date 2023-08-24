@@ -8,12 +8,13 @@ import {
   TimeComparisonType,
   TradeDetails,
   delayType,
+  reqType,
 } from '../app.interface';
 import moment from 'moment-timezone';
 import { ALGO, DELAY } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
-export const setCred = (req: Request) => {
+export const setCred = (req: Request | reqType) => {
   const creds: Credentails = {
     APIKEY: req.body.api_key,
     CLIENT_CODE: req.body.client_code,

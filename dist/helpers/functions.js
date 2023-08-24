@@ -96,7 +96,7 @@ var getAtmStrikePrice = /*#__PURE__*/function () {
           });
         case 7:
           ltp = _context.sent;
-          ltpPrice = parseInt((0, _lodash.get)(ltp, 'ltp', ''));
+          ltpPrice = ltp.ltp;
           if (!(typeof ltpPrice === 'number' && !isNaN(ltpPrice))) {
             _context.next = 13;
             break;

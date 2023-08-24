@@ -129,3 +129,10 @@ export type delayType = {
   milliSeconds: number | undefined | string;
 };
 export type TimeComparisonType = { hours: number; minutes: number };
+export type bodyType = {
+  api_key: string;
+  client_code: string;
+  client_pin: string;
+  client_totp_pin: string;
+};
+export type reqType = { body: bodyType };
