@@ -7,6 +7,7 @@ import {
   createJsonFile,
   delay,
   getAtmStrikePrice,
+  getNearestStrike,
   getNextExpiry,
   getOnlyAlgoTradedPositions,
   getOpenPositions,
@@ -17,6 +18,7 @@ import {
 } from './functions';
 import { Response } from 'express';
 import {
+  AddShortStraddleData,
   CheckPosition,
   ISmartApiData,
   JsonFileStructure,
@@ -377,30 +379,7 @@ export const repeatShortStraddle = async (
     ) {
       console.log(`${ALGO}: executing trade repeat ...`);
       const shortStraddleData = await shortStraddle();
-      data.tradeDetails.push({
-        optionType: 'CE',
-        netQty: shortStraddleData.netQty,
-        expireDate: shortStraddleData.expiryDate,
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.ceOrderToken,
-        symbol: shortStraddleData.ceOrderSymbol,
-        closed: false,
-        isAlgoCreatedPosition: true,
-      });
-      data.tradeDetails.push({
-        optionType: 'PE',
-        netQty: shortStraddleData.netQty,
-        expireDate: shortStraddleData.expiryDate,
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.peOrderToken,
-        symbol: shortStraddleData.peOrderSymbol,
-        closed: false,
-        isAlgoCreatedPosition: true,
-      });
-      console.log(`${ALGO}: executing writeJsonFile from repeatShortStraddle`);
-      console.log(`${ALGO}: repeatShortStraddle data`);
-      console.log(data);
-      await writeJsonFile(data);
+      await addShortStraddleData({ data, shortStraddleData });
     }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
@@ -612,7 +591,6 @@ export const checkToRepeatShortStraddle = async (
       );
       await delay({ milliSeconds: DELAY });
       await repeatShortStraddle(difference, atmStrike);
-      console.log(`${ALGO}: repeatShortStraddle executed successfully`);
     } else if (atmStrike < previousTradeStrikePrice) {
       const difference = previousTradeStrikePrice - atmStrike;
       console.log(
@@ -620,7 +598,6 @@ export const checkToRepeatShortStraddle = async (
       );
       await delay({ milliSeconds: DELAY });
       await repeatShortStraddle(difference, atmStrike);
-      console.log(`${ALGO}: repeatShortStraddle executed successfully`);
     } else {
       console.log(
         `${ALGO}: atm strike is equal to previously traded strike price`
@@ -631,36 +608,42 @@ export const checkToRepeatShortStraddle = async (
     throw new Error(`Oops, atmStrike is infinity! Stopping operations.`);
   }
 };
+export const addShortStraddleData = async ({
+  data,
+  shortStraddleData,
+}: AddShortStraddleData) => {
+  if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
+    data.isTradeExecuted = true;
+    data.isTradeClosed = false;
+    data.tradeDetails.push({
+      optionType: 'CE',
+      netQty: shortStraddleData.netQty,
+      expireDate: shortStraddleData.expiryDate,
+      strike: shortStraddleData.stikePrice,
+      token: shortStraddleData.ceOrderToken,
+      symbol: shortStraddleData.ceOrderSymbol,
+      closed: false,
+      isAlgoCreatedPosition: true,
+    });
+    data.tradeDetails.push({
+      optionType: 'PE',
+      netQty: shortStraddleData.netQty,
+      expireDate: shortStraddleData.expiryDate,
+      strike: shortStraddleData.stikePrice,
+      token: shortStraddleData.peOrderToken,
+      symbol: shortStraddleData.peOrderSymbol,
+      closed: false,
+      isAlgoCreatedPosition: true,
+    });
+    await writeJsonFile(data);
+  }
+};
 export const executeTrade = async () => {
   let data = readJsonFile();
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
     const shortStraddleData = await shortStraddle();
-    if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
-      data.isTradeExecuted = true;
-      data.isTradeClosed = false;
-      data.tradeDetails.push({
-        optionType: 'CE',
-        netQty: shortStraddleData.netQty,
-        expireDate: shortStraddleData.expiryDate,
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.ceOrderToken,
-        symbol: shortStraddleData.ceOrderSymbol,
-        closed: false,
-        isAlgoCreatedPosition: true,
-      });
-      data.tradeDetails.push({
-        optionType: 'PE',
-        netQty: shortStraddleData.netQty,
-        expireDate: shortStraddleData.expiryDate,
-        strike: shortStraddleData.stikePrice,
-        token: shortStraddleData.peOrderToken,
-        symbol: shortStraddleData.peOrderSymbol,
-        closed: false,
-        isAlgoCreatedPosition: true,
-      });
-      await writeJsonFile(data);
-    }
+    await addShortStraddleData({ data, shortStraddleData });
   } else {
     console.log(
       `${ALGO}: trade executed already checking conditions to repeat the trade`
@@ -669,12 +652,14 @@ export const executeTrade = async () => {
     const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.tradeDetails.length;
     const getAlgoTrades = getOnlyAlgoTradedPositions();
-    const previousTradeStrikePrice =
-      getAlgoTrades[getAlgoTrades.length - 1].strike;
+    let previousTradeStrikePrice: string | number = getNearestStrike({
+      algoTrades: getAlgoTrades,
+      atmStrike: atmStrike,
+    });
     console.log(
       `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
     );
-    checkToRepeatShortStraddle(atmStrike, parseInt(previousTradeStrikePrice));
+    await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
   console.log(`${ALGO}: calculating mtm...`);
   await delay({ milliSeconds: DELAY });

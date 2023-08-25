@@ -236,3 +236,23 @@ export const isMarketClosed = () => {
     return true;
   }
 };
+type GetNearestStrike = {
+  algoTrades: TradeDetails[];
+  atmStrike: number;
+};
+export const getNearestStrike = ({
+  algoTrades,
+  atmStrike,
+}: GetNearestStrike): number => {
+  let nearestStrike: number = Infinity;
+  let minDifference = Number.MAX_SAFE_INTEGER;
+  algoTrades.forEach((trade) => {
+    const strikeNumber = parseInt(trade.strike, 10);
+    const difference = Math.abs(strikeNumber - atmStrike);
+    if (difference < minDifference) {
+      nearestStrike = strikeNumber;
+      minDifference = difference;
+    }
+  });
+  return nearestStrike;
+};

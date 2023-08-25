@@ -136,3 +136,18 @@ export type bodyType = {
   client_totp_pin: string;
 };
 export type reqType = { body: bodyType };
+export type ShortStraddleData = {
+  stikePrice: string;
+  expiryDate: string;
+  netQty: string;
+  ceOrderToken: string;
+  peOrderToken: string;
+  ceOrderSymbol: string;
+  peOrderSymbol: string;
+  ceOrderStatus: boolean;
+  peOrderStatus: boolean;
+};
+export type AddShortStraddleData = {
+  data: JsonFileStructure;
+  shortStraddleData: ShortStraddleData;
+};
