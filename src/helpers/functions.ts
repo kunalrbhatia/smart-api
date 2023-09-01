@@ -23,6 +23,9 @@ export const setCred = (req: Request | reqType) => {
   };
   DataStore.getInstance().setPostData(creds);
 };
+export const convertDateToFormat = (date: Date, format: string) => {
+  return moment(date).format(format).toUpperCase();
+};
 export const getNextExpiry = () => {
   /*
    *const today = new Date('08/03/2023');
@@ -42,26 +45,7 @@ export const getNextExpiry = () => {
     today.getMonth(),
     today.getDate() + daysUntilNextThursday()
   );
-  const year = comingThursday.getFullYear();
-  const month = comingThursday.getMonth() + 1;
-  const day = comingThursday.getDate().toString().padStart(2, '0');
-  const months = [
-    'JAN',
-    'FEB',
-    'MAR',
-    'APR',
-    'MAY',
-    'JUN',
-    'JUL',
-    'AUG',
-    'SEP',
-    'OCT',
-    'NOV',
-    'DEC',
-  ];
-  const monthName = months[month - 1];
-  const formattedDate = `${day}${monthName}${year}`;
-  return formattedDate;
+  return convertDateToFormat(comingThursday, 'DDMMMYYYY');
 };
 export const findNearestStrike = (options: object[], target: number) => {
   let nearestStrike = Infinity;
@@ -255,4 +239,16 @@ export const getNearestStrike = ({
     }
   });
   return nearestStrike;
+};
+export const getLastThursdayOfCurrentMonth = (): string => {
+  const today = new Date(Date.now());
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  // Start from the last day of the current month
+  let lastDayOfMonth = new Date(year, month + 1, 0);
+  // Loop backward from the last day until we find a Thursday (Thursday is represented by 4)
+  while (lastDayOfMonth.getDay() !== 4) {
+    lastDayOfMonth.setDate(lastDayOfMonth.getDate() - 1);
+  }
+  return convertDateToFormat(lastDayOfMonth, 'DDMMMYYYY');
 };
