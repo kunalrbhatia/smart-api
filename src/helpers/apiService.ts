@@ -699,15 +699,6 @@ export const executeTrade = async (tradeType = TradeType.INTRADAY) => {
     return mtmData;
   }
 };
-export const executePositionalTrade = async () => {
-  const tradeType = TradeType.POSITIONAL;
-  let data = readJsonFile(tradeType);
-  if (!data.isTradeExecuted) {
-    console.log(`${ALGO}: executing positional trade`);
-    const shortStraddleData = await shortStraddle(tradeType);
-    await addShortStraddleData({ data, shortStraddleData, tradeType });
-  }
-};
 const isTradeAllowed = async (data: JsonFileStructure) => {
   const smartSession = await generateSmartSession();
   const isMarketOpen = !isMarketClosed();
@@ -727,8 +718,8 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
 export const checkMarketConditionsAndExecuteTrade = async (
   tradeType: TradeType = TradeType.INTRADAY
 ) => {
-  let data = await createJsonFile();
-  if ((await isTradeAllowed(data)) && tradeType === TradeType.INTRADAY) {
+  let data = await createJsonFile(tradeType);
+  if (await isTradeAllowed(data)) {
     try {
       return await executeTrade(tradeType);
     } catch (err) {

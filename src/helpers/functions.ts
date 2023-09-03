@@ -130,10 +130,8 @@ export const createJsonFile = async (
   tradeType: TradeType = TradeType.INTRADAY
 ): Promise<JsonFileStructure> => {
   const currentDate = getCurrentDate();
-  let fileName;
-  if (tradeType === TradeType.INTRADAY) {
-    fileName = `${currentDate}_trades.json`;
-  } else {
+  let fileName = `${currentDate}_trades.json`;
+  if (tradeType === TradeType.POSITIONAL) {
     fileName = `positional_trades.json`;
   }
   const exists = fs.existsSync(fileName);
