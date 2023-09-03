@@ -21,6 +21,11 @@ export interface MtmValue {
   time: string;
   value: string;
 }
+export enum TradeType {
+  POSITIONAL = 'positional',
+  INTRADAY = 'intraday',
+}
+
 export interface JsonFileStructure {
   isTradeExecuted: boolean;
   accountDetails: {
@@ -151,4 +156,5 @@ export type ShortStraddleData = {
 export type AddShortStraddleData = {
   data: JsonFileStructure;
   shortStraddleData: ShortStraddleData;
+  tradeType: TradeType;
 };

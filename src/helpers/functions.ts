@@ -7,6 +7,7 @@ import {
   Position,
   TimeComparisonType,
   TradeDetails,
+  TradeType,
   delayType,
   reqType,
 } from '../app.interface';
@@ -60,8 +61,13 @@ export const findNearestStrike = (options: object[], target: number) => {
   }
   return nearestStrike;
 };
-export const getAtmStrikePrice = async () => {
-  const expiryDate = getNextExpiry();
+export const getAtmStrikePrice = async (
+  tradeType: TradeType = TradeType.INTRADAY
+) => {
+  let expiryDate = getNextExpiry();
+  if (TradeType.POSITIONAL === tradeType) {
+    expiryDate = getLastThursdayOfCurrentMonth();
+  }
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
   try {
     const optionChain = await getScrip({
@@ -120,12 +126,19 @@ export const getCurrentDate = (): string => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}_${month}_${day}`;
 };
-export const createJsonFile = async (): Promise<JsonFileStructure> => {
+export const createJsonFile = async (
+  tradeType: TradeType = TradeType.INTRADAY
+): Promise<JsonFileStructure> => {
   const currentDate = getCurrentDate();
-  const fileName = `${currentDate}_trades.json`;
+  let fileName;
+  if (tradeType === TradeType.INTRADAY) {
+    fileName = `${currentDate}_trades.json`;
+  } else {
+    fileName = `positional_trades.json`;
+  }
   const exists = fs.existsSync(fileName);
   if (exists) {
-    return readJsonFile();
+    return readJsonFile(tradeType);
   } else {
     let json: JsonFileStructure = {
       isTradeExecuted: false,
@@ -136,7 +149,7 @@ export const createJsonFile = async (): Promise<JsonFileStructure> => {
       isTradeClosed: false,
       mtm: [],
     };
-    await writeJsonFile(json);
+    await writeJsonFile(json, tradeType);
     return json;
   }
 };
@@ -149,9 +162,15 @@ export const isJson = (string: string) => {
     return false;
   }
 };
-export const writeJsonFile = async (data: JsonFileStructure) => {
+export const writeJsonFile = async (
+  data: JsonFileStructure,
+  tradeType: TradeType = TradeType.INTRADAY
+) => {
   const currentDate = getCurrentDate();
-  const fileName = `${currentDate}_trades.json`;
+  let fileName = `${currentDate}_trades.json`;
+  if (tradeType === TradeType.POSITIONAL) {
+    fileName = `positional_trades.json`;
+  }
   const dataToStoreString = JSON.stringify(data);
   console.log(`${ALGO}: json data: `, dataToStoreString);
   if (isJson(dataToStoreString)) {
@@ -175,10 +194,15 @@ export const getOnlyAlgoTradedPositions = (): TradeDetails[] => {
   });
   return algoTradedPositions;
 };
-export const readJsonFile = (): JsonFileStructure => {
+export const readJsonFile = (
+  tradeType: TradeType = TradeType.INTRADAY
+): JsonFileStructure => {
   try {
     const currentDate = getCurrentDate();
-    const fileName = `${currentDate}_trades.json`;
+    let fileName = `${currentDate}_trades.json`;
+    if (tradeType === TradeType.POSITIONAL) {
+      fileName = `positional_trades.json`;
+    }
     console.log(`${ALGO}: reading from json file with name ${fileName}`);
     const dataFromFile = fs.readFileSync(fileName, 'utf-8');
     const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);

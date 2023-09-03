@@ -27,7 +27,7 @@ import {
   setCred,
 } from './helpers/functions';
 import dotenv from 'dotenv';
-import { Position, bodyType, reqType } from './app.interface';
+import { Position, TradeType, bodyType, reqType } from './app.interface';
 import { get } from 'lodash';
 const app: Application = express();
 app.use(bodyParser.json());
@@ -59,7 +59,9 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
-    const response = await checkMarketConditionsAndExecuteTrade();
+    const response = await checkMarketConditionsAndExecuteTrade(
+      TradeType.INTRADAY
+    );
     console.log(`response: ${response}`);
     res.send({ response: response });
   } catch (err) {
@@ -68,6 +70,28 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
+app.post(
+  '/run-short-straddle-positional-algo',
+  async (req: Request, res: Response) => {
+    console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+    try {
+      const istTz = new Date().toLocaleString('default', {
+        timeZone: 'Asia/Kolkata',
+      });
+      console.log(`${ALGO}: time, ${istTz}`);
+      setCred(req);
+      const response = await checkMarketConditionsAndExecuteTrade(
+        TradeType.POSITIONAL
+      );
+      console.log(`response: ${response}`);
+      res.send({ response: response });
+    } catch (err) {
+      console.log(err);
+      res.send({ response: err });
+    }
+    console.log(`${ALGO}: -----------------------------------`);
+  }
+);
 if (process.env.NODE_ENV === 'development') {
   cron.schedule('*/5 * * * *', async () => {
     console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);

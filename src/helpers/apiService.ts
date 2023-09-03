@@ -7,6 +7,7 @@ import {
   createJsonFile,
   delay,
   getAtmStrikePrice,
+  getLastThursdayOfCurrentMonth,
   getNearestStrike,
   getNextExpiry,
   getOnlyAlgoTradedPositions,
@@ -26,6 +27,7 @@ import {
   Position,
   TimeComparisonType,
   TradeDetails,
+  TradeType,
   doOrderResponse,
   doOrderType,
   getLtpDataType,
@@ -201,7 +203,6 @@ export const getPositions = async () => {
       throw error;
     });
 };
-
 export const doOrder = async ({
   tradingsymbol,
   transactionType,
@@ -266,13 +267,18 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   });
   return mtm;
 };
-export const shortStraddle = async () => {
+export const shortStraddle = async (
+  tradeType: TradeType = TradeType.INTRADAY
+) => {
   try {
     //GET ATM STIKE PRICE
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
     //GET CURRENT EXPIRY
-    const expiryDate = getNextExpiry();
+    const expiryDate =
+      tradeType === TradeType.INTRADAY
+        ? getNextExpiry()
+        : getLastThursdayOfCurrentMonth();
     //GET CALL DATA
     await delay({ milliSeconds: DELAY });
     const ceToken = await getScrip({
@@ -361,7 +367,8 @@ export const getMarginDetails = async () => {
 };
 export const repeatShortStraddle = async (
   difference: number,
-  atmStrike: number
+  atmStrike: number,
+  tradeType: TradeType = TradeType.INTRADAY
 ) => {
   try {
     const data = readJsonFile();
@@ -379,7 +386,7 @@ export const repeatShortStraddle = async (
     ) {
       console.log(`${ALGO}: executing trade repeat ...`);
       const shortStraddleData = await shortStraddle();
-      await addShortStraddleData({ data, shortStraddleData });
+      await addShortStraddleData({ data, shortStraddleData, tradeType });
     }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
@@ -611,6 +618,7 @@ export const checkToRepeatShortStraddle = async (
 export const addShortStraddleData = async ({
   data,
   shortStraddleData,
+  tradeType = TradeType.INTRADAY,
 }: AddShortStraddleData) => {
   if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
     data.isTradeExecuted = true;
@@ -635,15 +643,15 @@ export const addShortStraddleData = async ({
       closed: false,
       isAlgoCreatedPosition: true,
     });
-    await writeJsonFile(data);
+    await writeJsonFile(data, tradeType);
   }
 };
-export const executeTrade = async () => {
-  let data = readJsonFile();
+export const executeTrade = async (tradeType = TradeType.INTRADAY) => {
+  let data = readJsonFile(tradeType);
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
-    const shortStraddleData = await shortStraddle();
-    await addShortStraddleData({ data, shortStraddleData });
+    const shortStraddleData = await shortStraddle(tradeType);
+    await addShortStraddleData({ data, shortStraddleData, tradeType });
   } else {
     console.log(
       `${ALGO}: trade executed already checking conditions to repeat the trade`
@@ -691,6 +699,15 @@ export const executeTrade = async () => {
     return mtmData;
   }
 };
+export const executePositionalTrade = async () => {
+  const tradeType = TradeType.POSITIONAL;
+  let data = readJsonFile(tradeType);
+  if (!data.isTradeExecuted) {
+    console.log(`${ALGO}: executing positional trade`);
+    const shortStraddleData = await shortStraddle(tradeType);
+    await addShortStraddleData({ data, shortStraddleData, tradeType });
+  }
+};
 const isTradeAllowed = async (data: JsonFileStructure) => {
   const smartSession = await generateSmartSession();
   const isMarketOpen = !isMarketClosed();
@@ -707,11 +724,13 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
     isMarketOpen && hasTimePassedToTakeTrade && isTradeOpen && isSmartAPIWorking
   );
 };
-export const checkMarketConditionsAndExecuteTrade = async () => {
+export const checkMarketConditionsAndExecuteTrade = async (
+  tradeType: TradeType
+) => {
   let data = await createJsonFile();
-  if (await isTradeAllowed(data)) {
+  if ((await isTradeAllowed(data)) && tradeType === TradeType.INTRADAY) {
     try {
-      return await executeTrade();
+      return await executeTrade(tradeType);
     } catch (err) {
       return err;
     }
