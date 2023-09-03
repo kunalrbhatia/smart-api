@@ -725,7 +725,7 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async (
-  tradeType: TradeType
+  tradeType: TradeType = TradeType.INTRADAY
 ) => {
   let data = await createJsonFile();
   if ((await isTradeAllowed(data)) && tradeType === TradeType.INTRADAY) {
