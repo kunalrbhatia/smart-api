@@ -47,6 +47,7 @@ import {
   ORDER_API,
   SCRIPMASTER,
   STRIKE_DIFFERENCE,
+  STRIKE_DIFFERENCE_POSITIONAL,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
 } from './constants';
@@ -273,7 +274,7 @@ export const shortStraddle = async (
   try {
     //GET ATM STIKE PRICE
     await delay({ milliSeconds: DELAY });
-    const atmStrike = await getAtmStrikePrice();
+    const atmStrike = await getAtmStrikePrice(tradeType);
     //GET CURRENT EXPIRY
     const expiryDate =
       tradeType === TradeType.INTRADAY
@@ -371,21 +372,25 @@ export const repeatShortStraddle = async (
   tradeType: TradeType = TradeType.INTRADAY
 ) => {
   try {
-    const data = readJsonFile();
+    const data = readJsonFile(tradeType);
+    const strikeDiff =
+      tradeType === TradeType.INTRADAY
+        ? STRIKE_DIFFERENCE
+        : STRIKE_DIFFERENCE_POSITIONAL;
     console.log(
-      `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE: ${
-        difference >= STRIKE_DIFFERENCE
+      `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE (${strikeDiff}): ${
+        difference >= strikeDiff
       }\n2. if this same strike is already traded: ${checkStrike(
         data.tradeDetails,
         atmStrike.toString()
       )}`
     );
     if (
-      difference >= STRIKE_DIFFERENCE &&
+      difference >= strikeDiff &&
       checkStrike(data.tradeDetails, atmStrike.toString()) === false
     ) {
       console.log(`${ALGO}: executing trade repeat ...`);
-      const shortStraddleData = await shortStraddle();
+      const shortStraddleData = await shortStraddle(tradeType);
       await addShortStraddleData({ data, shortStraddleData, tradeType });
     }
   } catch (error) {
@@ -425,13 +430,16 @@ export const shouldCloseTrade = async ({
     }
   }
 };
+type checkPositionToCloseType = {
+  openPositions: Position[];
+  tradeType: TradeType;
+};
 export const checkPositionToClose = async ({
   openPositions,
-}: {
-  openPositions: Position[];
-}) => {
+  tradeType = TradeType.INTRADAY,
+}: checkPositionToCloseType) => {
   try {
-    const data = readJsonFile();
+    const data = readJsonFile(tradeType);
     const tradeDetails = data.tradeDetails;
     for (const position of openPositions) {
       for (const trade of tradeDetails) {
@@ -442,7 +450,7 @@ export const checkPositionToClose = async ({
         }
       }
     }
-    await writeJsonFile(data);
+    await writeJsonFile(data, tradeType);
     for (const trade of tradeDetails) {
       if (
         trade &&
@@ -470,16 +478,18 @@ export const checkPositionToClose = async ({
     throw error;
   }
 };
-export const getPositionsJson = async () => {
+export const getPositionsJson = async (
+  tradeType: TradeType = TradeType.INTRADAY
+) => {
   try {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
     const openPositions = getOpenPositions(positions);
-    await checkPositionToClose({ openPositions });
+    await checkPositionToClose({ openPositions, tradeType });
     console.log(
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
     );
-    const json = await createJsonFile();
+    const json = await createJsonFile(tradeType);
     const tradeDetails = json.tradeDetails;
     for (const position of openPositions) {
       const isTradeExists = await checkPositionAlreadyExists({
@@ -500,7 +510,7 @@ export const getPositionsJson = async () => {
         tradeDetails.push(trade);
       }
     }
-    await writeJsonFile(json);
+    await writeJsonFile(json, tradeType);
     return json;
   } catch (error) {
     const errorMessage = `${ALGO}: getPositionsJson failed error below`;
@@ -532,10 +542,12 @@ export const closeParticularTrade = async ({
     throw error;
   }
 };
-export const closeAllTrades = async () => {
+export const closeAllTrades = async (
+  tradeType: TradeType = TradeType.INTRADAY
+) => {
   try {
     await delay({ milliSeconds: DELAY });
-    const data = readJsonFile();
+    const data = readJsonFile(tradeType);
     await delay({ milliSeconds: DELAY });
     const tradeDetails = data.tradeDetails;
 
@@ -544,7 +556,7 @@ export const closeAllTrades = async () => {
         await closeParticularTrade({ trade });
       }
       await delay({ milliSeconds: DELAY });
-      await writeJsonFile(data);
+      await writeJsonFile(data, tradeType);
     }
   } catch (error) {
     const errorMessage = `${ALGO}: closeAllTrades failed error below`;
@@ -553,23 +565,25 @@ export const closeAllTrades = async () => {
     throw error;
   }
 };
-export const closeTrade = async () => {
+export const closeTrade = async (tradeType: TradeType = TradeType.INTRADAY) => {
   console.log(`${ME}: check if all the trades are closed.`);
-  while ((await areAllTradesClosed()) === false) {
+  while ((await areAllTradesClosed(tradeType)) === false) {
     console.log(`${ALGO}: all trades are not closed, closing trades...`);
-    await closeAllTrades();
+    await closeAllTrades(tradeType);
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
   await delay({ milliSeconds: DELAY });
-  const data = readJsonFile();
+  const data = readJsonFile(tradeType);
   data.isTradeClosed = true;
   await delay({ milliSeconds: DELAY });
-  await writeJsonFile(data);
+  await writeJsonFile(data, tradeType);
 };
-export const areAllTradesClosed = async () => {
+export const areAllTradesClosed = async (
+  tradeType: TradeType = TradeType.INTRADAY
+) => {
   console.log(`${ALGO}: checking if all the trades are closed.`);
   await delay({ milliSeconds: DELAY });
-  const data = readJsonFile();
+  const data = readJsonFile(tradeType);
   await delay({ milliSeconds: DELAY });
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
@@ -585,7 +599,8 @@ export const areAllTradesClosed = async () => {
 };
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
-  previousTradeStrikePrice: number
+  previousTradeStrikePrice: number,
+  tradeType: TradeType = TradeType.INTRADAY
 ) => {
   console.log(
     `${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
@@ -597,14 +612,14 @@ export const checkToRepeatShortStraddle = async (
         `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`
       );
       await delay({ milliSeconds: DELAY });
-      await repeatShortStraddle(difference, atmStrike);
+      await repeatShortStraddle(difference, atmStrike, tradeType);
     } else if (atmStrike < previousTradeStrikePrice) {
       const difference = previousTradeStrikePrice - atmStrike;
       console.log(
         `${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`
       );
       await delay({ milliSeconds: DELAY });
-      await repeatShortStraddle(difference, atmStrike);
+      await repeatShortStraddle(difference, atmStrike, tradeType);
     } else {
       console.log(
         `${ALGO}: atm strike is equal to previously traded strike price`
@@ -646,7 +661,7 @@ export const addShortStraddleData = async ({
     await writeJsonFile(data, tradeType);
   }
 };
-export const executeTrade = async (tradeType = TradeType.INTRADAY) => {
+const coreTradeExecution = async (tradeType = TradeType.INTRADAY) => {
   let data = readJsonFile(tradeType);
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
@@ -657,9 +672,9 @@ export const executeTrade = async (tradeType = TradeType.INTRADAY) => {
       `${ALGO}: trade executed already checking conditions to repeat the trade`
     );
     await delay({ milliSeconds: DELAY });
-    const atmStrike = await getAtmStrikePrice();
+    const atmStrike = await getAtmStrikePrice(tradeType);
     const no_of_trades = data.tradeDetails.length;
-    const getAlgoTrades = getOnlyAlgoTradedPositions();
+    const getAlgoTrades = getOnlyAlgoTradedPositions(tradeType);
     let previousTradeStrikePrice: string | number = getNearestStrike({
       algoTrades: getAlgoTrades,
       atmStrike: atmStrike,
@@ -667,32 +682,44 @@ export const executeTrade = async (tradeType = TradeType.INTRADAY) => {
     console.log(
       `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
     );
-    await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
+    await checkToRepeatShortStraddle(
+      atmStrike,
+      previousTradeStrikePrice,
+      tradeType
+    );
   }
   console.log(`${ALGO}: calculating mtm...`);
   await delay({ milliSeconds: DELAY });
-  let mtmData = await calculateMtm({ data: readJsonFile() });
+  let mtmData = await calculateMtm({ data });
   console.log(`${ALGO}: mtm: ${mtmData}`);
   await delay({ milliSeconds: DELAY });
   const istTz = new Date().toLocaleString('default', {
     timeZone: 'Asia/Kolkata',
   });
-  data = readJsonFile();
   const mtm = data.mtm;
   mtm.push({ time: istTz, value: mtmData.toString() });
   await delay({ milliSeconds: DELAY });
-  await writeJsonFile(data);
+  await writeJsonFile(data, tradeType);
+  return mtmData;
+};
+export const executeTrade = async (tradeType = TradeType.INTRADAY) => {
+  const mtmData = await coreTradeExecution(tradeType);
+  //const mtmData = 0;
   await delay({ milliSeconds: DELAY });
-  await getPositionsJson();
+  await getPositionsJson(tradeType);
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   console.log(
     `${ALGO}: checking condition hasTimePassed15:15: ${isCurrentTimeGreater(
       closingTime
     )}`
   );
-  if (mtmData < -MTMDATATHRESHOLD || isCurrentTimeGreater(closingTime)) {
+  const mtmThreshold = -MTMDATATHRESHOLD;
+  if (
+    tradeType === TradeType.INTRADAY &&
+    (mtmData < mtmThreshold || isCurrentTimeGreater(closingTime))
+  ) {
     console.log(`${ALGO}: closing the trade`);
-    await closeTrade();
+    await closeTrade(tradeType);
     return '${ALGO}: Trade Closed';
   } else {
     console.log(`${ALGO}: returning mtm to api response`);

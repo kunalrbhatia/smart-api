@@ -183,8 +183,10 @@ export const writeJsonFile = async (
     await delay({ milliSeconds: DELAY });
   }
 };
-export const getOnlyAlgoTradedPositions = (): TradeDetails[] => {
-  let data = readJsonFile();
+export const getOnlyAlgoTradedPositions = (
+  tradeType: TradeType = TradeType.INTRADAY
+): TradeDetails[] => {
+  let data = readJsonFile(tradeType);
   let trades = data.tradeDetails;
   const algoTradedPositions: TradeDetails[] = [];
   trades.forEach((trade) => {

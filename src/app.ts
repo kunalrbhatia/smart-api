@@ -48,7 +48,10 @@ app.post('/check-positions-to-close', async (req: Request, res: Response) => {
   const currentPositions = await getPositions();
   const positions: Position[] = get(currentPositions, 'data', []) || [];
   const openPositions = getOpenPositions(positions);
-  checkPositionToClose({ openPositions: openPositions });
+  checkPositionToClose({
+    openPositions: openPositions,
+    tradeType: TradeType.INTRADAY,
+  });
   res.send().status(200);
 });
 app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
@@ -152,7 +155,9 @@ app.post('/get-positions', async (req: Request, res: Response) => {
 });
 app.post('/calc-mtm', async (req: Request, res: Response) => {
   setCred(req);
-  const response = await calculateMtm({ data: readJsonFile() });
+  const response = await calculateMtm({
+    data: readJsonFile(TradeType.INTRADAY),
+  });
   res.jsonp({ mtm: response });
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
