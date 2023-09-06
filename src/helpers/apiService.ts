@@ -7,11 +7,13 @@ import {
   createJsonFile,
   delay,
   getAtmStrikePrice,
+  getData,
   getLastThursdayOfCurrentMonth,
   getNearestStrike,
   getNextExpiry,
   getOnlyAlgoTradedPositions,
   getOpenPositions,
+  getisAlgoCreatedPosition,
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
@@ -505,7 +507,7 @@ export const getPositionsJson = async (
           symbol: position.symbolname,
           token: position.symboltoken,
           closed: false,
-          isAlgoCreatedPosition: false,
+          isAlgoCreatedPosition: getisAlgoCreatedPosition(tradeType, position),
         };
         tradeDetails.push(trade);
       }
@@ -662,7 +664,7 @@ export const addShortStraddleData = async ({
   }
 };
 const coreTradeExecution = async (tradeType = TradeType.INTRADAY) => {
-  let data = readJsonFile(tradeType);
+  let data = await getData(tradeType);
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
     const shortStraddleData = await shortStraddle(tradeType);

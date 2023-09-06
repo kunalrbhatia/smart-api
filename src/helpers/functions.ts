@@ -1,4 +1,4 @@
-import { getLtpData, getScrip } from './apiService';
+import { getLtpData, getPositionsJson, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
 import {
@@ -275,4 +275,16 @@ export const getLastThursdayOfCurrentMonth = (): string => {
     lastDayOfMonth.setDate(lastDayOfMonth.getDate() - 1);
   }
   return convertDateToFormat(lastDayOfMonth, 'DDMMMYYYY');
+};
+export const getisAlgoCreatedPosition = (
+  tradeType: TradeType,
+  position: Position
+) => {
+  if (tradeType === TradeType.POSITIONAL && position.symbolname === 'BANKNIFTY')
+    return true;
+  else return false;
+};
+export const getData = async (tradeType: TradeType) => {
+  if (tradeType === TradeType.INTRADAY) return readJsonFile(tradeType);
+  else return await getPositionsJson(tradeType);
 };

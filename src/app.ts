@@ -150,7 +150,7 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
 });
 app.post('/get-positions', async (req: Request, res: Response) => {
   setCred(req);
-  const response = await getPositionsJson();
+  const response = await getPositionsJson(TradeType.POSITIONAL);
   res.send(response);
 });
 app.post('/calc-mtm', async (req: Request, res: Response) => {
