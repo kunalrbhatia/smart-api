@@ -3,6 +3,7 @@ let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
+  checkPositionsExistsForMonthlyExpiry,
   checkStrike,
   createJsonFile,
   delay,
@@ -492,6 +493,9 @@ export const getPositionsJson = async (
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
     );
     const json = await createJsonFile(tradeType);
+    if (checkPositionsExistsForMonthlyExpiry(openPositions)) {
+      json.isTradeExecuted = true;
+    }
     const tradeDetails = json.tradeDetails;
     for (const position of openPositions) {
       const isTradeExists = await checkPositionAlreadyExists({
@@ -733,7 +737,7 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   const isMarketOpen = !isMarketClosed();
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
-    minutes: 45,
+    minutes: 15,
   });
   const isTradeOpen = !data.isTradeClosed;
   const isSmartAPIWorking = !isEmpty(smartSession);

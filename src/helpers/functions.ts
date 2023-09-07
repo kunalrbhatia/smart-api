@@ -288,3 +288,12 @@ export const getData = async (tradeType: TradeType) => {
   if (tradeType === TradeType.INTRADAY) return readJsonFile(tradeType);
   else return await getPositionsJson(tradeType);
 };
+export const checkPositionsExistsForMonthlyExpiry = (
+  openPositions: Position[]
+): boolean => {
+  return openPositions.some(
+    (position) =>
+      position.symbolname === 'BANKNIFTY' &&
+      position.expirydate === getLastThursdayOfCurrentMonth()
+  );
+};
