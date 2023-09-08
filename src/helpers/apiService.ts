@@ -3,6 +3,7 @@ let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
+  areBothOptionTypesPresentForStrike,
   checkPositionsExistsForMonthlyExpiry,
   checkStrike,
   createJsonFile,
@@ -23,14 +24,19 @@ import {
 import { Response } from 'express';
 import {
   AddShortStraddleData,
+  BothPresent,
+  CheckOptionType,
   CheckPosition,
   ISmartApiData,
   JsonFileStructure,
   LtpDataType,
+  OptionType,
+  OrderData,
   Position,
   TimeComparisonType,
   TradeDetails,
   TradeType,
+  checkPositionToCloseType,
   doOrderResponse,
   doOrderType,
   getLtpDataType,
@@ -271,6 +277,47 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   });
   return mtm;
 };
+export const doOrderByStrike = async (
+  tradeType: TradeType,
+  strike: number,
+  optionType: OptionType
+): Promise<OrderData> => {
+  try {
+    const expiryDate =
+      tradeType === TradeType.INTRADAY
+        ? getNextExpiry()
+        : getLastThursdayOfCurrentMonth();
+    console.log(`${ALGO} {doOrderByStrike}: expiryDate: ${expiryDate}`);
+    await delay({ milliSeconds: DELAY });
+    const token = await getScrip({
+      scriptName: 'BANKNIFTY',
+      expiryDate: expiryDate,
+      optionType: optionType,
+      strikePrice: strike.toString(),
+    });
+    console.log(`${ALGO} {doOrderByStrike}: token: ${token}`);
+    await delay({ milliSeconds: DELAY });
+    const orderData = await doOrder({
+      tradingsymbol: get(token, '0.symbol', ''),
+      symboltoken: get(token, '0.token', ''),
+      transactionType: TRANSACTION_TYPE_SELL,
+    });
+    console.log(`${ALGO} {doOrderByStrike}: orderData: `, orderData);
+    return {
+      stikePrice: strike.toString(),
+      expiryDate: expiryDate,
+      netQty: '-15',
+      token: get(token, '0.token', ''),
+      symbol: get(token, '0.symbol', ''),
+      status: orderData.status,
+    };
+  } catch (error) {
+    const errorMessage = `${ALGO}: doOrderByStrike failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
+  }
+};
 export const shortStraddle = async (
   tradeType: TradeType = TradeType.INTRADAY
 ) => {
@@ -278,57 +325,28 @@ export const shortStraddle = async (
     //GET ATM STIKE PRICE
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice(tradeType);
-    //GET CURRENT EXPIRY
-    const expiryDate =
-      tradeType === TradeType.INTRADAY
-        ? getNextExpiry()
-        : getLastThursdayOfCurrentMonth();
-    //GET CALL DATA
     await delay({ milliSeconds: DELAY });
-    const ceToken = await getScrip({
-      scriptName: 'BANKNIFTY',
-      expiryDate: expiryDate,
-      optionType: 'CE',
-      strikePrice: atmStrike.toString(),
-    });
-    //GET PUT DATA
-    await delay({ milliSeconds: DELAY });
-    const peToken = await getScrip({
-      scriptName: 'BANKNIFTY',
-      expiryDate: expiryDate,
-      optionType: 'PE',
-      strikePrice: atmStrike.toString(),
-    });
-    await delay({ milliSeconds: DELAY });
-    const ceOrderData = await doOrder({
-      tradingsymbol: get(ceToken, '0.symbol', ''),
-      symboltoken: get(ceToken, '0.token', ''),
-      transactionType: TRANSACTION_TYPE_SELL,
-    });
-    await delay({ milliSeconds: DELAY });
-    const peOrderData = await doOrder({
-      tradingsymbol: get(peToken, '0.symbol', ''),
-      symboltoken: get(peToken, '0.token', ''),
-      transactionType: TRANSACTION_TYPE_SELL,
-    });
-    console.log(
-      `${ALGO}: ceOrderData 
-      symbol: ${get(ceToken, '0.symbol')} 
-      status: ${ceOrderData.status}`
+    const ceOrderData = await doOrderByStrike(
+      tradeType,
+      atmStrike,
+      OptionType.CE
     );
-    console.log(
-      `${ALGO}: peOrderData 
-      symbol: ${get(peToken, '0.symbol')} 
-      status: ${peOrderData.status}`
+    console.log(`${ALGO} {shortStraddle}: ceOrderData: `, ceOrderData);
+    await delay({ milliSeconds: DELAY });
+    const peOrderData = await doOrderByStrike(
+      tradeType,
+      atmStrike,
+      OptionType.PE
     );
+    console.log(`${ALGO} {shortStraddle}: peOrderData: `, peOrderData);
     return {
       stikePrice: atmStrike.toString(),
-      expiryDate: expiryDate,
-      netQty: '-15',
-      ceOrderToken: get(ceToken, '0.token', ''),
-      peOrderToken: get(peToken, '0.token', ''),
-      ceOrderSymbol: get(ceToken, '0.symbol', ''),
-      peOrderSymbol: get(peToken, '0.symbol', ''),
+      expiryDate: ceOrderData.expiryDate,
+      netQty: ceOrderData.netQty,
+      ceOrderToken: ceOrderData.token,
+      peOrderToken: peOrderData.token,
+      ceOrderSymbol: ceOrderData.symbol,
+      peOrderSymbol: peOrderData.symbol,
       ceOrderStatus: ceOrderData.status,
       peOrderStatus: peOrderData.status,
     };
@@ -369,10 +387,16 @@ export const getMarginDetails = async () => {
       throw error;
     });
 };
+export const checkBoth_CE_PE_Present = (data: BothPresent) => {
+  if (data.ce && data.pe) return CheckOptionType.BOTH_CE_PE_PRESENT;
+  else if (!data.ce && !data.pe) return CheckOptionType.BOTH_CE_PE_NOT_PRESENT;
+  else if (!data.ce && data.pe) return CheckOptionType.ONLY_PE_PRESENT;
+  else return CheckOptionType.ONLY_CE_PRESENT;
+};
 export const repeatShortStraddle = async (
   difference: number,
   atmStrike: number,
-  tradeType: TradeType = TradeType.INTRADAY
+  tradeType: TradeType
 ) => {
   try {
     const data = readJsonFile(tradeType);
@@ -388,13 +412,31 @@ export const repeatShortStraddle = async (
         atmStrike.toString()
       )}`
     );
-    if (
-      difference >= strikeDiff &&
-      checkStrike(data.tradeDetails, atmStrike.toString()) === false
-    ) {
+    const result = areBothOptionTypesPresentForStrike(
+      data.tradeDetails,
+      atmStrike.toString()
+    );
+    const cepe_present = checkBoth_CE_PE_Present(result);
+    if (difference >= strikeDiff && (!result.ce || !result.pe)) {
       console.log(`${ALGO}: executing trade repeat ...`);
-      const shortStraddleData = await shortStraddle(tradeType);
-      await addShortStraddleData({ data, shortStraddleData, tradeType });
+      if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
+        const shortStraddleData = await shortStraddle(tradeType);
+        await addShortStraddleData({ data, shortStraddleData, tradeType });
+      } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
+        const orderData = await doOrderByStrike(
+          tradeType,
+          atmStrike,
+          OptionType.PE
+        );
+        addOrderData(data, orderData, OptionType.PE, tradeType);
+      } else if (cepe_present === CheckOptionType.ONLY_PE_PRESENT) {
+        const orderData = await doOrderByStrike(
+          tradeType,
+          atmStrike,
+          OptionType.CE
+        );
+        addOrderData(data, orderData, OptionType.CE, tradeType);
+      }
     }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
@@ -432,10 +474,6 @@ export const shouldCloseTrade = async ({
       throw error;
     }
   }
-};
-type checkPositionToCloseType = {
-  openPositions: Position[];
-  tradeType: TradeType;
 };
 export const checkPositionToClose = async ({
   openPositions,
@@ -606,7 +644,7 @@ export const areAllTradesClosed = async (
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
   previousTradeStrikePrice: number,
-  tradeType: TradeType = TradeType.INTRADAY
+  tradeType: TradeType
 ) => {
   console.log(
     `${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
@@ -635,6 +673,26 @@ export const checkToRepeatShortStraddle = async (
     console.log(`${ALGO}: Oops, 'atmStrike' is infinity! Stopping operations.`);
     throw new Error(`Oops, atmStrike is infinity! Stopping operations.`);
   }
+};
+export const addOrderData = async (
+  data: JsonFileStructure,
+  orderData: OrderData,
+  optionType: OptionType,
+  tradeType: TradeType
+) => {
+  if (orderData.status) {
+    data.tradeDetails.push({
+      optionType: optionType,
+      netQty: orderData.netQty,
+      expireDate: orderData.expiryDate,
+      strike: orderData.stikePrice,
+      token: orderData.token,
+      symbol: orderData.symbol,
+      closed: false,
+      isAlgoCreatedPosition: true,
+    });
+  }
+  await writeJsonFile(data, tradeType);
 };
 export const addShortStraddleData = async ({
   data,
@@ -667,7 +725,7 @@ export const addShortStraddleData = async ({
     await writeJsonFile(data, tradeType);
   }
 };
-const coreTradeExecution = async (tradeType = TradeType.INTRADAY) => {
+const coreTradeExecution = async (tradeType: TradeType) => {
   let data = await getData(tradeType);
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
@@ -708,7 +766,7 @@ const coreTradeExecution = async (tradeType = TradeType.INTRADAY) => {
   await writeJsonFile(data, tradeType);
   return mtmData;
 };
-export const executeTrade = async (tradeType = TradeType.INTRADAY) => {
+export const executeTrade = async (tradeType: TradeType) => {
   const mtmData = await coreTradeExecution(tradeType);
   //const mtmData = 0;
   await delay({ milliSeconds: DELAY });
@@ -749,7 +807,7 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async (
-  tradeType: TradeType = TradeType.INTRADAY
+  tradeType: TradeType
 ) => {
   let data = await createJsonFile(tradeType);
   if (await isTradeAllowed(data)) {

@@ -158,3 +158,26 @@ export type AddShortStraddleData = {
   shortStraddleData: ShortStraddleData;
   tradeType: TradeType;
 };
+export type BothPresent = { ce: boolean; pe: boolean; stike: string };
+export type OrderData = {
+  stikePrice: string;
+  expiryDate: string;
+  netQty: string;
+  token: string;
+  symbol: string;
+  status: boolean;
+};
+export enum OptionType {
+  CE = 'CE',
+  PE = 'PE',
+}
+export type checkPositionToCloseType = {
+  openPositions: Position[];
+  tradeType: TradeType;
+};
+export enum CheckOptionType {
+  BOTH_CE_PE_PRESENT = 'both_present',
+  ONLY_CE_PRESENT = 'ce_present',
+  ONLY_PE_PRESENT = 'pe_present',
+  BOTH_CE_PE_NOT_PRESENT = 'ce_pe_not_present',
+}

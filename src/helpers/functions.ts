@@ -2,6 +2,7 @@ import { getLtpData, getPositionsJson, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
 import {
+  BothPresent,
   Credentails,
   JsonFileStructure,
   Position,
@@ -223,6 +224,28 @@ export const checkStrike = (
     }
   }
   return false;
+};
+export const areBothOptionTypesPresentForStrike = (
+  tradeDetails: TradeDetails[],
+  strike: string
+): BothPresent => {
+  let cePresent = false;
+  let pePresent = false;
+  for (const trade of tradeDetails) {
+    const tradedStrike = parseInt(trade.strike);
+    const compareStrike = parseInt(strike);
+
+    if (tradedStrike === compareStrike) {
+      if (trade.optionType === 'CE') {
+        cePresent = true;
+      } else if (trade.optionType === 'PE') {
+        pePresent = true;
+      }
+    }
+  }
+
+  // If either 'CE' or 'PE' is not present, return false
+  return { ce: cePresent, pe: pePresent, stike: strike };
 };
 export const getOpenPositions = (positions: Position[]): Position[] => {
   const openPositions = [];

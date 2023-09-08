@@ -4,10 +4,11 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.writeJsonFile = exports.setCred = exports.readJsonFile = exports.isMarketClosed = exports.isJson = exports.isCurrentTimeGreater = exports.getOpenPositions = exports.getOnlyAlgoTradedPositions = exports.getNextExpiry = exports.getCurrentDate = exports.getAtmStrikePrice = exports.findNearestStrike = exports.delay = exports.createJsonFile = exports.checkStrike = void 0;
+exports.writeJsonFile = exports.setCred = exports.readJsonFile = exports.isMarketClosed = exports.isJson = exports.isCurrentTimeGreater = exports.getisAlgoCreatedPosition = exports.getOpenPositions = exports.getOnlyAlgoTradedPositions = exports.getNextExpiry = exports.getNearestStrike = exports.getLastThursdayOfCurrentMonth = exports.getData = exports.getCurrentDate = exports.getAtmStrikePrice = exports.findNearestStrike = exports.delay = exports.createJsonFile = exports.convertDateToFormat = exports.checkStrike = exports.checkPositionsExistsForMonthlyExpiry = exports.areBothOptionTypesPresentForStrike = void 0;
 var _apiService = require("./apiService");
 var _lodash = require("lodash");
 var _fs = _interopRequireDefault(require("fs"));
+var _app = require("../app.interface");
 var _momentTimezone = _interopRequireDefault(require("moment-timezone"));
 var _constants = require("./constants");
 var _dataStore = _interopRequireDefault(require("../store/dataStore"));
@@ -28,6 +29,10 @@ var setCred = function setCred(req) {
   _dataStore["default"].getInstance().setPostData(creds);
 };
 exports.setCred = setCred;
+var convertDateToFormat = function convertDateToFormat(date, format) {
+  return (0, _momentTimezone["default"])(date).format(format).toUpperCase();
+};
+exports.convertDateToFormat = convertDateToFormat;
 var getNextExpiry = function getNextExpiry() {
   /*
    *const today = new Date('08/03/2023');
@@ -41,13 +46,7 @@ var getNextExpiry = function getNextExpiry() {
     if (isWednesday) return 8;else if (isThursday) return 7;else return (11 - dayOfWeek) % 7;
   };
   var comingThursday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextThursday());
-  var year = comingThursday.getFullYear();
-  var month = comingThursday.getMonth() + 1;
-  var day = comingThursday.getDate().toString().padStart(2, '0');
-  var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  var monthName = months[month - 1];
-  var formattedDate = "".concat(day).concat(monthName).concat(year);
-  return formattedDate;
+  return convertDateToFormat(comingThursday, 'DDMMMYYYY');
 };
 exports.getNextExpiry = getNextExpiry;
 var findNearestStrike = function findNearestStrike(options, target) {
@@ -75,48 +74,57 @@ var findNearestStrike = function findNearestStrike(options, target) {
 exports.findNearestStrike = findNearestStrike;
 var getAtmStrikePrice = /*#__PURE__*/function () {
   var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-    var expiryDate, optionChain, ltp, ltpPrice;
+    var tradeType,
+      expiryDate,
+      optionChain,
+      ltp,
+      ltpPrice,
+      _args = arguments;
     return _regeneratorRuntime().wrap(function _callee$(_context) {
       while (1) switch (_context.prev = _context.next) {
         case 0:
+          tradeType = _args.length > 0 && _args[0] !== undefined ? _args[0] : _app.TradeType.INTRADAY;
           expiryDate = getNextExpiry();
-          _context.prev = 1;
-          _context.next = 4;
+          if (_app.TradeType.POSITIONAL === tradeType) {
+            expiryDate = getLastThursdayOfCurrentMonth();
+          }
+          _context.prev = 3;
+          _context.next = 6;
           return (0, _apiService.getScrip)({
             scriptName: 'BANKNIFTY',
             expiryDate: expiryDate
           });
-        case 4:
+        case 6:
           optionChain = _context.sent;
-          _context.next = 7;
+          _context.next = 9;
           return (0, _apiService.getLtpData)({
             exchange: 'NSE',
             tradingsymbol: 'BANKNIFTY',
             symboltoken: '26009'
           });
-        case 7:
+        case 9:
           ltp = _context.sent;
           ltpPrice = ltp.ltp;
           if (!(typeof ltpPrice === 'number' && !isNaN(ltpPrice))) {
-            _context.next = 13;
+            _context.next = 15;
             break;
           }
           return _context.abrupt("return", findNearestStrike(optionChain, ltpPrice));
-        case 13:
+        case 15:
           throw new Error("ltpPrice is not a valid number!");
-        case 14:
-          _context.next = 20;
-          break;
         case 16:
-          _context.prev = 16;
-          _context.t0 = _context["catch"](1);
+          _context.next = 22;
+          break;
+        case 18:
+          _context.prev = 18;
+          _context.t0 = _context["catch"](3);
           console.error("".concat(_constants.ALGO, ": Error - ").concat(_context.t0));
           throw _context.t0;
-        case 20:
+        case 22:
         case "end":
           return _context.stop();
       }
-    }, _callee, null, [[1, 16]]);
+    }, _callee, null, [[3, 18]]);
   }));
   return function getAtmStrikePrice() {
     return _ref.apply(this, arguments);
@@ -136,7 +144,7 @@ exports.delay = delay;
 var isCurrentTimeGreater = function isCurrentTimeGreater(_ref3) {
   var hours = _ref3.hours,
     minutes = _ref3.minutes;
-  var currentTime = (0, _momentTimezone["default"])().tz('Asia/Kolkata'); // Set your local time zone here (IST)
+  var currentTime = (0, _momentTimezone["default"])().tz('Asia/Kolkata');
   var targetTime = (0, _momentTimezone["default"])().tz('Asia/Kolkata').set({
     hours: hours,
     minutes: minutes,
@@ -155,19 +163,28 @@ var getCurrentDate = function getCurrentDate() {
 exports.getCurrentDate = getCurrentDate;
 var createJsonFile = /*#__PURE__*/function () {
   var _ref4 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2() {
-    var currentDate, fileName, exists, json;
+    var tradeType,
+      currentDate,
+      fileName,
+      exists,
+      json,
+      _args2 = arguments;
     return _regeneratorRuntime().wrap(function _callee2$(_context2) {
       while (1) switch (_context2.prev = _context2.next) {
         case 0:
+          tradeType = _args2.length > 0 && _args2[0] !== undefined ? _args2[0] : _app.TradeType.INTRADAY;
           currentDate = getCurrentDate();
           fileName = "".concat(currentDate, "_trades.json");
+          if (tradeType === _app.TradeType.POSITIONAL) {
+            fileName = "positional_trades.json";
+          }
           exists = _fs["default"].existsSync(fileName);
           if (!exists) {
-            _context2.next = 7;
+            _context2.next = 9;
             break;
           }
-          return _context2.abrupt("return", readJsonFile());
-        case 7:
+          return _context2.abrupt("return", readJsonFile(tradeType));
+        case 9:
           json = {
             isTradeExecuted: false,
             accountDetails: {
@@ -177,11 +194,11 @@ var createJsonFile = /*#__PURE__*/function () {
             isTradeClosed: false,
             mtm: []
           };
-          _context2.next = 10;
-          return writeJsonFile(json);
-        case 10:
+          _context2.next = 12;
+          return writeJsonFile(json, tradeType);
+        case 12:
           return _context2.abrupt("return", json);
-        case 11:
+        case 13:
         case "end":
           return _context2.stop();
       }
@@ -203,15 +220,23 @@ var isJson = function isJson(string) {
 exports.isJson = isJson;
 var writeJsonFile = /*#__PURE__*/function () {
   var _ref5 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee3(data) {
-    var currentDate, fileName, dataToStoreString;
+    var tradeType,
+      currentDate,
+      fileName,
+      dataToStoreString,
+      _args3 = arguments;
     return _regeneratorRuntime().wrap(function _callee3$(_context3) {
       while (1) switch (_context3.prev = _context3.next) {
         case 0:
+          tradeType = _args3.length > 1 && _args3[1] !== undefined ? _args3[1] : _app.TradeType.INTRADAY;
           currentDate = getCurrentDate();
           fileName = "".concat(currentDate, "_trades.json");
+          if (tradeType === _app.TradeType.POSITIONAL) {
+            fileName = "positional_trades.json";
+          }
           dataToStoreString = JSON.stringify(data);
           if (!isJson(dataToStoreString)) {
-            _context3.next = 7;
+            _context3.next = 9;
             break;
           }
           _fs["default"].writeFile(fileName, dataToStoreString, function (err) {
@@ -219,11 +244,11 @@ var writeJsonFile = /*#__PURE__*/function () {
               console.error("".concat(_constants.ALGO, ": Error writing data to file:"), err);
             } else {}
           });
-          _context3.next = 7;
+          _context3.next = 9;
           return delay({
             milliSeconds: _constants.DELAY
           });
-        case 7:
+        case 9:
         case "end":
           return _context3.stop();
       }
@@ -235,7 +260,8 @@ var writeJsonFile = /*#__PURE__*/function () {
 }();
 exports.writeJsonFile = writeJsonFile;
 var getOnlyAlgoTradedPositions = function getOnlyAlgoTradedPositions() {
-  var data = readJsonFile();
+  var tradeType = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : _app.TradeType.INTRADAY;
+  var data = readJsonFile(tradeType);
   var trades = data.tradeDetails;
   var algoTradedPositions = [];
   trades.forEach(function (trade) {
@@ -245,11 +271,19 @@ var getOnlyAlgoTradedPositions = function getOnlyAlgoTradedPositions() {
 };
 exports.getOnlyAlgoTradedPositions = getOnlyAlgoTradedPositions;
 var readJsonFile = function readJsonFile() {
-  var currentDate = getCurrentDate();
-  var fileName = "".concat(currentDate, "_trades.json");
-  var dataFromFile = _fs["default"].readFileSync(fileName, 'utf-8');
-  var dataFromFileJson = JSON.parse(dataFromFile);
-  return dataFromFileJson;
+  var tradeType = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : _app.TradeType.INTRADAY;
+  try {
+    var currentDate = getCurrentDate();
+    var fileName = "".concat(currentDate, "_trades.json");
+    if (tradeType === _app.TradeType.POSITIONAL) {
+      fileName = "positional_trades.json";
+    }
+    var dataFromFile = _fs["default"].readFileSync(fileName, 'utf-8');
+    var dataFromFileJson = JSON.parse(dataFromFile);
+    return dataFromFileJson;
+  } catch (error) {
+    throw error;
+  }
 };
 exports.readJsonFile = readJsonFile;
 var checkStrike = function checkStrike(tradeDetails, strike) {
@@ -270,22 +304,54 @@ var checkStrike = function checkStrike(tradeDetails, strike) {
   return false;
 };
 exports.checkStrike = checkStrike;
-var getOpenPositions = function getOpenPositions(positions) {
-  var openPositions = [];
-  var _iterator3 = _createForOfIteratorHelper(positions),
+var areBothOptionTypesPresentForStrike = function areBothOptionTypesPresentForStrike(tradeDetails, strike) {
+  var cePresent = false;
+  var pePresent = false;
+  var _iterator3 = _createForOfIteratorHelper(tradeDetails),
     _step3;
   try {
     for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
-      var position = _step3.value;
+      var trade = _step3.value;
+      var tradedStrike = parseInt(trade.strike);
+      var compareStrike = parseInt(strike);
+      if (tradedStrike === compareStrike) {
+        if (trade.optionType === 'CE') {
+          cePresent = true;
+        } else if (trade.optionType === 'PE') {
+          pePresent = true;
+        }
+      }
+    }
+
+    // If either 'CE' or 'PE' is not present, return false
+  } catch (err) {
+    _iterator3.e(err);
+  } finally {
+    _iterator3.f();
+  }
+  return {
+    ce: cePresent,
+    pe: pePresent,
+    stike: strike
+  };
+};
+exports.areBothOptionTypesPresentForStrike = areBothOptionTypesPresentForStrike;
+var getOpenPositions = function getOpenPositions(positions) {
+  var openPositions = [];
+  var _iterator4 = _createForOfIteratorHelper(positions),
+    _step4;
+  try {
+    for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+      var position = _step4.value;
       var netqty = parseInt(position.netqty);
       if (netqty > 0 || netqty < 0) {
         openPositions.push(position);
       }
     }
   } catch (err) {
-    _iterator3.e(err);
+    _iterator4.e(err);
   } finally {
-    _iterator3.f();
+    _iterator4.f();
   }
   return openPositions;
 };
@@ -304,3 +370,68 @@ var isMarketClosed = function isMarketClosed() {
   }
 };
 exports.isMarketClosed = isMarketClosed;
+var getNearestStrike = function getNearestStrike(_ref6) {
+  var algoTrades = _ref6.algoTrades,
+    atmStrike = _ref6.atmStrike;
+  var nearestStrike = Infinity;
+  var minDifference = Number.MAX_SAFE_INTEGER;
+  algoTrades.forEach(function (trade) {
+    var strikeNumber = parseInt(trade.strike, 10);
+    var difference = Math.abs(strikeNumber - atmStrike);
+    if (difference < minDifference) {
+      nearestStrike = strikeNumber;
+      minDifference = difference;
+    }
+  });
+  return nearestStrike;
+};
+exports.getNearestStrike = getNearestStrike;
+var getLastThursdayOfCurrentMonth = function getLastThursdayOfCurrentMonth() {
+  var today = new Date(Date.now());
+  var year = today.getFullYear();
+  var month = today.getMonth();
+  // Start from the last day of the current month
+  var lastDayOfMonth = new Date(year, month + 1, 0);
+  // Loop backward from the last day until we find a Thursday (Thursday is represented by 4)
+  while (lastDayOfMonth.getDay() !== 4) {
+    lastDayOfMonth.setDate(lastDayOfMonth.getDate() - 1);
+  }
+  return convertDateToFormat(lastDayOfMonth, 'DDMMMYYYY');
+};
+exports.getLastThursdayOfCurrentMonth = getLastThursdayOfCurrentMonth;
+var getisAlgoCreatedPosition = function getisAlgoCreatedPosition(tradeType, position) {
+  if (tradeType === _app.TradeType.POSITIONAL && position.symbolname === 'BANKNIFTY') return true;else return false;
+};
+exports.getisAlgoCreatedPosition = getisAlgoCreatedPosition;
+var getData = /*#__PURE__*/function () {
+  var _ref7 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee4(tradeType) {
+    return _regeneratorRuntime().wrap(function _callee4$(_context4) {
+      while (1) switch (_context4.prev = _context4.next) {
+        case 0:
+          if (!(tradeType === _app.TradeType.INTRADAY)) {
+            _context4.next = 4;
+            break;
+          }
+          return _context4.abrupt("return", readJsonFile(tradeType));
+        case 4:
+          _context4.next = 6;
+          return (0, _apiService.getPositionsJson)(tradeType);
+        case 6:
+          return _context4.abrupt("return", _context4.sent);
+        case 7:
+        case "end":
+          return _context4.stop();
+      }
+    }, _callee4);
+  }));
+  return function getData(_x2) {
+    return _ref7.apply(this, arguments);
+  };
+}();
+exports.getData = getData;
+var checkPositionsExistsForMonthlyExpiry = function checkPositionsExistsForMonthlyExpiry(openPositions) {
+  return openPositions.some(function (position) {
+    return position.symbolname === 'BANKNIFTY' && position.expirydate === getLastThursdayOfCurrentMonth();
+  });
+};
+exports.checkPositionsExistsForMonthlyExpiry = checkPositionsExistsForMonthlyExpiry;

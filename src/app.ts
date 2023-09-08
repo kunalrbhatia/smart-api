@@ -113,7 +113,9 @@ if (process.env.NODE_ENV === 'development') {
         body: body,
       };
       setCred(req);
-      const response = await checkMarketConditionsAndExecuteTrade();
+      const response = await checkMarketConditionsAndExecuteTrade(
+        TradeType.INTRADAY
+      );
       console.log(`response: ${response}`);
     } catch (err) {
       console.log(err);
