@@ -232,6 +232,7 @@ export const doOrder = async ({
     producttype: 'CARRYFORWARD',
     duration: 'DAY',
   });
+  console.log(`${ALGO} doOrder data `, data);
   const cred = DataStore.getInstance().getPostData();
   let config = {
     method: 'post',
@@ -550,6 +551,9 @@ export const getPositionsJson = async (
           token: position.symboltoken,
           closed: false,
           isAlgoCreatedPosition: getisAlgoCreatedPosition(tradeType, position),
+          tradedPrice: parseInt(position.netprice),
+          exchange: position.exchange,
+          tradingSymbol: position.tradingsymbol,
         };
         tradeDetails.push(trade);
       }
@@ -572,10 +576,11 @@ export const closeParticularTrade = async ({
     if (trade.isAlgoCreatedPosition) {
       await delay({ milliSeconds: DELAY });
       const transactionStatus = await doOrder({
-        tradingsymbol: trade.symbol,
+        tradingsymbol: trade.tradingSymbol,
         transactionType: TRANSACTION_TYPE_BUY,
         symboltoken: trade.token,
       });
+      console.log(`${ALGO} transactionStatus: `, transactionStatus);
       trade.closed = transactionStatus.status;
       return transactionStatus.status;
     }
@@ -690,6 +695,9 @@ export const addOrderData = async (
       symbol: orderData.symbol,
       closed: false,
       isAlgoCreatedPosition: true,
+      tradedPrice: 0,
+      exchange: '',
+      tradingSymbol: '',
     });
   }
   await writeJsonFile(data, tradeType);
@@ -711,6 +719,9 @@ export const addShortStraddleData = async ({
       symbol: shortStraddleData.ceOrderSymbol,
       closed: false,
       isAlgoCreatedPosition: true,
+      tradedPrice: 0,
+      exchange: '',
+      tradingSymbol: '',
     });
     data.tradeDetails.push({
       optionType: 'PE',
@@ -721,6 +732,9 @@ export const addShortStraddleData = async ({
       symbol: shortStraddleData.peOrderSymbol,
       closed: false,
       isAlgoCreatedPosition: true,
+      tradedPrice: 0,
+      exchange: '',
+      tradingSymbol: '',
     });
     await writeJsonFile(data, tradeType);
   }
