@@ -41,7 +41,10 @@ import {
   doOrderType,
   getLtpDataType,
   getPositionByTokenType,
+  getScripFutType,
   getScripType,
+  runOrbType,
+  scripMasterResponse,
   shouldCloseTradeType,
 } from '../app.interface';
 import {
@@ -112,7 +115,7 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
       throw ex;
     });
 };
-export const fetchData = async (): Promise<object[]> => {
+export const fetchData = async (): Promise<scripMasterResponse[]> => {
   return await axios
     .get(SCRIPMASTER)
     .then((response: object) => {
@@ -135,6 +138,31 @@ export const fetchData = async (): Promise<object[]> => {
       throw evt;
     });
 };
+export const getScripFut = async ({ scriptName }: getScripFutType) => {
+  let scripMaster: scripMasterResponse[] = await fetchData();
+  console.log(
+    `${ALGO}:scriptName: ${scriptName}, is scrip master an array: ${isArray(
+      scripMaster
+    )}, its length is: ${scripMaster.length}`
+  );
+  if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
+    console.log(`${ALGO} all check cleared getScrip call`);
+    let filteredScrip = scripMaster.filter((scrip) => {
+      const _scripName: string = get(scrip, 'name', '') || '';
+      const _expiry: string = getLastThursdayOfCurrentMonth();
+      return (
+        (_scripName.includes(scriptName) || _scripName === scriptName) &&
+        get(scrip, 'exch_seg') === 'NFO' &&
+        get(scrip, 'instrumenttype') === 'FUTSTK' &&
+        get(scrip, 'expiry') === _expiry
+      );
+    });
+    if (filteredScrip.length === 1) return filteredScrip[0];
+    else throw new Error('scrip not found');
+  } else {
+    throw new Error('scrip not found');
+  }
+};
 export const getScrip = async ({
   scriptName,
   strikePrice,
@@ -153,7 +181,6 @@ export const getScrip = async ({
       const _scripName: string = get(scrip, 'name', '') || '';
       const _symbol: string = get(scrip, 'symbol', '') || '';
       const _expiry: string = get(scrip, 'expiry', '') || '';
-
       return (
         (_scripName.includes(scriptName) || _scripName === scriptName) &&
         get(scrip, 'exch_seg') === 'NFO' &&
@@ -217,6 +244,7 @@ export const doOrder = async ({
   tradingsymbol,
   transactionType,
   symboltoken,
+  productType = 'CARRYFORWARD',
 }: doOrderType): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await generateSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
@@ -229,7 +257,7 @@ export const doOrder = async ({
     transactiontype: transactionType,
     ordertype: 'MARKET',
     variety: 'NORMAL',
-    producttype: 'CARRYFORWARD',
+    producttype: productType,
     duration: 'DAY',
   });
   console.log(`${ALGO} doOrder data `, data);
@@ -846,4 +874,66 @@ export const checkPositionAlreadyExists = async ({
       return true;
   }
   return false;
+};
+export const runOrb = async ({
+  scriptName,
+  price,
+  maxSl,
+  tradeDirection,
+}: runOrbType) => {
+  const scrip = await getScripFut({ scriptName });
+  let positionsResponse = await getPositions();
+  let positionsData = get(positionsResponse, 'data', []) ?? [];
+  let mtm = 0;
+  if (Array.isArray(positionsData) && positionsData.length > 0) {
+    const position = positionsData.filter((position) => {
+      if (get(position, 'symboltoken') === scrip.token) return position;
+    });
+    if (!position) {
+      const scripData = await getLtpData({
+        exchange: scrip.exch_seg,
+        symboltoken: scrip.token,
+        tradingsymbol: scrip.symbol,
+      });
+      if (tradeDirection === 'up' && scripData.ltp > price) {
+        doOrder({
+          tradingsymbol: scrip.symbol,
+          symboltoken: scrip.token,
+          transactionType: TRANSACTION_TYPE_BUY,
+        });
+      } else if (tradeDirection === 'down' && scripData.ltp < price) {
+        doOrder({
+          tradingsymbol: scrip.symbol,
+          symboltoken: scrip.token,
+          transactionType: TRANSACTION_TYPE_SELL,
+        });
+      }
+    }
+  }
+  positionsResponse = await getPositions();
+  positionsData = get(positionsResponse, 'data', []) ?? [];
+  if (Array.isArray(positionsData) && positionsData.length > 0) {
+    const position = positionsData.filter((position) => {
+      if (get(position, 'symboltoken') === scrip.token) return position;
+    });
+    mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
+    if (Math.abs(mtm) > maxSl) {
+      if (tradeDirection === 'up') {
+        doOrder({
+          tradingsymbol: scrip.symbol,
+          symboltoken: scrip.token,
+          transactionType: TRANSACTION_TYPE_SELL,
+          productType: 'INTRADAY',
+        });
+      } else {
+        doOrder({
+          tradingsymbol: scrip.symbol,
+          symboltoken: scrip.token,
+          transactionType: TRANSACTION_TYPE_BUY,
+          productType: 'INTRADAY',
+        });
+      }
+    }
+  }
+  return { mtm };
 };

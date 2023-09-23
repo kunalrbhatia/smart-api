@@ -18,6 +18,7 @@ import {
   getPositions,
   getPositionsJson,
   getScrip,
+  runOrb,
 } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
 import {
@@ -72,6 +73,26 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     res.send({ response: err });
   }
   console.log(`${ALGO}: -----------------------------------`);
+});
+app.post('/orb', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^ORB STARTS^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+    const scriptName: string = req.body.script_name;
+    const price: number = req.body.price;
+    const maxSl: number = req.body.max_sl;
+    const tradeDirection: 'up' | 'down' = req.body.trade_direction;
+    const response = await runOrb({ scriptName, price, maxSl, tradeDirection });
+    res.send(response);
+  } catch (err) {
+    console.log(err);
+    res.send({ response: err });
+  }
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^ORB ENDS^^^^^^^^^^^^^^`);
 });
 app.post(
   '/run-short-straddle-positional-algo',

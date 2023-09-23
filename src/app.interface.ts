@@ -107,10 +107,28 @@ export type getScripType = {
   optionType?: 'CE' | 'PE';
   expiryDate: string;
 };
+export type getScripFutType = {
+  scriptName: string;
+};
+export type scripMasterResponse = {
+  token: string;
+  symbol: string;
+  name: string;
+  expiry: string;
+  strike: string;
+  lotsize: string;
+  instrumenttype: string;
+  exch_seg: string;
+  tick_size: string;
+  label: string;
+  key: string;
+};
+
 export type doOrderType = {
   tradingsymbol: string;
   symboltoken: string;
   transactionType: string | undefined;
+  productType?: 'DELIVERY' | 'CARRYFORWARD' | 'MARGIN' | 'INTRADAY' | 'BO';
 };
 export type doOrderResponse = {
   status: boolean;
@@ -180,3 +198,9 @@ export enum CheckOptionType {
   ONLY_PE_PRESENT = 'pe_present',
   BOTH_CE_PE_NOT_PRESENT = 'ce_pe_not_present',
 }
+export type runOrbType = {
+  scriptName: string;
+  price: number;
+  maxSl: number;
+  tradeDirection: 'up' | 'down';
+};
