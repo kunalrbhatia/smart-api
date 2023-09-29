@@ -35,19 +35,23 @@ export const getNextExpiry = () => {
    */
   const today = new Date(Date.now());
   const dayOfWeek = today.getDay();
-  const isThursday = dayOfWeek === 4;
   const isWednesday = dayOfWeek === 3;
-  const daysUntilNextThursday = () => {
-    if (isWednesday) return 8;
-    else if (isThursday) return 7;
-    else return (11 - dayOfWeek) % 7;
+  const isTuesday = dayOfWeek === 2;
+  const isLastWeekOfMonth = today.getDate() > 24; // Check if it's the last week of the month
+  const daysUntilNextWednesday = () => {
+    if (isLastWeekOfMonth) {
+      return 4 - dayOfWeek;
+    }
+    if (isWednesday) return 7;
+    if (isTuesday) return 8;
+    else return (3 - dayOfWeek + 7) % 7;
   };
-  const comingThursday = new Date(
+  const calculatedDate = new Date(
     today.getFullYear(),
     today.getMonth(),
-    today.getDate() + daysUntilNextThursday()
+    today.getDate() + daysUntilNextWednesday()
   );
-  return convertDateToFormat(comingThursday, 'DDMMMYYYY');
+  return convertDateToFormat(calculatedDate, 'DDMMMYYYY');
 };
 export const findNearestStrike = (options: object[], target: number) => {
   let nearestStrike = Infinity;
