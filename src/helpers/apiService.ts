@@ -881,6 +881,7 @@ export const runOrb = async ({
   price,
   maxSl,
   tradeDirection,
+  trailSl,
 }: runOrbType) => {
   const scrip = await getScripFut({ scriptName });
   let positionsResponse = await getPositions();
@@ -916,7 +917,7 @@ export const runOrb = async ({
       if (get(position, 'symboltoken') === scrip.token) return position;
     });
     mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
-    const updatedMaxSl = updateMaxSl(mtm, maxSl);
+    const updatedMaxSl = updateMaxSl({ mtm, maxSl, trailSl });
     if (Math.abs(mtm) > updatedMaxSl) {
       if (tradeDirection === 'up') {
         doOrder({

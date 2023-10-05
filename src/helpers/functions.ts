@@ -11,6 +11,7 @@ import {
   TradeType,
   delayType,
   reqType,
+  updateMaxSlType,
 } from '../app.interface';
 import moment from 'moment-timezone';
 import { ALGO, DELAY } from './constants';
@@ -28,10 +29,10 @@ export const setCred = (req: Request | reqType) => {
 export const convertDateToFormat = (date: Date, format: string) => {
   return moment(date).format(format).toUpperCase();
 };
-export const updateMaxSl = (mtm: number, maxSl: number) => {
-  if (mtm % 500 === 0) {
-    const quotientMultiplier = Math.floor(mtm / 500);
-    maxSl += quotientMultiplier * 500;
+export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
+  if (mtm % trailSl === 0) {
+    const quotientMultiplier = Math.floor(mtm / trailSl);
+    maxSl += quotientMultiplier * trailSl;
   }
   return maxSl;
 };

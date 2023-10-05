@@ -203,4 +203,6 @@ export type runOrbType = {
   price: number;
   maxSl: number;
   tradeDirection: 'up' | 'down';
+  trailSl: number;
 };
+export type updateMaxSlType = { mtm: number; maxSl: number; trailSl: number };

@@ -84,9 +84,16 @@ app.post('/orb', async (req: Request, res: Response) => {
     setCred(req);
     const scriptName: string = req.body.script_name;
     const price: number = req.body.price;
-    const maxSl: number = req.body.max_sl;
+    const maxSl: number = req.body.max_sl || -2000;
+    const trailSl: number = req.body.trail_sl || 500;
     const tradeDirection: 'up' | 'down' = req.body.trade_direction;
-    const response = await runOrb({ scriptName, price, maxSl, tradeDirection });
+    const response = await runOrb({
+      scriptName,
+      price,
+      maxSl,
+      tradeDirection,
+      trailSl,
+    });
     res.send(response);
   } catch (err) {
     console.log(err);
