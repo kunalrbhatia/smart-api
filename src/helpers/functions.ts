@@ -28,6 +28,13 @@ export const setCred = (req: Request | reqType) => {
 export const convertDateToFormat = (date: Date, format: string) => {
   return moment(date).format(format).toUpperCase();
 };
+export const updateMaxSl = (mtm: number, maxSl: number) => {
+  if (mtm % 500 === 0) {
+    const quotientMultiplier = Math.floor(mtm / 500);
+    maxSl += quotientMultiplier * 500;
+  }
+  return maxSl;
+};
 export const getNextExpiry = () => {
   /*
    *const today = new Date('08/03/2023');
@@ -38,6 +45,7 @@ export const getNextExpiry = () => {
   const isWednesday = dayOfWeek === 3;
   const isTuesday = dayOfWeek === 2;
   const isLastWeekOfMonth = today.getDate() > 24; // Check if it's the last week of the month
+
   const daysUntilNextWednesday = () => {
     if (isLastWeekOfMonth) {
       return 4 - dayOfWeek;

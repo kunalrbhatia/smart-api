@@ -19,6 +19,7 @@ import {
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
+  updateMaxSl,
   writeJsonFile,
 } from './functions';
 import { Response } from 'express';
@@ -910,14 +911,13 @@ export const runOrb = async ({
       }
     }
   }
-  positionsResponse = await getPositions();
-  positionsData = get(positionsResponse, 'data', []) ?? [];
   if (Array.isArray(positionsData) && positionsData.length > 0) {
     const position = positionsData.filter((position) => {
       if (get(position, 'symboltoken') === scrip.token) return position;
     });
     mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
-    if (Math.abs(mtm) > maxSl) {
+    const updatedMaxSl = updateMaxSl(mtm, maxSl);
+    if (Math.abs(mtm) > updatedMaxSl) {
       if (tradeDirection === 'up') {
         doOrder({
           tradingsymbol: scrip.symbol,
