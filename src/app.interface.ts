@@ -11,7 +11,6 @@ export interface TradeDetails {
   symbol: string;
   closed: boolean;
   expireDate: string;
-  isAlgoCreatedPosition: boolean;
   tradedPrice: number;
   tradingSymbol: string;
   exchange: string;

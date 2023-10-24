@@ -36,6 +36,22 @@ export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
   }
   return maxSl;
 };
+function daysUntilLastThursday() {
+  const today = new Date(Date.now());
+  const currentMonth = today.getMonth();
+  const lastDayOfMonth = new Date(today.getFullYear(), currentMonth + 1, 0);
+  // Find the last Thursday of the month
+  for (let day = lastDayOfMonth.getDate(); day >= 1; day--) {
+    const date = new Date(today.getFullYear(), currentMonth, day);
+    if (date.getDay() === 4) {
+      // Thursday
+      const timeRemaining = date.getTime() - today.getTime();
+      const daysRemaining = Math.ceil(timeRemaining / (1000 * 3600 * 24));
+      return daysRemaining;
+    }
+  }
+  return -1;
+}
 export const getNextExpiry = () => {
   /*
    *const today = new Date('08/03/2023');
@@ -46,7 +62,6 @@ export const getNextExpiry = () => {
   const isWednesday = dayOfWeek === 3;
   const isTuesday = dayOfWeek === 2;
   const isLastWeekOfMonth = today.getDate() > 24; // Check if it's the last week of the month
-
   const daysUntilNextWednesday = () => {
     if (isLastWeekOfMonth) {
       return 4 - dayOfWeek;
@@ -55,10 +70,14 @@ export const getNextExpiry = () => {
     if (isTuesday) return 8;
     else return (3 - dayOfWeek + 7) % 7;
   };
+  const addDaysLogic =
+    daysUntilLastThursday() > 6
+      ? daysUntilNextWednesday()
+      : daysUntilLastThursday();
   const calculatedDate = new Date(
     today.getFullYear(),
     today.getMonth(),
-    today.getDate() + daysUntilNextWednesday()
+    today.getDate() + addDaysLogic
   );
   return convertDateToFormat(calculatedDate, 'DDMMMYYYY');
 };
@@ -197,17 +216,6 @@ export const writeJsonFile = async (
     await delay({ milliSeconds: DELAY });
   }
 };
-export const getOnlyAlgoTradedPositions = (
-  tradeType: TradeType = TradeType.INTRADAY
-): TradeDetails[] => {
-  let data = readJsonFile(tradeType);
-  let trades = data.tradeDetails;
-  const algoTradedPositions: TradeDetails[] = [];
-  trades.forEach((trade) => {
-    if (trade.isAlgoCreatedPosition) algoTradedPositions.push(trade);
-  });
-  return algoTradedPositions;
-};
 export const readJsonFile = (
   tradeType: TradeType = TradeType.INTRADAY
 ): JsonFileStructure => {
@@ -312,17 +320,8 @@ export const getLastThursdayOfCurrentMonth = (): string => {
   }
   return convertDateToFormat(lastDayOfMonth, 'DDMMMYYYY');
 };
-export const getisAlgoCreatedPosition = (
-  tradeType: TradeType,
-  position: Position
-) => {
-  if (tradeType === TradeType.POSITIONAL && position.symbolname === 'BANKNIFTY')
-    return true;
-  else return false;
-};
 export const getData = async (tradeType: TradeType) => {
-  if (tradeType === TradeType.INTRADAY) return readJsonFile(tradeType);
-  else return await getPositionsJson(tradeType);
+  return await getPositionsJson(tradeType);
 };
 export const checkPositionsExistsForMonthlyExpiry = (
   openPositions: Position[]

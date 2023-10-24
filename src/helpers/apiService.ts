@@ -13,9 +13,7 @@ import {
   getLastThursdayOfCurrentMonth,
   getNearestStrike,
   getNextExpiry,
-  getOnlyAlgoTradedPositions,
   getOpenPositions,
-  getisAlgoCreatedPosition,
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
@@ -296,11 +294,7 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   let mtm = 0;
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
-      if (
-        trade &&
-        trade.token === get(value, 'symboltoken', '') &&
-        trade.isAlgoCreatedPosition === true
-      ) {
+      if (trade && trade.token === get(value, 'symboltoken', '')) {
         mtm += parseInt(get(value, 'unrealised', ''));
       }
     });
@@ -525,7 +519,6 @@ export const checkPositionToClose = async ({
     for (const trade of tradeDetails) {
       if (
         trade &&
-        trade.isAlgoCreatedPosition === true &&
         trade.exchange === 'NFO' &&
         trade.tradingSymbol &&
         trade.tradedPrice
@@ -579,7 +572,6 @@ export const getPositionsJson = async (
           symbol: position.symbolname,
           token: position.symboltoken,
           closed: false,
-          isAlgoCreatedPosition: getisAlgoCreatedPosition(tradeType, position),
           tradedPrice: parseInt(position.netprice),
           exchange: position.exchange,
           tradingSymbol: position.tradingsymbol,
@@ -602,17 +594,15 @@ export const closeParticularTrade = async ({
   trade: TradeDetails;
 }) => {
   try {
-    if (trade.isAlgoCreatedPosition) {
-      await delay({ milliSeconds: DELAY });
-      const transactionStatus = await doOrder({
-        tradingsymbol: trade.tradingSymbol,
-        transactionType: TRANSACTION_TYPE_BUY,
-        symboltoken: trade.token,
-      });
-      console.log(`${ALGO} transactionStatus: `, transactionStatus);
-      trade.closed = transactionStatus.status;
-      return transactionStatus.status;
-    }
+    await delay({ milliSeconds: DELAY });
+    const transactionStatus = await doOrder({
+      tradingsymbol: trade.tradingSymbol,
+      transactionType: TRANSACTION_TYPE_BUY,
+      symboltoken: trade.token,
+    });
+    console.log(`${ALGO} transactionStatus: `, transactionStatus);
+    trade.closed = transactionStatus.status;
+    return transactionStatus.status;
   } catch (error) {
     const errorMessage = `${ALGO}: closeTrade failed error below`;
     console.log(errorMessage);
@@ -666,7 +656,7 @@ export const areAllTradesClosed = async (
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
-      if (trade.isAlgoCreatedPosition && trade.closed === false) {
+      if (trade.closed === false) {
         return false;
       }
     }
@@ -723,7 +713,6 @@ export const addOrderData = async (
       token: orderData.token,
       symbol: orderData.symbol,
       closed: false,
-      isAlgoCreatedPosition: true,
       tradedPrice: 0,
       exchange: '',
       tradingSymbol: '',
@@ -747,7 +736,6 @@ export const addShortStraddleData = async ({
       token: shortStraddleData.ceOrderToken,
       symbol: shortStraddleData.ceOrderSymbol,
       closed: false,
-      isAlgoCreatedPosition: true,
       tradedPrice: 0,
       exchange: '',
       tradingSymbol: '',
@@ -760,7 +748,6 @@ export const addShortStraddleData = async ({
       token: shortStraddleData.peOrderToken,
       symbol: shortStraddleData.peOrderSymbol,
       closed: false,
-      isAlgoCreatedPosition: true,
       tradedPrice: 0,
       exchange: '',
       tradingSymbol: '',
@@ -781,7 +768,7 @@ const coreTradeExecution = async (tradeType: TradeType) => {
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice(tradeType);
     const no_of_trades = data.tradeDetails.length;
-    const getAlgoTrades = getOnlyAlgoTradedPositions(tradeType);
+    const getAlgoTrades = data.tradeDetails;
     let previousTradeStrikePrice: string | number = getNearestStrike({
       algoTrades: getAlgoTrades,
       atmStrike: atmStrike,
@@ -834,14 +821,19 @@ export const executeTrade = async (tradeType: TradeType) => {
   }
 };
 const isTradeAllowed = async (data: JsonFileStructure) => {
-  const smartSession = await generateSmartSession();
   const isMarketOpen = !isMarketClosed();
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,
   });
   const isTradeOpen = !data.isTradeClosed;
-  const isSmartAPIWorking = !isEmpty(smartSession);
+  let isSmartAPIWorking = false;
+  try {
+    const smartSession = await generateSmartSession();
+    isSmartAPIWorking = !isEmpty(smartSession);
+  } catch (err) {
+    console.log('Error occurred for generateSmartSession');
+  }
   console.log(
     `${ALGO}: checking conditions, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}`
   );

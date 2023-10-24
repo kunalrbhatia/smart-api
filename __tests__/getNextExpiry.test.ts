@@ -38,4 +38,12 @@ describe('getNextExpiry', () => {
     const expectedDate = '31AUG2023';
     expect(result).toEqual(expectedDate);
   });
+  it('should return the next Thursday date when today last Monday', () => {
+    jest
+      .spyOn(global.Date, 'now')
+      .mockReturnValue(new Date('2023-10-24').valueOf());
+    const result = getNextExpiry();
+    const expectedDate = '26OCT2023';
+    expect(result).toEqual(expectedDate);
+  });
 });
