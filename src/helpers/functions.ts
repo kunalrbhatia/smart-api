@@ -4,6 +4,7 @@ import fs from 'fs';
 import {
   BothPresent,
   Credentails,
+  ISmartApiData,
   JsonFileStructure,
   Position,
   TimeComparisonType,
@@ -17,6 +18,7 @@ import moment from 'moment-timezone';
 import { ALGO, DELAY } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
+import SmartSession from '../store/smartSession';
 export const setCred = (req: Request | reqType) => {
   const creds: Credentails = {
     APIKEY: req.body.api_key,
@@ -26,6 +28,71 @@ export const setCred = (req: Request | reqType) => {
   };
   DataStore.getInstance().setPostData(creds);
 };
+export const calculateRSI = (
+  closingPrices: number[],
+  period: number
+): number => {
+  if (closingPrices.length < period) {
+    throw new Error('Insufficient data for RSI calculation.');
+  }
+
+  const priceChanges: number[] = [];
+  for (let i = 1; i < closingPrices.length; i++) {
+    priceChanges.push(closingPrices[i] - closingPrices[i - 1]);
+  }
+
+  const gains: number[] = [];
+  const losses: number[] = [];
+
+  for (const element of priceChanges) {
+    if (element > 0) {
+      gains.push(element);
+      losses.push(0);
+    } else {
+      gains.push(0);
+      losses.push(Math.abs(element));
+    }
+  }
+
+  let averageGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  let averageLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+  for (let i = period; i < gains.length; i++) {
+    averageGain = (averageGain * (period - 1) + gains[i]) / period;
+    averageLoss = (averageLoss * (period - 1) + losses[i]) / period;
+  }
+
+  const relativeStrength = averageGain / averageLoss;
+  const rsi = 100 - 100 / (1 + relativeStrength);
+
+  return rsi;
+};
+type GetCurrentTimeAndPastTimeType = { currentTime: string; pastTime: string };
+export const getCurrentTimeAndPastTime = (): GetCurrentTimeAndPastTimeType => {
+  let currentTime = moment();
+  const endOfDay = moment('15:30', 'HH:mm');
+  const startOfDay = moment('09:15', 'HH:mm');
+  if (currentTime.isAfter(endOfDay)) {
+    currentTime = endOfDay;
+  } else if (currentTime.isBefore(startOfDay)) {
+    currentTime = endOfDay;
+    currentTime = currentTime.subtract(1, 'day');
+  }
+  return {
+    currentTime: currentTime.format('YYYY-MM-DD HH:mm'),
+    pastTime: currentTime.subtract(3, 'day').format('YYYY-MM-DD HH:mm'),
+  };
+};
+
+export const setSmartSession = (data: ISmartApiData) => {
+  const smartData: ISmartApiData = {
+    feedToken: data.feedToken,
+    jwtToken: data.jwtToken,
+    refreshToken: data.refreshToken,
+  };
+  SmartSession.getInstance().setPostData(smartData);
+};
+
 export const convertDateToFormat = (date: Date, format: string) => {
   return moment(date).format(format).toUpperCase();
 };

@@ -14,11 +14,13 @@ import {
   calculateMtm,
   checkMarketConditionsAndExecuteTrade,
   checkPositionToClose,
+  generateSmartSession,
   getLtpData,
   getPositions,
   getPositionsJson,
   getScrip,
   runOrb,
+  runRsiAlgo,
 } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
 import {
@@ -26,6 +28,7 @@ import {
   getOpenPositions,
   readJsonFile,
   setCred,
+  setSmartSession,
 } from './helpers/functions';
 import dotenv from 'dotenv';
 import { Position, TradeType, bodyType, reqType } from './app.interface';
@@ -54,6 +57,25 @@ app.post('/check-positions-to-close', async (req: Request, res: Response) => {
     tradeType: TradeType.INTRADAY,
   });
   res.send().status(200);
+});
+app.post('/run-rsi-algo', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+    const smartData = await generateSmartSession();
+    setSmartSession(smartData);
+    const response = await runRsiAlgo();
+    console.log(`response: ${response}`);
+    res.send({ response: response });
+  } catch (err) {
+    console.log(err);
+    res.send({ response: err });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
 });
 app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);

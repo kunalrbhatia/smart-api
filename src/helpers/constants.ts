@@ -37,3 +37,5 @@ export const STRIKE_DIFFERENCE_POSITIONAL = 500;
 export const MESSAGE_NOT_TAKE_TRADE = 'Conditions not right to take trade';
 export const ME = 'Kunal';
 export const ALGO = 'Algo';
+export const HISTORIC_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/historical/v1/getCandleData';

@@ -4,11 +4,13 @@ const axios = require('axios');
 const totp = require('totp-generator');
 import {
   areBothOptionTypesPresentForStrike,
+  calculateRSI,
   checkPositionsExistsForMonthlyExpiry,
   checkStrike,
   createJsonFile,
   delay,
   getAtmStrikePrice,
+  getCurrentTimeAndPastTime,
   getData,
   getLastThursdayOfCurrentMonth,
   getNearestStrike,
@@ -26,12 +28,15 @@ import {
   BothPresent,
   CheckOptionType,
   CheckPosition,
+  HistoryInterface,
+  HistoryInterval,
   ISmartApiData,
   JsonFileStructure,
   LtpDataType,
   OptionType,
   OrderData,
   Position,
+  Strategy,
   TimeComparisonType,
   TradeDetails,
   TradeType,
@@ -52,17 +57,20 @@ import {
   GET_LTP_DATA_API,
   GET_MARGIN,
   GET_POSITIONS,
+  HISTORIC_API,
   ME,
   MESSAGE_NOT_TAKE_TRADE,
   MTMDATATHRESHOLD,
   ORDER_API,
   SCRIPMASTER,
+  SHORT_DELAY,
   STRIKE_DIFFERENCE,
   STRIKE_DIFFERENCE_POSITIONAL,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
 } from './constants';
 import DataStore from '../store/dataStore';
+import SmartSession from '../store/smartSession';
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
@@ -136,6 +144,31 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
       console.log(evt);
       throw evt;
     });
+};
+export const getAllFut = async () => {
+  let scripMaster: scripMasterResponse[] = await fetchData();
+  console.log(
+    `${ALGO}: Scrip master an array: ${isArray(scripMaster)}, its length is: ${
+      scripMaster.length
+    }`
+  );
+  if (isArray(scripMaster) && scripMaster.length > 0) {
+    console.log(`${ALGO} all check cleared getScrip call`);
+    const _expiry: string = getLastThursdayOfCurrentMonth();
+    let filteredScrips = scripMaster.filter((scrip) => {
+      return (
+        get(scrip, 'exch_seg') === 'NFO' &&
+        get(scrip, 'instrumenttype') === 'FUTSTK' &&
+        parseInt(get(scrip, 'lotsize')) < 300 &&
+        get(scrip, 'expiry') === _expiry
+      );
+    });
+    console.log(`${ALGO}: filteredScrips.length: ${filteredScrips.length}`);
+    if (filteredScrips.length > 0) return filteredScrips;
+    else throw new Error('some error occurred');
+  } else {
+    throw new Error('some error occurred');
+  }
 };
 export const getScripFut = async ({ scriptName }: getScripFutType) => {
   let scripMaster: scripMasterResponse[] = await fetchData();
@@ -237,6 +270,41 @@ export const getPositions = async () => {
       console.log(errorMessage);
       console.log(error);
       throw error;
+    });
+};
+export const getHistoricPrices = async (data: HistoryInterface) => {
+  const smartApiData: ISmartApiData = SmartSession.getInstance().getPostData();
+  const jwtToken = get(smartApiData, 'jwtToken');
+  const cred = DataStore.getInstance().getPostData();
+  const payload = JSON.stringify({
+    exchange: data.exchange,
+    symboltoken: data.symboltoken,
+    interval: data.interval,
+    fromdate: data.fromdate,
+    todate: data.todate,
+  });
+  let config = {
+    method: 'post',
+    url: HISTORIC_API,
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': cred.APIKEY,
+    },
+    data: payload,
+  };
+  return await axios(config)
+    .then(function (response: any) {
+      return get(response, 'data.data');
+    })
+    .catch(function (error: any) {
+      return error;
     });
 };
 export const doOrder = async ({
@@ -842,18 +910,51 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async (
-  tradeType: TradeType
+  tradeType: TradeType,
+  strategy: Strategy = Strategy.SHORTSTRADDLE
 ) => {
   let data = await createJsonFile(tradeType);
   if (await isTradeAllowed(data)) {
     try {
-      return await executeTrade(tradeType);
+      if (strategy === Strategy.SHORTSTRADDLE) {
+        return await executeTrade(tradeType);
+      } else if (strategy === Strategy.RSI) {
+        return await runRsiAlgo();
+      }
     } catch (err) {
       return err;
     }
   } else {
     return MESSAGE_NOT_TAKE_TRADE;
   }
+};
+export const runRsiAlgo = async () => {
+  const allFuts = await getAllFut();
+  for (const scrip of allFuts) {
+    const data: HistoryInterface = {
+      exchange: scrip.exch_seg,
+      interval: HistoryInterval.FIVE_MINUTE,
+      symboltoken: scrip.token,
+      fromdate: getCurrentTimeAndPastTime().pastTime,
+      todate: getCurrentTimeAndPastTime().currentTime,
+    };
+    await delay({ milliSeconds: SHORT_DELAY });
+    const historicData = await getHistoricPrices(data);
+    if (historicData && isArray(historicData)) {
+      const last14Closing: number[] = [];
+      for (
+        let i = historicData.length - 1;
+        i >= historicData.length - 14;
+        i--
+      ) {
+        last14Closing.push(historicData[i][4]);
+      }
+      console.log(`RSI: ${scrip.symbol}`, calculateRSI(last14Closing, 14));
+    }
+    //console.log(historicData);
+  }
+
+  return allFuts;
 };
 export const checkPositionAlreadyExists = async ({
   position,

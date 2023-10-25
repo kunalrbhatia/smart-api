@@ -19,11 +19,31 @@ export interface MtmValue {
   time: string;
   value: string;
 }
+export interface HistoryInterface {
+  exchange: string;
+  symboltoken: string;
+  interval: string;
+  fromdate: string;
+  todate: string;
+}
+export enum HistoryInterval {
+  ONE_MINUTE = 'ONE_MINUTE',
+  THREE_MINUTE = 'THREE_MINUTE',
+  FIVE_MINUTE = 'FIVE_MINUTE',
+  TEN_MINUTE = 'TEN_MINUTE',
+  FIFTEEN_MINUTE = 'FIFTEEN_MINUTE',
+  THIRTY_MINUTE = 'THIRTY_MINUTE',
+  ONE_HOUR = 'ONE_HOUR',
+  ONE_DAY = 'ONE_DAY',
+}
 export enum TradeType {
   POSITIONAL = 'positional',
   INTRADAY = 'intraday',
 }
-
+export enum Strategy {
+  RSI = 'rsi',
+  SHORTSTRADDLE = 'shortStraddle',
+}
 export interface JsonFileStructure {
   isTradeExecuted: boolean;
   accountDetails: {
