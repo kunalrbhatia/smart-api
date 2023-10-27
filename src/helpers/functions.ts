@@ -14,7 +14,7 @@ import {
   reqType,
   updateMaxSlType,
 } from '../app.interface';
-import moment from 'moment-timezone';
+import moment, { Moment } from 'moment-timezone';
 import { ALGO, DELAY } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
@@ -92,10 +92,6 @@ export const setSmartSession = (data: ISmartApiData) => {
   };
   SmartSession.getInstance().setPostData(smartData);
 };
-
-export const convertDateToFormat = (date: Date, format: string) => {
-  return moment(date).format(format).toUpperCase();
-};
 export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
   if (mtm % trailSl === 0) {
     const quotientMultiplier = Math.floor(mtm / trailSl);
@@ -103,51 +99,50 @@ export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
   }
   return maxSl;
 };
-function daysUntilLastThursday() {
-  const today = new Date(Date.now());
-  const currentMonth = today.getMonth();
-  const lastDayOfMonth = new Date(today.getFullYear(), currentMonth + 1, 0);
-  // Find the last Thursday of the month
-  for (let day = lastDayOfMonth.getDate(); day >= 1; day--) {
-    const date = new Date(today.getFullYear(), currentMonth, day);
-    if (date.getDay() === 4) {
-      // Thursday
-      const timeRemaining = date.getTime() - today.getTime();
-      const daysRemaining = Math.ceil(timeRemaining / (1000 * 3600 * 24));
-      return daysRemaining;
-    }
+export const getLastWednesdayOfMonth = (): Moment => {
+  const lastWednesdayOfMonth = moment().endOf('month');
+  // Loop backward from the last day until we find a Wednesday
+  while (lastWednesdayOfMonth.day() !== 3) {
+    lastWednesdayOfMonth.subtract(1, 'days');
   }
-  return -1;
-}
-export const getNextExpiry = () => {
-  /*
-   *const today = new Date('08/03/2023');
-   *For testing getNextExpiry logic
-   */
-  const today = new Date(Date.now());
-  const dayOfWeek = today.getDay();
-  const isWednesday = dayOfWeek === 3;
-  const isTuesday = dayOfWeek === 2;
-  const isLastWeekOfMonth = today.getDate() > 24; // Check if it's the last week of the month
-  const daysUntilNextWednesday = () => {
-    if (isLastWeekOfMonth) {
-      return 4 - dayOfWeek;
-    }
-    if (isWednesday) return 7;
-    if (isTuesday) return 8;
-    else return (3 - dayOfWeek + 7) % 7;
-  };
-  const addDaysLogic =
-    daysUntilLastThursday() > 6
-      ? daysUntilNextWednesday()
-      : daysUntilLastThursday();
-  const calculatedDate = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate() + addDaysLogic
-  );
-  return convertDateToFormat(calculatedDate, 'DDMMMYYYY');
+  return lastWednesdayOfMonth;
 };
+const getLastWednesdayofMonth = () => {
+  const today = moment();
+  const lastDayOfMonth = today.endOf('month');
+  while (lastDayOfMonth.day() !== 3) {
+    lastDayOfMonth.subtract(1, 'days');
+  }
+  return lastDayOfMonth;
+};
+export const getNextExpiry = () => {
+  const today = moment();
+  const currentDay = today.day();
+  const isWednesday = currentDay === 3;
+  const isLastWednesday =
+    getLastWednesdayofMonth().format('DDMMMYYYY').toUpperCase() ===
+    today.format('DDMMMYYYY').toUpperCase();
+  const isLastThursday =
+    getLastThursdayOfCurrentMonth() === today.format('DDMMMYYYY').toUpperCase();
+  const secondLastWednesday = getLastWednesdayofMonth().subtract(7, 'days');
+  const daysToNextWednesday = 7 - currentDay + 3;
+  if (isLastThursday) {
+    return today.format('DDMMMYYYY').toUpperCase();
+  } else if (isLastWednesday) {
+    return today.add(1, 'days').format('DDMMMYYYY').toUpperCase();
+  } else if (isWednesday) {
+    return today.format('DDMMMYYYY').toUpperCase();
+  } else if (
+    today.isBefore(getLastWednesdayofMonth()) &&
+    today.isAfter(secondLastWednesday)
+  ) {
+    return getLastThursdayOfCurrentMonth();
+  } else {
+    const nextWednesday = today.add(daysToNextWednesday, 'days');
+    return nextWednesday.format('DDMMMYYYY').toUpperCase();
+  }
+};
+
 export const findNearestStrike = (options: object[], target: number) => {
   let nearestStrike = Infinity;
   let nearestDiff = Infinity;
@@ -375,17 +370,22 @@ export const getNearestStrike = ({
   });
   return nearestStrike;
 };
-export const getLastThursdayOfCurrentMonth = (): string => {
-  const today = new Date(Date.now());
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  // Start from the last day of the current month
-  let lastDayOfMonth = new Date(year, month + 1, 0);
-  // Loop backward from the last day until we find a Thursday (Thursday is represented by 4)
-  while (lastDayOfMonth.getDay() !== 4) {
-    lastDayOfMonth.setDate(lastDayOfMonth.getDate() - 1);
+export const getLastThursdayOfCurrentMonth = () => {
+  const today = moment();
+  let lastDayOfMonth = moment().endOf('month');
+  // Loop backward from the last day until we find a Thursday
+  while (lastDayOfMonth.day() !== 4) {
+    lastDayOfMonth.subtract(1, 'days');
   }
-  return convertDateToFormat(lastDayOfMonth, 'DDMMMYYYY');
+  if (lastDayOfMonth.isBefore(today)) {
+    lastDayOfMonth = moment().endOf('month');
+    lastDayOfMonth.add(1, 'month');
+    // Loop backward from the last day until we find a Thursday
+    while (lastDayOfMonth.day() !== 4) {
+      lastDayOfMonth.subtract(1, 'days');
+    }
+  }
+  return lastDayOfMonth.format('DDMMMYYYY').toUpperCase();
 };
 export const getData = async (tradeType: TradeType) => {
   return await getPositionsJson(tradeType);

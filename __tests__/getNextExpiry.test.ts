@@ -9,9 +9,9 @@ describe('getNextExpiry', () => {
   it('should return the next Wednesday date', () => {
     jest
       .spyOn(global.Date, 'now')
-      .mockReturnValue(new Date('2023-08-04').valueOf());
+      .mockReturnValue(new Date('2023-10-27').valueOf());
     const result = getNextExpiry();
-    const expectedDate = '09AUG2023';
+    const expectedDate = '01NOV2023';
     expect(result).toEqual(expectedDate);
   });
   it('should return the next Wednesday date when today is Wednesday', () => {
@@ -19,7 +19,7 @@ describe('getNextExpiry', () => {
       .spyOn(global.Date, 'now')
       .mockReturnValue(new Date('2023-08-02').valueOf());
     const result = getNextExpiry();
-    const expectedDate = '09AUG2023';
+    const expectedDate = '02AUG2023';
     expect(result).toEqual(expectedDate);
   });
   it('should return the next Wednesday date when today is one day before Wednesday', () => {
@@ -42,6 +42,22 @@ describe('getNextExpiry', () => {
     jest
       .spyOn(global.Date, 'now')
       .mockReturnValue(new Date('2023-10-24').valueOf());
+    const result = getNextExpiry();
+    const expectedDate = '26OCT2023';
+    expect(result).toEqual(expectedDate);
+  });
+  it('should return the next month first Thursday date when today the day after last Thursday', () => {
+    jest
+      .spyOn(global.Date, 'now')
+      .mockReturnValue(new Date('2023-10-27').valueOf());
+    const result = getNextExpiry();
+    const expectedDate = '01NOV2023';
+    expect(result).toEqual(expectedDate);
+  });
+  it('should return the same date when it is last Thursday', () => {
+    jest
+      .spyOn(global.Date, 'now')
+      .mockReturnValue(new Date('2023-10-26').valueOf());
     const result = getNextExpiry();
     const expectedDate = '26OCT2023';
     expect(result).toEqual(expectedDate);
