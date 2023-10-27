@@ -99,15 +99,7 @@ export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
   }
   return maxSl;
 };
-export const getLastWednesdayOfMonth = (): Moment => {
-  const lastWednesdayOfMonth = moment().endOf('month');
-  // Loop backward from the last day until we find a Wednesday
-  while (lastWednesdayOfMonth.day() !== 3) {
-    lastWednesdayOfMonth.subtract(1, 'days');
-  }
-  return lastWednesdayOfMonth;
-};
-const getLastWednesdayofMonth = () => {
+export const getLastWednesdayOfMonth = () => {
   const today = moment();
   const lastDayOfMonth = today.endOf('month');
   while (lastDayOfMonth.day() !== 3) {
@@ -120,11 +112,11 @@ export const getNextExpiry = () => {
   const currentDay = today.day();
   const isWednesday = currentDay === 3;
   const isLastWednesday =
-    getLastWednesdayofMonth().format('DDMMMYYYY').toUpperCase() ===
+    getLastWednesdayOfMonth().format('DDMMMYYYY').toUpperCase() ===
     today.format('DDMMMYYYY').toUpperCase();
   const isLastThursday =
     getLastThursdayOfCurrentMonth() === today.format('DDMMMYYYY').toUpperCase();
-  const secondLastWednesday = getLastWednesdayofMonth().subtract(7, 'days');
+  const secondLastWednesday = getLastWednesdayOfMonth().subtract(7, 'days');
   const daysToNextWednesday = 7 - currentDay + 3;
   if (isLastThursday) {
     return today.format('DDMMMYYYY').toUpperCase();
@@ -133,7 +125,7 @@ export const getNextExpiry = () => {
   } else if (isWednesday) {
     return today.format('DDMMMYYYY').toUpperCase();
   } else if (
-    today.isBefore(getLastWednesdayofMonth()) &&
+    today.isBefore(getLastWednesdayOfMonth()) &&
     today.isAfter(secondLastWednesday)
   ) {
     return getLastThursdayOfCurrentMonth();
