@@ -1,6 +1,7 @@
 // dataStore.ts
 
 import { ISmartApiData } from '../app.interface';
+import { generateSmartSession } from '../helpers/apiService';
 
 class SmartSession {
   private static instance: SmartSession;
@@ -13,6 +14,11 @@ class SmartSession {
       jwtToken: '',
       refreshToken: '',
     };
+    generateSmartSession().then((value: ISmartApiData) => {
+      this.postData.feedToken = value.feedToken;
+      this.postData.jwtToken = value.jwtToken;
+      this.postData.refreshToken = value.refreshToken;
+    });
   }
 
   static getInstance() {

@@ -380,6 +380,7 @@ export const getLastThursdayOfCurrentMonth = () => {
   return lastDayOfMonth.format('DDMMMYYYY').toUpperCase();
 };
 export const getData = async (tradeType: TradeType) => {
+  console.log(`${ALGO}: wait fetching positions...`);
   return await getPositionsJson(tradeType);
 };
 export const checkPositionsExistsForMonthlyExpiry = (

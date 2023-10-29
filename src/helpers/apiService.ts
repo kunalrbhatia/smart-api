@@ -19,6 +19,7 @@ import {
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
+  setSmartSession,
   updateMaxSl,
   writeJsonFile,
 } from './functions';
@@ -76,7 +77,9 @@ export const getLtpData = async ({
   tradingsymbol,
   symboltoken,
 }: getLtpDataType): Promise<LtpDataType> => {
-  const smartApiData: ISmartApiData = await generateSmartSession();
+  const smartInstance = SmartSession.getInstance();
+  await delay({ milliSeconds: DELAY });
+  const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
   const cred = DataStore.getInstance().getPostData();
@@ -242,7 +245,9 @@ export const getScrip = async ({
 };
 export const getPositions = async () => {
   await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = await generateSmartSession();
+  const smartInstance = SmartSession.getInstance();
+  await delay({ milliSeconds: DELAY });
+  const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   const cred = DataStore.getInstance().getPostData();
   let config = {
@@ -273,7 +278,9 @@ export const getPositions = async () => {
     });
 };
 export const getHistoricPrices = async (data: HistoryInterface) => {
-  const smartApiData: ISmartApiData = SmartSession.getInstance().getPostData();
+  const smartInstance = SmartSession.getInstance();
+  await delay({ milliSeconds: DELAY });
+  const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   const cred = DataStore.getInstance().getPostData();
   const payload = JSON.stringify({
@@ -313,7 +320,9 @@ export const doOrder = async ({
   symboltoken,
   productType = 'CARRYFORWARD',
 }: doOrderType): Promise<doOrderResponse> => {
-  const smartApiData: ISmartApiData = await generateSmartSession();
+  const smartInstance = SmartSession.getInstance();
+  await delay({ milliSeconds: DELAY });
+  const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   let data = JSON.stringify({
     exchange: 'NFO',
@@ -450,7 +459,9 @@ export const shortStraddle = async (
   }
 };
 export const getMarginDetails = async () => {
-  const smartApiData: ISmartApiData = await generateSmartSession();
+  const smartInstance = SmartSession.getInstance();
+  await delay({ milliSeconds: DELAY });
+  const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   const cred = DataStore.getInstance().getPostData();
   const config = {
@@ -897,8 +908,11 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   const isTradeOpen = !data.isTradeClosed;
   let isSmartAPIWorking = false;
   try {
-    const smartSession = await generateSmartSession();
-    isSmartAPIWorking = !isEmpty(smartSession);
+    const smartData = await generateSmartSession();
+    isSmartAPIWorking = !isEmpty(smartData);
+    if (isSmartAPIWorking) {
+      setSmartSession(smartData);
+    }
   } catch (err) {
     console.log('Error occurred for generateSmartSession');
   }
