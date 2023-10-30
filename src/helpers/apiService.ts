@@ -1,6 +1,5 @@
 import { get, isArray, isEmpty } from 'lodash';
 let { SmartAPI } = require('smartapi-javascript');
-import { RSI } from 'technicalindicators';
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
@@ -19,6 +18,7 @@ import {
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
+  roundToNearestHundred,
   setSmartSession,
   updateMaxSl,
   writeJsonFile,
@@ -72,7 +72,7 @@ import {
 } from './constants';
 import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
-import { RSIInput } from 'technicalindicators/declarations/oscillators/RSI';
+const tulind = require('tulind');
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
@@ -183,13 +183,15 @@ export const getScripFut = async ({ scriptName }: getScripFutType) => {
   );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
     console.log(`${ALGO} all check cleared getScrip call`);
+    console.log(`${ALGO}: expiry: ${getLastThursdayOfCurrentMonth()}`);
     let filteredScrip = scripMaster.filter((scrip) => {
       const _scripName: string = get(scrip, 'name', '') || '';
       const _expiry: string = getLastThursdayOfCurrentMonth();
       return (
         (_scripName.includes(scriptName) || _scripName === scriptName) &&
         get(scrip, 'exch_seg') === 'NFO' &&
-        get(scrip, 'instrumenttype') === 'FUTSTK' &&
+        (get(scrip, 'instrumenttype') === 'FUTSTK' ||
+          get(scrip, 'instrumenttype') === 'FUTIDX') &&
         get(scrip, 'expiry') === _expiry
       );
     });
@@ -944,37 +946,53 @@ export const checkMarketConditionsAndExecuteTrade = async (
   }
 };
 export const runRsiAlgo = async () => {
-  const allFuts = await getAllFut();
-  for (const scrip of allFuts) {
-    const data: HistoryInterface = {
-      exchange: scrip.exch_seg,
-      interval: HistoryInterval.FIVE_MINUTE,
-      symboltoken: scrip.token,
-      fromdate: getCurrentTimeAndPastTime().pastTime,
-      todate: getCurrentTimeAndPastTime().currentTime,
-    };
-    //console.log(`${ALGO}: payload for historic data api`, data);
-    await delay({ milliSeconds: SHORT_DELAY });
-    const historicData = await getHistoricPrices(data);
-    if (historicData && isArray(historicData)) {
-      const closingPrices: number[] = [];
-      // for (let i = historicData.length - 1; i >= 0; i--) {
-      //   //console.log(`${scrip.symbol}: `, historicData[i]);
-      //   closingPrices.push(historicData[i][4]);
-      // }
-      for (let i = 0; i < historicData.length; i++) {
-        //console.log(`${scrip.symbol}: `, historicData[i]);
-        closingPrices.push(historicData[i][4]);
-      }
-      const rsiInput: RSIInput = { period: 14, values: closingPrices };
-      console.log(`RSI: ${scrip.symbol}`, RSI.calculate(rsiInput));
-      //console.log(`Closing prices: `, closingPrices);
-      //console.log(`RSI: ${scrip.symbol}`, calculateRSI(closingPrices));
-    }
-    //console.log(historicData);
+  const scrip = await getScripFut({ scriptName: 'BANKNIFTY' });
+  const data: HistoryInterface = {
+    exchange: scrip.exch_seg,
+    interval: HistoryInterval.FIVE_MINUTE,
+    symboltoken: scrip.token,
+    fromdate: getCurrentTimeAndPastTime().pastTime,
+    todate: getCurrentTimeAndPastTime().currentTime,
+  };
+  await delay({ milliSeconds: SHORT_DELAY });
+  const historicData = await getHistoricPrices(data);
+  if (historicData && isArray(historicData)) {
+    const closingPrices: number[] = historicData.map((d) => d[4]);
+    return new Promise(async (resolve, reject) => {
+      await tulind.indicators.rsi.indicator(
+        [closingPrices],
+        [14],
+        async (err: object, res: any) => {
+          if (err) {
+            console.log(`${ALGO}: `, err);
+            reject(err);
+          }
+          const calculatedRsi = res[0].slice(-1)[0];
+          console.log(`${ALGO}: calculatedRsi: ${calculatedRsi}`);
+          if (calculatedRsi > 20) {
+            const ltp = await getLtpData({
+              exchange: scrip.exch_seg,
+              tradingsymbol: scrip.symbol,
+              symboltoken: scrip.token,
+            });
+            console.log(`${ALGO}: ltp: ${ltp.ltp}`);
+            const ltpPlus500 = roundToNearestHundred(ltp.ltp + 500);
+            const optScrip = await getScrip({
+              scriptName: scrip.name,
+              strikePrice: ltpPlus500.toString(),
+              optionType: 'CE',
+              expiryDate: getNextExpiry(),
+            });
+            console.log(optScrip);
+            //TILL HERE I AM ABLE TO GET RSI OF BANK NIFTY CURRENT FUTURE, HERE AFTER I HAVE TO WRITE CODE TO CONNECT FIREBASE DATABASE AND STORE MY VALUES OF TRADE THERE SO THAT I CAN KEEP TRACK OF IT AND LATER CLOSE THE TRADE IN EITHER PROFIT OR LOSS.
+            resolve(optScrip);
+          } else {
+            resolve({ rsi: calculatedRsi });
+          }
+        }
+      );
+    });
   }
-
-  return allFuts;
 };
 export const checkPositionAlreadyExists = async ({
   position,

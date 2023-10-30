@@ -65,7 +65,7 @@ app.post('/run-rsi-algo', async (req: Request, res: Response) => {
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
     const response = await runRsiAlgo();
-    console.log(`response: ${response}`);
+    //console.log(`response: ${response}`);
     res.send({ response: response });
   } catch (err) {
     console.log(err);

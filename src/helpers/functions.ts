@@ -354,3 +354,6 @@ export const checkPositionsExistsForMonthlyExpiry = (
       position.expirydate === getLastThursdayOfCurrentMonth()
   );
 };
+export const roundToNearestHundred = (input: number): number => {
+  return Math.ceil(input / 100) * 100;
+};
