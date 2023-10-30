@@ -14,7 +14,6 @@ import {
   calculateMtm,
   checkMarketConditionsAndExecuteTrade,
   checkPositionToClose,
-  generateSmartSession,
   getLtpData,
   getPositions,
   getPositionsJson,
@@ -28,7 +27,6 @@ import {
   getOpenPositions,
   readJsonFile,
   setCred,
-  setSmartSession,
 } from './helpers/functions';
 import dotenv from 'dotenv';
 import { Position, TradeType, bodyType, reqType } from './app.interface';
@@ -134,7 +132,7 @@ app.post(
       const response = await checkMarketConditionsAndExecuteTrade(
         TradeType.POSITIONAL
       );
-      console.log(`response: ${response}`);
+      // console.log(`response: ${response}`);
       res.send({ response: response });
     } catch (err) {
       console.log(err);

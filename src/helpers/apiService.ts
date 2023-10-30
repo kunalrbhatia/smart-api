@@ -1,10 +1,10 @@
 import { get, isArray, isEmpty } from 'lodash';
 let { SmartAPI } = require('smartapi-javascript');
+import { RSI } from 'technicalindicators';
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
   areBothOptionTypesPresentForStrike,
-  calculateRSI,
   checkPositionsExistsForMonthlyExpiry,
   checkStrike,
   createJsonFile,
@@ -72,6 +72,7 @@ import {
 } from './constants';
 import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
+import { RSIInput } from 'technicalindicators/declarations/oscillators/RSI';
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
@@ -162,7 +163,7 @@ export const getAllFut = async () => {
       return (
         get(scrip, 'exch_seg') === 'NFO' &&
         get(scrip, 'instrumenttype') === 'FUTSTK' &&
-        parseInt(get(scrip, 'lotsize')) < 300 &&
+        parseInt(get(scrip, 'lotsize')) < 51 &&
         get(scrip, 'expiry') === _expiry
       );
     });
@@ -952,18 +953,23 @@ export const runRsiAlgo = async () => {
       fromdate: getCurrentTimeAndPastTime().pastTime,
       todate: getCurrentTimeAndPastTime().currentTime,
     };
+    //console.log(`${ALGO}: payload for historic data api`, data);
     await delay({ milliSeconds: SHORT_DELAY });
     const historicData = await getHistoricPrices(data);
     if (historicData && isArray(historicData)) {
-      const last14Closing: number[] = [];
-      for (
-        let i = historicData.length - 1;
-        i >= historicData.length - 14;
-        i--
-      ) {
-        last14Closing.push(historicData[i][4]);
+      const closingPrices: number[] = [];
+      // for (let i = historicData.length - 1; i >= 0; i--) {
+      //   //console.log(`${scrip.symbol}: `, historicData[i]);
+      //   closingPrices.push(historicData[i][4]);
+      // }
+      for (let i = 0; i < historicData.length; i++) {
+        //console.log(`${scrip.symbol}: `, historicData[i]);
+        closingPrices.push(historicData[i][4]);
       }
-      console.log(`RSI: ${scrip.symbol}`, calculateRSI(last14Closing, 14));
+      const rsiInput: RSIInput = { period: 14, values: closingPrices };
+      console.log(`RSI: ${scrip.symbol}`, RSI.calculate(rsiInput));
+      //console.log(`Closing prices: `, closingPrices);
+      //console.log(`RSI: ${scrip.symbol}`, calculateRSI(closingPrices));
     }
     //console.log(historicData);
   }
