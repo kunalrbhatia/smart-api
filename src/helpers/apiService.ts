@@ -2,6 +2,8 @@ import { get, isArray, isEmpty } from 'lodash';
 let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
+import { initializeApp } from 'firebase/app';
+import { child, getDatabase, push, ref, set, update } from 'firebase/database';
 import {
   areBothOptionTypesPresentForStrike,
   checkPositionsExistsForMonthlyExpiry,
@@ -73,6 +75,18 @@ import {
 import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
 const tulind = require('tulind');
+const firebaseConfig = {
+  apiKey: 'AIzaSyA7kZaNsFKIg2gi176ECFCBFqMiHVYLSzQ',
+  authDomain: 'smart-api-840b7.firebaseapp.com',
+  databaseURL: 'https://smart-api-840b7-default-rtdb.firebaseio.com',
+  projectId: 'smart-api-840b7',
+  storageBucket: 'smart-api-840b7.appspot.com',
+  messagingSenderId: '858775846844',
+  appId: '1:858775846844:web:a4504edfcf5108135175b9',
+  measurementId: 'G-6EJTK80RSE',
+};
+const firebase_app = initializeApp(firebaseConfig);
+const database = getDatabase(firebase_app);
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
@@ -206,8 +220,8 @@ export const getScrip = async ({
   strikePrice,
   optionType,
   expiryDate,
-}: getScripType): Promise<object[]> => {
-  let scripMaster: object[] = await fetchData();
+}: getScripType): Promise<scripMasterResponse[]> => {
+  let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
     `${ALGO}:scriptName: ${scriptName}, is scrip master an array: ${isArray(
       scripMaster
@@ -234,9 +248,17 @@ export const getScrip = async ({
     );
     scrips = scrips.map((element: object, index: number) => {
       return {
-        ...element,
+        exch_seg: get(element, 'exch_seg', '') || '',
+        expiry: get(element, 'expiry', '') || '',
+        instrumenttype: get(element, 'instrumenttype', '') || '',
+        lotsize: get(element, 'lotsize', '') || '',
+        name: get(element, 'name', '') || '',
+        strike: get(element, 'strike', '') || '',
+        symbol: get(element, 'symbol', '') || '',
+        tick_size: get(element, 'tick_size', '') || '',
+        token: get(element, 'token', '') || '',
         label: get(element, 'name', 'NoName') || 'NoName',
-        key: index,
+        key: index.toString(),
       };
     });
     return scrips;
@@ -700,10 +722,18 @@ export const closeAllTrades = async (
     const data = readJsonFile(tradeType);
     await delay({ milliSeconds: DELAY });
     const tradeDetails = data.tradeDetails;
-
     if (Array.isArray(tradeDetails)) {
+      const nextExpiry = getNextExpiry();
+      const lastThursdayOfMonth = getLastThursdayOfCurrentMonth();
       for (const trade of tradeDetails) {
-        await closeParticularTrade({ trade });
+        if (
+          (trade.expireDate === nextExpiry &&
+            tradeType === TradeType.INTRADAY) ||
+          (trade.expireDate === lastThursdayOfMonth &&
+            tradeType === TradeType.POSITIONAL)
+        ) {
+          await closeParticularTrade({ trade });
+        }
       }
       await delay({ milliSeconds: DELAY });
       await writeJsonFile(data, tradeType);
@@ -983,8 +1013,37 @@ export const runRsiAlgo = async () => {
               optionType: 'CE',
               expiryDate: getNextExpiry(),
             });
-            console.log(optScrip);
-            //TILL HERE I AM ABLE TO GET RSI OF BANK NIFTY CURRENT FUTURE, HERE AFTER I HAVE TO WRITE CODE TO CONNECT FIREBASE DATABASE AND STORE MY VALUES OF TRADE THERE SO THAT I CAN KEEP TRACK OF IT AND LATER CLOSE THE TRADE IN EITHER PROFIT OR LOSS.
+            const orderDetails = await doOrder({
+              tradingsymbol: optScrip[0].symbol,
+              symboltoken: optScrip[0].token,
+              transactionType: TRANSACTION_TYPE_SELL,
+              productType: 'DELIVERY',
+            });
+            if (orderDetails.status) {
+              const json: JsonFileStructure = {
+                isTradeExecuted: true,
+                accountDetails: { capitalUsed: 0 },
+                isTradeClosed: false,
+                tradeDetails: [
+                  {
+                    exchange: optScrip[0].exch_seg,
+                    expireDate: optScrip[0].expiry,
+                    netQty: '15',
+                    optionType: 'CE',
+                    strike: optScrip[0].strike,
+                    symbol: optScrip[0].symbol,
+                    token: optScrip[0].token,
+                    tradingSymbol: optScrip[0].symbol,
+                    closed: false,
+                    tradedPrice: 0,
+                  },
+                ],
+                mtm: [{ time: '', value: '' }],
+              };
+              makeNewTrade(Strategy.RSI, json);
+            }
+            makeNewTrade(Strategy.RSI);
+            //HERE AFTER I'VE TO WRITE CODE TO READ FIREBASE DATABASE SO THAT I CAN KNOW, IF A TRADE IS ALREADY PLACED AND ALSO TO READ MTM SO AS TO BOOK PROFIT/LOSS
             resolve(optScrip);
           } else {
             resolve({ rsi: calculatedRsi });
@@ -1068,4 +1127,15 @@ export const runOrb = async ({
     }
   }
   return { mtm };
+};
+const makeNewTrade = async (strategy: Strategy, json?: JsonFileStructure) => {
+  /* const db = getDatabase();
+  const tradeKey = push(child(ref(db), `${strategy}/trades/`)).key;
+  const updates: { [key: string]: JsonFileStructure } = {};
+  updates[`${strategy}/trades/` + tradeKey] = json;
+  await update(ref(db), updates);
+  //return tradeKey; */
+  const db = getDatabase();
+  if (json) set(ref(db, `${strategy}/trades/`), json);
+  else set(ref(db, `${strategy}/trades/`), {});
 };
