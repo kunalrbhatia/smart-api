@@ -720,6 +720,7 @@ export const closeAllTrades = async (
   try {
     await delay({ milliSeconds: DELAY });
     const data = readJsonFile(tradeType);
+    console.log(`${ALGO}: closeAllTrades tradetype: `, tradeType);
     await delay({ milliSeconds: DELAY });
     const tradeDetails = data.tradeDetails;
     if (Array.isArray(tradeDetails)) {
@@ -761,21 +762,28 @@ export const closeTrade = async (tradeType: TradeType = TradeType.INTRADAY) => {
 export const areAllTradesClosed = async (
   tradeType: TradeType = TradeType.INTRADAY
 ) => {
-  console.log(`${ALGO}: checking if all the trades are closed.`);
+  console.log(
+    `${ALGO}: {areAllTradesClosed} checking if all the trades are closed.`,
+    tradeType
+  );
   await delay({ milliSeconds: DELAY });
   const data = readJsonFile(tradeType);
   await delay({ milliSeconds: DELAY });
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
-      if (trade.closed === false) {
+      const isTradeOpen = !trade.closed;
+      const isExpiryMatch =
+        (tradeType === TradeType.INTRADAY &&
+          trade.expireDate === getNextExpiry()) ||
+        (tradeType === TradeType.POSITIONAL &&
+          trade.expireDate === getLastThursdayOfCurrentMonth());
+      if (isTradeOpen && isExpiryMatch) {
         return false;
       }
     }
-    return true;
-  } else {
-    return false;
   }
+  return true;
 };
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,

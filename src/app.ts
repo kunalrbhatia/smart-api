@@ -14,6 +14,7 @@ import {
   calculateMtm,
   checkMarketConditionsAndExecuteTrade,
   checkPositionToClose,
+  closeTrade,
   getLtpData,
   getPositions,
   getPositionsJson,
@@ -44,6 +45,11 @@ app.get('/', (req: Request, res: Response) => {
 });
 process.on('uncaughtException', function (err) {
   console.log(err);
+});
+app.post('/closeTrade', async (req: Request, res: Response) => {
+  setCred(req);
+  await closeTrade(TradeType.POSITIONAL);
+  res.send({ ok: 123 });
 });
 app.post('/check-positions-to-close', async (req: Request, res: Response) => {
   setCred(req);
