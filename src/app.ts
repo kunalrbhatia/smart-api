@@ -55,7 +55,7 @@ server.on('connection', (connection) => {
     () => (connections = connections.filter((curr) => curr !== connection))
   );
 });
-app.get('/kill', async (req: Request, res: Response) => {
+app.get('/kill', () => {
   console.log('Received kill signal, shutting down gracefully');
   server.close(() => {
     console.log('Closed out remaining connections');
