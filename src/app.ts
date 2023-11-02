@@ -55,20 +55,23 @@ server.on('connection', (connection) => {
     () => (connections = connections.filter((curr) => curr !== connection))
   );
 });
-app.get('/kill', () => {
-  console.log('Received kill signal, shutting down gracefully');
-  server.close(() => {
-    console.log('Closed out remaining connections');
-    process.exit(0);
-  });
+app.get('/kill', (req, res) => {
   setTimeout(() => {
-    console.error(
-      'Could not close connections in time, forcefully shutting down'
-    );
-    process.exit(1);
-  }, 10000);
-  connections.forEach((curr) => curr.end());
-  setTimeout(() => connections.forEach((curr) => curr.destroy()), 5000);
+    console.log('Received kill signal, shutting down gracefully');
+    server.close(() => {
+      console.log('Closed out remaining connections');
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.error(
+        'Could not close connections in time, forcefully shutting down'
+      );
+      process.exit(1);
+    }, 10000);
+    connections.forEach((curr) => curr.end());
+    setTimeout(() => connections.forEach((curr) => curr.destroy()), 5000);
+  }, 1000);
+  res.send("Execution of the 'Kill Algo' command has been initiated.");
 });
 app.post('/closeTrade', async (req: Request, res: Response) => {
   setCred(req);
