@@ -32,6 +32,7 @@ import {
 import dotenv from 'dotenv';
 import { Position, TradeType, bodyType, reqType } from './app.interface';
 import { get } from 'lodash';
+import { Socket } from 'net';
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
@@ -45,6 +46,29 @@ app.get('/', (req: Request, res: Response) => {
 });
 process.on('uncaughtException', function (err) {
   console.log(err);
+});
+let connections: Socket[] = [];
+server.on('connection', (connection) => {
+  connections.push(connection);
+  connection.on(
+    'close',
+    () => (connections = connections.filter((curr) => curr !== connection))
+  );
+});
+app.get('/kill', async (req: Request, res: Response) => {
+  console.log('Received kill signal, shutting down gracefully');
+  server.close(() => {
+    console.log('Closed out remaining connections');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error(
+      'Could not close connections in time, forcefully shutting down'
+    );
+    process.exit(1);
+  }, 10000);
+  connections.forEach((curr) => curr.end());
+  setTimeout(() => connections.forEach((curr) => curr.destroy()), 5000);
 });
 app.post('/closeTrade', async (req: Request, res: Response) => {
   setCred(req);
