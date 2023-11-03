@@ -46,6 +46,7 @@ export enum Strategy {
 }
 export interface JsonFileStructure {
   isTradeExecuted: boolean;
+  tradeDate?: string;
   accountDetails: {
     capitalUsed: number;
   };

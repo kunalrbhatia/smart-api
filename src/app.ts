@@ -89,7 +89,7 @@ app.post('/check-positions-to-close', async (req: Request, res: Response) => {
   });
   res.send().status(200);
 });
-app.post('/run-rsi-algo', async (req: Request, res: Response) => {
+app.post('/rsi', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', {

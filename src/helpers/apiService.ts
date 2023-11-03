@@ -1,9 +1,8 @@
 import { get, isArray, isEmpty } from 'lodash';
+
 let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
-import { initializeApp } from 'firebase/app';
-import { child, getDatabase, push, ref, set, update } from 'firebase/database';
 import {
   areBothOptionTypesPresentForStrike,
   checkPositionsExistsForMonthlyExpiry,
@@ -74,19 +73,9 @@ import {
 } from './constants';
 import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
+import moment from 'moment-timezone';
+import { findTrade, makeNewTrade } from './dbService';
 const tulind = require('tulind');
-const firebaseConfig = {
-  apiKey: 'AIzaSyA7kZaNsFKIg2gi176ECFCBFqMiHVYLSzQ',
-  authDomain: 'smart-api-840b7.firebaseapp.com',
-  databaseURL: 'https://smart-api-840b7-default-rtdb.firebaseio.com',
-  projectId: 'smart-api-840b7',
-  storageBucket: 'smart-api-840b7.appspot.com',
-  messagingSenderId: '858775846844',
-  appId: '1:858775846844:web:a4504edfcf5108135175b9',
-  measurementId: 'G-6EJTK80RSE',
-};
-const firebase_app = initializeApp(firebaseConfig);
-const database = getDatabase(firebase_app);
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
@@ -983,84 +972,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
     return MESSAGE_NOT_TAKE_TRADE;
   }
 };
-export const runRsiAlgo = async () => {
-  const scrip = await getScripFut({ scriptName: 'BANKNIFTY' });
-  const data: HistoryInterface = {
-    exchange: scrip.exch_seg,
-    interval: HistoryInterval.FIVE_MINUTE,
-    symboltoken: scrip.token,
-    fromdate: getCurrentTimeAndPastTime().pastTime,
-    todate: getCurrentTimeAndPastTime().currentTime,
-  };
-  await delay({ milliSeconds: SHORT_DELAY });
-  const historicData = await getHistoricPrices(data);
-  if (historicData && isArray(historicData)) {
-    const closingPrices: number[] = historicData.map((d) => d[4]);
-    return new Promise(async (resolve, reject) => {
-      await tulind.indicators.rsi.indicator(
-        [closingPrices],
-        [14],
-        async (err: object, res: any) => {
-          if (err) {
-            console.log(`${ALGO}: `, err);
-            reject(err);
-          }
-          const calculatedRsi = res[0].slice(-1)[0];
-          console.log(`${ALGO}: calculatedRsi: ${calculatedRsi}`);
-          if (calculatedRsi > 20) {
-            const ltp = await getLtpData({
-              exchange: scrip.exch_seg,
-              tradingsymbol: scrip.symbol,
-              symboltoken: scrip.token,
-            });
-            console.log(`${ALGO}: ltp: ${ltp.ltp}`);
-            const ltpPlus500 = roundToNearestHundred(ltp.ltp + 500);
-            const optScrip = await getScrip({
-              scriptName: scrip.name,
-              strikePrice: ltpPlus500.toString(),
-              optionType: 'CE',
-              expiryDate: getNextExpiry(),
-            });
-            const orderDetails = await doOrder({
-              tradingsymbol: optScrip[0].symbol,
-              symboltoken: optScrip[0].token,
-              transactionType: TRANSACTION_TYPE_SELL,
-              productType: 'DELIVERY',
-            });
-            if (orderDetails.status) {
-              const json: JsonFileStructure = {
-                isTradeExecuted: true,
-                accountDetails: { capitalUsed: 0 },
-                isTradeClosed: false,
-                tradeDetails: [
-                  {
-                    exchange: optScrip[0].exch_seg,
-                    expireDate: optScrip[0].expiry,
-                    netQty: '15',
-                    optionType: 'CE',
-                    strike: optScrip[0].strike,
-                    symbol: optScrip[0].symbol,
-                    token: optScrip[0].token,
-                    tradingSymbol: optScrip[0].symbol,
-                    closed: false,
-                    tradedPrice: 0,
-                  },
-                ],
-                mtm: [{ time: '', value: '' }],
-              };
-              makeNewTrade(Strategy.RSI, json);
-            }
-            makeNewTrade(Strategy.RSI);
-            //HERE AFTER I'VE TO WRITE CODE TO READ FIREBASE DATABASE SO THAT I CAN KNOW, IF A TRADE IS ALREADY PLACED AND ALSO TO READ MTM SO AS TO BOOK PROFIT/LOSS
-            resolve(optScrip);
-          } else {
-            resolve({ rsi: calculatedRsi });
-          }
-        }
-      );
-    });
-  }
-};
+
 export const checkPositionAlreadyExists = async ({
   position,
   trades,
@@ -1136,14 +1048,102 @@ export const runOrb = async ({
   }
   return { mtm };
 };
-const makeNewTrade = async (strategy: Strategy, json?: JsonFileStructure) => {
-  /* const db = getDatabase();
-  const tradeKey = push(child(ref(db), `${strategy}/trades/`)).key;
-  const updates: { [key: string]: JsonFileStructure } = {};
-  updates[`${strategy}/trades/` + tradeKey] = json;
-  await update(ref(db), updates);
-  //return tradeKey; */
-  const db = getDatabase();
-  if (json) set(ref(db, `${strategy}/trades/`), json);
-  else set(ref(db, `${strategy}/trades/`), {});
+export const runRsiAlgo = async () => {
+  const todaysTrade = await findTrade(Strategy.RSI);
+  if (todaysTrade) {
+    console.log(todaysTrade);
+  } else {
+    const scrip = await getScripFut({ scriptName: 'BANKNIFTY' });
+    const data: HistoryInterface = {
+      exchange: scrip.exch_seg,
+      interval: HistoryInterval.FIVE_MINUTE,
+      symboltoken: scrip.token,
+      fromdate: getCurrentTimeAndPastTime().pastTime,
+      todate: getCurrentTimeAndPastTime().currentTime,
+    };
+    await delay({ milliSeconds: SHORT_DELAY });
+    const historicData = await getHistoricPrices(data);
+    if (historicData && isArray(historicData)) {
+      const closingPrices: number[] = historicData.map((d) => d[4]);
+      return new Promise(async (resolve, reject) => {
+        await tulind.indicators.rsi.indicator(
+          [closingPrices],
+          [14],
+          async (err: object, res: any) => {
+            if (err) {
+              console.log(`${ALGO}: `, err);
+              reject(err);
+            }
+            const calculatedRsi = res[0].slice(-1)[0];
+            console.log(`${ALGO}: calculatedRsi: ${calculatedRsi}`);
+            const ltp = await getLtpData({
+              exchange: scrip.exch_seg,
+              tradingsymbol: scrip.symbol,
+              symboltoken: scrip.token,
+            });
+            console.log(`${ALGO}: ltp: ${ltp.ltp}`);
+            if (calculatedRsi > 80) {
+              const ltpPlus500 = roundToNearestHundred(ltp.ltp + 500);
+              const optScrip = await getScrip({
+                scriptName: scrip.name,
+                strikePrice: ltpPlus500.toString(),
+                optionType: 'CE',
+                expiryDate: getNextExpiry(),
+              });
+              const orderDetails = await doOrder({
+                tradingsymbol: optScrip[0].symbol,
+                symboltoken: optScrip[0].token,
+                transactionType: TRANSACTION_TYPE_SELL,
+                productType: 'DELIVERY',
+              });
+
+              if (orderDetails.status) {
+                let positionsResponse = await getPositions();
+                let positionsData = get(positionsResponse, 'data', []) ?? [];
+                let mtm = 0;
+                if (Array.isArray(positionsData) && positionsData.length > 0) {
+                  const position = positionsData.filter((position) => {
+                    if (get(position, 'symboltoken') === scrip.token)
+                      return position;
+                  });
+                  mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
+                }
+                const istTz = new Date().toLocaleString('default', {
+                  timeZone: 'Asia/Kolkata',
+                });
+                const json: JsonFileStructure = {
+                  isTradeExecuted: true,
+                  accountDetails: { capitalUsed: 0 },
+                  isTradeClosed: false,
+                  tradeDate: moment().format('DD/MM/YYYY'),
+                  tradeDetails: [
+                    {
+                      exchange: optScrip[0].exch_seg,
+                      expireDate: optScrip[0].expiry,
+                      netQty: '15',
+                      optionType: 'CE',
+                      strike: optScrip[0].strike,
+                      symbol: optScrip[0].symbol,
+                      token: optScrip[0].token,
+                      tradingSymbol: optScrip[0].symbol,
+                      closed: false,
+                      tradedPrice: 0,
+                    },
+                  ],
+                  mtm: [{ time: istTz, value: mtm.toString() }],
+                };
+
+                makeNewTrade(Strategy.RSI, json);
+              }
+              //makeNewTrade(Strategy.RSI);
+              //HERE AFTER I'VE TO WRITE CODE TO READ FIREBASE DATABASE SO THAT I CAN KNOW, IF A TRADE IS ALREADY PLACED AND ALSO TO READ MTM SO AS TO BOOK PROFIT/LOSS
+              resolve(optScrip);
+            } else {
+              resolve({ rsi: calculatedRsi });
+            }
+          }
+        );
+      });
+    }
+  }
 };

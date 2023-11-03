@@ -30,25 +30,48 @@ app.get('/', function (req, res) {
   });
 });
 process.on('uncaughtException', function (err) {});
-app.post('/check-positions-to-close', /*#__PURE__*/function () {
+var connections = [];
+server.on('connection', function (connection) {
+  connections.push(connection);
+  connection.on('close', function () {
+    return connections = connections.filter(function (curr) {
+      return curr !== connection;
+    });
+  });
+});
+app.get('/kill', function (req, res) {
+  setTimeout(function () {
+    server.close(function () {
+      process.exit(0);
+    });
+    setTimeout(function () {
+      console.error('Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 10000);
+    connections.forEach(function (curr) {
+      return curr.end();
+    });
+    setTimeout(function () {
+      return connections.forEach(function (curr) {
+        return curr.destroy();
+      });
+    }, 5000);
+  }, 1000);
+  res.send("Execution of the 'Kill Algo' command has been initiated.");
+});
+app.post('/closeTrade', /*#__PURE__*/function () {
   var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(req, res) {
-    var currentPositions, positions, openPositions;
     return _regeneratorRuntime().wrap(function _callee$(_context) {
       while (1) switch (_context.prev = _context.next) {
         case 0:
           (0, _functions.setCred)(req);
           _context.next = 3;
-          return (0, _apiService.getPositions)();
+          return (0, _apiService.closeTrade)(_app.TradeType.POSITIONAL);
         case 3:
-          currentPositions = _context.sent;
-          positions = (0, _lodash.get)(currentPositions, 'data', []) || [];
-          openPositions = (0, _functions.getOpenPositions)(positions);
-          (0, _apiService.checkPositionToClose)({
-            openPositions: openPositions,
-            tradeType: _app.TradeType.INTRADAY
+          res.send({
+            ok: 123
           });
-          res.send().status(200);
-        case 8:
+        case 4:
         case "end":
           return _context.stop();
       }
@@ -58,43 +81,35 @@ app.post('/check-positions-to-close', /*#__PURE__*/function () {
     return _ref.apply(this, arguments);
   };
 }());
-app.post('/run-short-straddle-algo', /*#__PURE__*/function () {
+app.post('/check-positions-to-close', /*#__PURE__*/function () {
   var _ref2 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2(req, res) {
-    var istTz, response;
+    var currentPositions, positions, openPositions;
     return _regeneratorRuntime().wrap(function _callee2$(_context2) {
       while (1) switch (_context2.prev = _context2.next) {
         case 0:
-          _context2.prev = 0;
-          istTz = new Date().toLocaleString('default', {
-            timeZone: 'Asia/Kolkata'
-          });
           (0, _functions.setCred)(req);
-          _context2.next = 5;
-          return (0, _apiService.checkMarketConditionsAndExecuteTrade)(_app.TradeType.INTRADAY);
-        case 5:
-          response = _context2.sent;
-          res.send({
-            response: response
+          _context2.next = 3;
+          return (0, _apiService.getPositions)();
+        case 3:
+          currentPositions = _context2.sent;
+          positions = (0, _lodash.get)(currentPositions, 'data', []) || [];
+          openPositions = (0, _functions.getOpenPositions)(positions);
+          (0, _apiService.checkPositionToClose)({
+            openPositions: openPositions,
+            tradeType: _app.TradeType.INTRADAY
           });
-          _context2.next = 12;
-          break;
-        case 9:
-          _context2.prev = 9;
-          _context2.t0 = _context2["catch"](0);
-          res.send({
-            response: _context2.t0
-          });
-        case 12:
+          res.send().status(200);
+        case 8:
         case "end":
           return _context2.stop();
       }
-    }, _callee2, null, [[0, 9]]);
+    }, _callee2);
   }));
   return function (_x3, _x4) {
     return _ref2.apply(this, arguments);
   };
 }());
-app.post('/run-short-straddle-positional-algo', /*#__PURE__*/function () {
+app.post('/run-rsi-algo', /*#__PURE__*/function () {
   var _ref3 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee3(req, res) {
     var istTz, response;
     return _regeneratorRuntime().wrap(function _callee3$(_context3) {
@@ -106,9 +121,10 @@ app.post('/run-short-straddle-positional-algo', /*#__PURE__*/function () {
           });
           (0, _functions.setCred)(req);
           _context3.next = 5;
-          return (0, _apiService.checkMarketConditionsAndExecuteTrade)(_app.TradeType.POSITIONAL);
+          return (0, _apiService.runRsiAlgo)();
         case 5:
           response = _context3.sent;
+          //console.log(`response: ${response}`);
           res.send({
             response: response
           });
@@ -130,13 +146,131 @@ app.post('/run-short-straddle-positional-algo', /*#__PURE__*/function () {
     return _ref3.apply(this, arguments);
   };
 }());
-if (process.env.NODE_ENV === 'development') {
-  _nodeCron["default"].schedule('*/5 * * * *', /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee4() {
-    var _process$env$API_KEY, _process$env$CLIENT_C, _process$env$CLIENT_P, _process$env$CLIENT_T, istTz, body, req, response;
+app.post('/run-short-straddle-algo', /*#__PURE__*/function () {
+  var _ref4 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee4(req, res) {
+    var istTz, response;
     return _regeneratorRuntime().wrap(function _callee4$(_context4) {
       while (1) switch (_context4.prev = _context4.next) {
         case 0:
           _context4.prev = 0;
+          istTz = new Date().toLocaleString('default', {
+            timeZone: 'Asia/Kolkata'
+          });
+          (0, _functions.setCred)(req);
+          _context4.next = 5;
+          return (0, _apiService.checkMarketConditionsAndExecuteTrade)(_app.TradeType.INTRADAY);
+        case 5:
+          response = _context4.sent;
+          res.send({
+            response: response
+          });
+          _context4.next = 12;
+          break;
+        case 9:
+          _context4.prev = 9;
+          _context4.t0 = _context4["catch"](0);
+          res.send({
+            response: _context4.t0
+          });
+        case 12:
+        case "end":
+          return _context4.stop();
+      }
+    }, _callee4, null, [[0, 9]]);
+  }));
+  return function (_x7, _x8) {
+    return _ref4.apply(this, arguments);
+  };
+}());
+app.post('/orb', /*#__PURE__*/function () {
+  var _ref5 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5(req, res) {
+    var istTz, scriptName, price, maxSl, trailSl, tradeDirection, response;
+    return _regeneratorRuntime().wrap(function _callee5$(_context5) {
+      while (1) switch (_context5.prev = _context5.next) {
+        case 0:
+          _context5.prev = 0;
+          istTz = new Date().toLocaleString('default', {
+            timeZone: 'Asia/Kolkata'
+          });
+          (0, _functions.setCred)(req);
+          scriptName = req.body.script_name;
+          price = req.body.price;
+          maxSl = req.body.max_sl || -2000;
+          trailSl = req.body.trail_sl || 500;
+          tradeDirection = req.body.trade_direction;
+          _context5.next = 10;
+          return (0, _apiService.runOrb)({
+            scriptName: scriptName,
+            price: price,
+            maxSl: maxSl,
+            tradeDirection: tradeDirection,
+            trailSl: trailSl
+          });
+        case 10:
+          response = _context5.sent;
+          res.send(response);
+          _context5.next = 17;
+          break;
+        case 14:
+          _context5.prev = 14;
+          _context5.t0 = _context5["catch"](0);
+          res.send({
+            response: _context5.t0
+          });
+        case 17:
+        case "end":
+          return _context5.stop();
+      }
+    }, _callee5, null, [[0, 14]]);
+  }));
+  return function (_x9, _x10) {
+    return _ref5.apply(this, arguments);
+  };
+}());
+app.post('/run-short-straddle-positional-algo', /*#__PURE__*/function () {
+  var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee6(req, res) {
+    var istTz, response;
+    return _regeneratorRuntime().wrap(function _callee6$(_context6) {
+      while (1) switch (_context6.prev = _context6.next) {
+        case 0:
+          _context6.prev = 0;
+          istTz = new Date().toLocaleString('default', {
+            timeZone: 'Asia/Kolkata'
+          });
+          (0, _functions.setCred)(req);
+          _context6.next = 5;
+          return (0, _apiService.checkMarketConditionsAndExecuteTrade)(_app.TradeType.POSITIONAL);
+        case 5:
+          response = _context6.sent;
+          // console.log(`response: ${response}`);
+          res.send({
+            response: response
+          });
+          _context6.next = 12;
+          break;
+        case 9:
+          _context6.prev = 9;
+          _context6.t0 = _context6["catch"](0);
+          res.send({
+            response: _context6.t0
+          });
+        case 12:
+        case "end":
+          return _context6.stop();
+      }
+    }, _callee6, null, [[0, 9]]);
+  }));
+  return function (_x11, _x12) {
+    return _ref6.apply(this, arguments);
+  };
+}());
+if (process.env.NODE_ENV === 'development') {
+  _nodeCron["default"].schedule('*/5 * * * *', /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee7() {
+    var _process$env$API_KEY, _process$env$CLIENT_C, _process$env$CLIENT_P, _process$env$CLIENT_T, istTz, body, req, response;
+    return _regeneratorRuntime().wrap(function _callee7$(_context7) {
+      while (1) switch (_context7.prev = _context7.next) {
+        case 0:
+          _context7.prev = 0;
           istTz = new Date().toLocaleString('default', {
             timeZone: 'Asia/Kolkata'
           });
@@ -150,121 +284,38 @@ if (process.env.NODE_ENV === 'development') {
             body: body
           };
           (0, _functions.setCred)(req);
-          _context4.next = 7;
+          _context7.next = 7;
           return (0, _apiService.checkMarketConditionsAndExecuteTrade)(_app.TradeType.INTRADAY);
         case 7:
-          response = _context4.sent;
-          _context4.next = 12;
+          response = _context7.sent;
+          _context7.next = 12;
           break;
         case 10:
-          _context4.prev = 10;
-          _context4.t0 = _context4["catch"](0);
+          _context7.prev = 10;
+          _context7.t0 = _context7["catch"](0);
         case 12:
-        case "end":
-          return _context4.stop();
-      }
-    }, _callee4, null, [[0, 10]]);
-  })));
-}
-app.post('/get-atm-strike-price', /*#__PURE__*/function () {
-  var _ref5 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5(req, res) {
-    return _regeneratorRuntime().wrap(function _callee5$(_context5) {
-      while (1) switch (_context5.prev = _context5.next) {
-        case 0:
-          (0, _functions.setCred)(req);
-          _context5.t0 = res;
-          _context5.next = 4;
-          return (0, _functions.getAtmStrikePrice)();
-        case 4:
-          _context5.t1 = _context5.sent;
-          _context5.t2 = {
-            atm: _context5.t1
-          };
-          _context5.t0.json.call(_context5.t0, _context5.t2);
-        case 7:
-        case "end":
-          return _context5.stop();
-      }
-    }, _callee5);
-  }));
-  return function (_x7, _x8) {
-    return _ref5.apply(this, arguments);
-  };
-}());
-app.post('/script/details/get-script-ltp', /*#__PURE__*/function () {
-  var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee6(req, res) {
-    var tradingsymbol, exchange, symboltoken, ltpData;
-    return _regeneratorRuntime().wrap(function _callee6$(_context6) {
-      while (1) switch (_context6.prev = _context6.next) {
-        case 0:
-          (0, _functions.setCred)(req);
-          tradingsymbol = req.body.tradingsymbol;
-          exchange = req.body.exchange;
-          symboltoken = req.body.symboltoken;
-          _context6.next = 6;
-          return (0, _apiService.getLtpData)({
-            exchange: exchange,
-            symboltoken: symboltoken,
-            tradingsymbol: tradingsymbol
-          });
-        case 6:
-          ltpData = _context6.sent;
-          res.send(ltpData);
-        case 8:
-        case "end":
-          return _context6.stop();
-      }
-    }, _callee6);
-  }));
-  return function (_x9, _x10) {
-    return _ref6.apply(this, arguments);
-  };
-}());
-app.post('/scrip/details/get-script', /*#__PURE__*/function () {
-  var _ref7 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee7(req, res) {
-    var scriptName, strikePrice, optionType, expiryDate;
-    return _regeneratorRuntime().wrap(function _callee7$(_context7) {
-      while (1) switch (_context7.prev = _context7.next) {
-        case 0:
-          (0, _functions.setCred)(req);
-          scriptName = req.body.scriptName;
-          strikePrice = req.body.strikePrice;
-          optionType = req.body.optionType || '';
-          expiryDate = req.body.expiryDate;
-          _context7.t0 = res;
-          _context7.next = 8;
-          return (0, _apiService.getScrip)({
-            scriptName: scriptName,
-            strikePrice: strikePrice,
-            optionType: optionType,
-            expiryDate: expiryDate
-          });
-        case 8:
-          _context7.t1 = _context7.sent;
-          _context7.t0.send.call(_context7.t0, _context7.t1);
-        case 10:
         case "end":
           return _context7.stop();
       }
-    }, _callee7);
-  }));
-  return function (_x11, _x12) {
-    return _ref7.apply(this, arguments);
-  };
-}());
-app.post('/get-positions', /*#__PURE__*/function () {
+    }, _callee7, null, [[0, 10]]);
+  })));
+}
+app.post('/get-atm-strike-price', /*#__PURE__*/function () {
   var _ref8 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee8(req, res) {
-    var response;
     return _regeneratorRuntime().wrap(function _callee8$(_context8) {
       while (1) switch (_context8.prev = _context8.next) {
         case 0:
           (0, _functions.setCred)(req);
-          _context8.next = 3;
-          return (0, _apiService.getPositionsJson)(_app.TradeType.POSITIONAL);
-        case 3:
-          response = _context8.sent;
-          res.send(response);
-        case 5:
+          _context8.t0 = res;
+          _context8.next = 4;
+          return (0, _functions.getAtmStrikePrice)();
+        case 4:
+          _context8.t1 = _context8.sent;
+          _context8.t2 = {
+            atm: _context8.t1
+          };
+          _context8.t0.json.call(_context8.t0, _context8.t2);
+        case 7:
         case "end":
           return _context8.stop();
       }
@@ -274,23 +325,26 @@ app.post('/get-positions', /*#__PURE__*/function () {
     return _ref8.apply(this, arguments);
   };
 }());
-app.post('/calc-mtm', /*#__PURE__*/function () {
+app.post('/script/details/get-script-ltp', /*#__PURE__*/function () {
   var _ref9 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee9(req, res) {
-    var response;
+    var tradingsymbol, exchange, symboltoken, ltpData;
     return _regeneratorRuntime().wrap(function _callee9$(_context9) {
       while (1) switch (_context9.prev = _context9.next) {
         case 0:
           (0, _functions.setCred)(req);
-          _context9.next = 3;
-          return (0, _apiService.calculateMtm)({
-            data: (0, _functions.readJsonFile)(_app.TradeType.INTRADAY)
+          tradingsymbol = req.body.tradingsymbol;
+          exchange = req.body.exchange;
+          symboltoken = req.body.symboltoken;
+          _context9.next = 6;
+          return (0, _apiService.getLtpData)({
+            exchange: exchange,
+            symboltoken: symboltoken,
+            tradingsymbol: tradingsymbol
           });
-        case 3:
-          response = _context9.sent;
-          res.jsonp({
-            mtm: response
-          });
-        case 5:
+        case 6:
+          ltpData = _context9.sent;
+          res.send(ltpData);
+        case 8:
         case "end":
           return _context9.stop();
       }
@@ -298,6 +352,86 @@ app.post('/calc-mtm', /*#__PURE__*/function () {
   }));
   return function (_x15, _x16) {
     return _ref9.apply(this, arguments);
+  };
+}());
+app.post('/scrip/details/get-script', /*#__PURE__*/function () {
+  var _ref10 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee10(req, res) {
+    var scriptName, strikePrice, optionType, expiryDate;
+    return _regeneratorRuntime().wrap(function _callee10$(_context10) {
+      while (1) switch (_context10.prev = _context10.next) {
+        case 0:
+          (0, _functions.setCred)(req);
+          scriptName = req.body.scriptName;
+          strikePrice = req.body.strikePrice;
+          optionType = req.body.optionType || '';
+          expiryDate = req.body.expiryDate;
+          _context10.t0 = res;
+          _context10.next = 8;
+          return (0, _apiService.getScrip)({
+            scriptName: scriptName,
+            strikePrice: strikePrice,
+            optionType: optionType,
+            expiryDate: expiryDate
+          });
+        case 8:
+          _context10.t1 = _context10.sent;
+          _context10.t0.send.call(_context10.t0, _context10.t1);
+        case 10:
+        case "end":
+          return _context10.stop();
+      }
+    }, _callee10);
+  }));
+  return function (_x17, _x18) {
+    return _ref10.apply(this, arguments);
+  };
+}());
+app.post('/get-positions', /*#__PURE__*/function () {
+  var _ref11 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee11(req, res) {
+    var response;
+    return _regeneratorRuntime().wrap(function _callee11$(_context11) {
+      while (1) switch (_context11.prev = _context11.next) {
+        case 0:
+          (0, _functions.setCred)(req);
+          _context11.next = 3;
+          return (0, _apiService.getPositionsJson)(_app.TradeType.POSITIONAL);
+        case 3:
+          response = _context11.sent;
+          res.send(response);
+        case 5:
+        case "end":
+          return _context11.stop();
+      }
+    }, _callee11);
+  }));
+  return function (_x19, _x20) {
+    return _ref11.apply(this, arguments);
+  };
+}());
+app.post('/calc-mtm', /*#__PURE__*/function () {
+  var _ref12 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee12(req, res) {
+    var response;
+    return _regeneratorRuntime().wrap(function _callee12$(_context12) {
+      while (1) switch (_context12.prev = _context12.next) {
+        case 0:
+          (0, _functions.setCred)(req);
+          _context12.next = 3;
+          return (0, _apiService.calculateMtm)({
+            data: (0, _functions.readJsonFile)(_app.TradeType.INTRADAY)
+          });
+        case 3:
+          response = _context12.sent;
+          res.jsonp({
+            mtm: response
+          });
+        case 5:
+        case "end":
+          return _context12.stop();
+      }
+    }, _callee12);
+  }));
+  return function (_x21, _x22) {
+    return _ref12.apply(this, arguments);
   };
 }());
 app.use(function (req, res, next) {

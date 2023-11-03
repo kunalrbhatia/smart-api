@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.VARIETY_STOPLOSS = exports.VARIETY_ROBO = exports.VARIETY_NORMAL = exports.VARIETY_AMO = exports.TRANSACTION_TYPE_SELL = exports.TRANSACTION_TYPE_BUY = exports.STRIKE_DIFFERENCE_POSITIONAL = exports.STRIKE_DIFFERENCE = exports.STREAM_URL = exports.SHORT_DELAY = exports.SCRIPMASTER = exports.PORT = exports.ORDER_API = exports.MTMDATATHRESHOLDPOSITIONAL = exports.MTMDATATHRESHOLD = exports.MODIFY_ORDER_API = exports.MESSAGE_NOT_TAKE_TRADE = exports.ME = exports.GET_TRAD_BOOK_API = exports.GET_POSITIONS = exports.GET_ORDER_BOOK_API = exports.GET_MARGIN = exports.GET_LTP_DATA_API = exports.DELAY = exports.CANCEL_ORDER_API = exports.BIG_DELAY = exports.ALGO = void 0;
+exports.VARIETY_STOPLOSS = exports.VARIETY_ROBO = exports.VARIETY_NORMAL = exports.VARIETY_AMO = exports.TRANSACTION_TYPE_SELL = exports.TRANSACTION_TYPE_BUY = exports.STRIKE_DIFFERENCE_POSITIONAL = exports.STRIKE_DIFFERENCE = exports.STREAM_URL = exports.SHORT_DELAY = exports.SCRIPMASTER = exports.PORT = exports.ORDER_API = exports.MTMDATATHRESHOLDPOSITIONAL = exports.MTMDATATHRESHOLD = exports.MODIFY_ORDER_API = exports.MESSAGE_NOT_TAKE_TRADE = exports.ME = exports.HISTORIC_API = exports.GET_TRAD_BOOK_API = exports.GET_POSITIONS = exports.GET_ORDER_BOOK_API = exports.GET_MARGIN = exports.GET_LTP_DATA_API = exports.DELAY = exports.CANCEL_ORDER_API = exports.BIG_DELAY = exports.ALGO = void 0;
 // constants.ts
 
 var STREAM_URL = 'wss://omnefeeds.angelbroking.com/NestHtml5Mobile/socket/stream';
@@ -60,3 +60,5 @@ var ME = 'Kunal';
 exports.ME = ME;
 var ALGO = 'Algo';
 exports.ALGO = ALGO;
+var HISTORIC_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/historical/v1/getCandleData';
+exports.HISTORIC_API = HISTORIC_API;

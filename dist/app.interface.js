@@ -3,13 +3,31 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.TradeType = exports.OptionType = exports.CheckOptionType = void 0;
+exports.TradeType = exports.Strategy = exports.OptionType = exports.HistoryInterval = exports.CheckOptionType = void 0;
+var HistoryInterval = /*#__PURE__*/function (HistoryInterval) {
+  HistoryInterval["ONE_MINUTE"] = "ONE_MINUTE";
+  HistoryInterval["THREE_MINUTE"] = "THREE_MINUTE";
+  HistoryInterval["FIVE_MINUTE"] = "FIVE_MINUTE";
+  HistoryInterval["TEN_MINUTE"] = "TEN_MINUTE";
+  HistoryInterval["FIFTEEN_MINUTE"] = "FIFTEEN_MINUTE";
+  HistoryInterval["THIRTY_MINUTE"] = "THIRTY_MINUTE";
+  HistoryInterval["ONE_HOUR"] = "ONE_HOUR";
+  HistoryInterval["ONE_DAY"] = "ONE_DAY";
+  return HistoryInterval;
+}({});
+exports.HistoryInterval = HistoryInterval;
 var TradeType = /*#__PURE__*/function (TradeType) {
   TradeType["POSITIONAL"] = "positional";
   TradeType["INTRADAY"] = "intraday";
   return TradeType;
 }({});
 exports.TradeType = TradeType;
+var Strategy = /*#__PURE__*/function (Strategy) {
+  Strategy["RSI"] = "rsi";
+  Strategy["SHORTSTRADDLE"] = "shortStraddle";
+  return Strategy;
+}({});
+exports.Strategy = Strategy;
 var OptionType = /*#__PURE__*/function (OptionType) {
   OptionType["CE"] = "CE";
   OptionType["PE"] = "PE";
