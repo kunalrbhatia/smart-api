@@ -15,9 +15,11 @@ class SmartSession {
       refreshToken: '',
     };
     generateSmartSession().then((value: ISmartApiData) => {
-      this.postData.feedToken = value.feedToken;
-      this.postData.jwtToken = value.jwtToken;
-      this.postData.refreshToken = value.refreshToken;
+      if (value) {
+        this.postData.feedToken = value.feedToken;
+        this.postData.jwtToken = value.jwtToken;
+        this.postData.refreshToken = value.refreshToken;
+      }
     });
   }
 
