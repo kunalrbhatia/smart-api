@@ -79,7 +79,10 @@ export const getNextExpiry = () => {
   const isLastThursday =
     getLastThursdayOfCurrentMonth() === today.format('DDMMMYYYY').toUpperCase();
   const secondLastWednesday = getLastWednesdayOfMonth().subtract(7, 'days');
-  const daysToNextWednesday = 7 - currentDay + 3;
+  let daysToNextWednesday = 3 - currentDay;
+  if (daysToNextWednesday < 0) {
+    daysToNextWednesday += 7;
+  }
   if (isLastThursday) {
     return today.format('DDMMMYYYY').toUpperCase();
   } else if (isLastWednesday) {

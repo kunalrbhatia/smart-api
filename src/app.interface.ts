@@ -121,14 +121,14 @@ export type LtpDataType = {
   close: number;
   ltp: number;
 };
+export type getScripFutType = {
+  scriptName: string;
+};
 export type getScripType = {
   scriptName: string;
   strikePrice?: string;
   optionType?: 'CE' | 'PE';
   expiryDate: string;
-};
-export type getScripFutType = {
-  scriptName: string;
 };
 export type scripMasterResponse = {
   token: string;
