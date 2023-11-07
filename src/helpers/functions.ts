@@ -259,7 +259,7 @@ export const checkStrike = (
   strike: string
 ): boolean => {
   for (const trade of tradeDetails) {
-    if (trade.strike === strike) {
+    if (parseInt(trade.strike) === parseInt(strike)) {
       return true;
     }
   }
@@ -267,24 +267,28 @@ export const checkStrike = (
 };
 export const areBothOptionTypesPresentForStrike = (
   tradeDetails: TradeDetails[],
-  strike: string
+  strike: string,
+  tradeType: TradeType
 ): BothPresent => {
+  const expirationDate =
+    tradeType === TradeType.INTRADAY
+      ? getNextExpiry()
+      : getLastThursdayOfCurrentMonth();
   let cePresent = false;
   let pePresent = false;
-  for (const trade of tradeDetails) {
-    const tradedStrike = parseInt(trade.strike);
-    const compareStrike = parseInt(strike);
-
-    if (tradedStrike === compareStrike) {
-      if (trade.optionType === 'CE') {
-        cePresent = true;
-      } else if (trade.optionType === 'PE') {
-        pePresent = true;
+  const filteredTrades = tradeDetails
+    .filter((trade) => trade.expireDate === expirationDate)
+    .forEach((trade) => {
+      const tradedStrike = parseInt(trade.strike);
+      const compareStrike = parseInt(strike);
+      if (tradedStrike === compareStrike) {
+        if (trade.optionType === 'CE') {
+          cePresent = true;
+        } else if (trade.optionType === 'PE') {
+          pePresent = true;
+        }
       }
-    }
-  }
-
-  // If either 'CE' or 'PE' is not present, return false
+    });
   return { ce: cePresent, pe: pePresent, stike: strike };
 };
 export const getOpenPositions = (positions: Position[]): Position[] => {
@@ -310,21 +314,29 @@ export const isMarketClosed = () => {
 type GetNearestStrike = {
   algoTrades: TradeDetails[];
   atmStrike: number;
+  tradeType: TradeType;
 };
 export const getNearestStrike = ({
   algoTrades,
   atmStrike,
+  tradeType,
 }: GetNearestStrike): number => {
   let nearestStrike: number = Infinity;
   let minDifference = Number.MAX_SAFE_INTEGER;
-  algoTrades.forEach((trade) => {
-    const strikeNumber = parseInt(trade.strike, 10);
-    const difference = Math.abs(strikeNumber - atmStrike);
-    if (difference < minDifference) {
-      nearestStrike = strikeNumber;
-      minDifference = difference;
-    }
-  });
+  const expirationDate =
+    tradeType === TradeType.INTRADAY
+      ? getNextExpiry()
+      : getLastThursdayOfCurrentMonth();
+  algoTrades
+    .filter((trade) => trade.expireDate === expirationDate)
+    .forEach((trade) => {
+      const strikeNumber = parseInt(trade.strike, 10);
+      const difference = Math.abs(strikeNumber - atmStrike);
+      if (difference < minDifference) {
+        nearestStrike = strikeNumber;
+        minDifference = difference;
+      }
+    });
   return nearestStrike;
 };
 export const getLastThursdayOfCurrentMonth = () => {

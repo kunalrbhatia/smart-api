@@ -531,8 +531,10 @@ export const repeatShortStraddle = async (
     );
     const result = areBothOptionTypesPresentForStrike(
       data.tradeDetails,
-      atmStrike.toString()
+      atmStrike.toString(),
+      tradeType
     );
+    console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
     const cepe_present = checkBoth_CE_PE_Present(result);
     if (difference >= strikeDiff && (!result.ce || !result.pe)) {
       console.log(`${ALGO}: executing trade repeat ...`);
@@ -881,6 +883,7 @@ const coreTradeExecution = async (tradeType: TradeType) => {
     let previousTradeStrikePrice: string | number = getNearestStrike({
       algoTrades: getAlgoTrades,
       atmStrike: atmStrike,
+      tradeType: tradeType,
     });
     console.log(
       `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
