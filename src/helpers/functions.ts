@@ -327,11 +327,14 @@ export const getNearestStrike = ({
     tradeType === TradeType.INTRADAY
       ? getNextExpiry()
       : getLastThursdayOfCurrentMonth();
+  console.log(`${ALGO}: getNearestStrike -> expirationDate: ${expirationDate}`);
   algoTrades
     .filter((trade) => trade.expireDate === expirationDate)
     .forEach((trade) => {
       const strikeNumber = parseInt(trade.strike, 10);
+      console.log(`${ALGO}: getNearestStrike -> strikeNumber: ${strikeNumber}`);
       const difference = Math.abs(strikeNumber - atmStrike);
+      console.log(`${ALGO}: getNearestStrike -> difference: ${difference}`);
       if (difference < minDifference) {
         nearestStrike = strikeNumber;
         minDifference = difference;
