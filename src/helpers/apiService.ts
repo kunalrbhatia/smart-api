@@ -379,17 +379,41 @@ export const doOrder = async ({
       throw error;
     });
 };
-export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
+export const calculateMtm = async ({
+  data,
+  tradeType,
+}: {
+  data: JsonFileStructure;
+  tradeType: TradeType;
+}) => {
   const currentPositions = await getPositions();
   const currentPositionsData: object[] = get(currentPositions, 'data');
   let mtm = 0;
+  const expiryDate =
+    tradeType === TradeType.INTRADAY
+      ? getNextExpiry()
+      : getLastThursdayOfCurrentMonth();
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
-      if (trade && trade.token === get(value, 'symboltoken', '')) {
+      if (
+        trade &&
+        trade.token === get(value, 'symboltoken', '') &&
+        trade.expireDate === expiryDate
+      ) {
+        console.log(
+          `${ALGO}: cfsellavgprice: ${get(
+            value,
+            'cfsellavgprice'
+          )}, strikeprice: ${get(value, 'strikeprice')}, expirydate: ${get(
+            value,
+            'expirydate'
+          )}`
+        );
         mtm += parseInt(get(value, 'unrealised', ''));
       }
     });
   });
+  console.log(`${ALGO}: calculateMtm: ${mtm}`);
   return mtm;
 };
 export const doOrderByStrike = async (
@@ -896,7 +920,7 @@ const coreTradeExecution = async (tradeType: TradeType) => {
   }
   console.log(`${ALGO}: calculating mtm...`);
   await delay({ milliSeconds: DELAY });
-  let mtmData = await calculateMtm({ data });
+  let mtmData = await calculateMtm({ data, tradeType });
   console.log(`${ALGO}: mtm: ${mtmData}`);
   await delay({ milliSeconds: DELAY });
   const istTz = new Date().toLocaleString('default', {
@@ -988,68 +1012,6 @@ export const checkPositionAlreadyExists = async ({
       return true;
   }
   return false;
-};
-export const runOrb = async ({
-  scriptName,
-  price,
-  maxSl,
-  tradeDirection,
-  trailSl,
-}: runOrbType) => {
-  const scrip = await getScripFut({ scriptName });
-  let positionsResponse = await getPositions();
-  let positionsData = get(positionsResponse, 'data', []) ?? [];
-  let mtm = 0;
-  if (Array.isArray(positionsData) && positionsData.length > 0) {
-    const position = positionsData.filter((position) => {
-      if (get(position, 'symboltoken') === scrip.token) return position;
-    });
-    if (!position) {
-      const scripData = await getLtpData({
-        exchange: scrip.exch_seg,
-        symboltoken: scrip.token,
-        tradingsymbol: scrip.symbol,
-      });
-      if (tradeDirection === 'up' && scripData.ltp > price) {
-        doOrder({
-          tradingsymbol: scrip.symbol,
-          symboltoken: scrip.token,
-          transactionType: TRANSACTION_TYPE_BUY,
-        });
-      } else if (tradeDirection === 'down' && scripData.ltp < price) {
-        doOrder({
-          tradingsymbol: scrip.symbol,
-          symboltoken: scrip.token,
-          transactionType: TRANSACTION_TYPE_SELL,
-        });
-      }
-    }
-  }
-  if (Array.isArray(positionsData) && positionsData.length > 0) {
-    const position = positionsData.filter((position) => {
-      if (get(position, 'symboltoken') === scrip.token) return position;
-    });
-    mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
-    const updatedMaxSl = updateMaxSl({ mtm, maxSl, trailSl });
-    if (Math.abs(mtm) > updatedMaxSl) {
-      if (tradeDirection === 'up') {
-        doOrder({
-          tradingsymbol: scrip.symbol,
-          symboltoken: scrip.token,
-          transactionType: TRANSACTION_TYPE_SELL,
-          productType: 'INTRADAY',
-        });
-      } else {
-        doOrder({
-          tradingsymbol: scrip.symbol,
-          symboltoken: scrip.token,
-          transactionType: TRANSACTION_TYPE_BUY,
-          productType: 'INTRADAY',
-        });
-      }
-    }
-  }
-  return { mtm };
 };
 export const runRsiAlgo = async () => {
   const todaysTrade = await findTrade(Strategy.RSI);
