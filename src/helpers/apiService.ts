@@ -676,7 +676,7 @@ export const getPositionsJson = async (
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
     );
     const json = await createJsonFile(tradeType);
-    if (checkPositionsExistsForMonthlyExpiry(openPositions)) {
+    if (openPositions.length > 0) {
       json.isTradeExecuted = true;
     }
     const tradeDetails = json.tradeDetails;
