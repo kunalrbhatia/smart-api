@@ -670,7 +670,7 @@ export const getPositionsJson = async (
   try {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
-    const openPositions = getOpenPositions(positions);
+    const openPositions = getOpenPositions(positions, tradeType);
     await checkPositionToClose({ openPositions, tradeType });
     console.log(
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`

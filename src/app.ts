@@ -81,7 +81,7 @@ app.post('/check-positions-to-close', async (req: Request, res: Response) => {
   setCred(req);
   const currentPositions = await getPositions();
   const positions: Position[] = get(currentPositions, 'data', []) || [];
-  const openPositions = getOpenPositions(positions);
+  const openPositions = getOpenPositions(positions, TradeType.INTRADAY);
   checkPositionToClose({
     openPositions: openPositions,
     tradeType: TradeType.INTRADAY,

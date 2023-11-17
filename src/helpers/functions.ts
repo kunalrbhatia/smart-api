@@ -299,11 +299,19 @@ export const areBothOptionTypesPresentForStrike = (
     });
   return { ce: cePresent, pe: pePresent, stike: strike };
 };
-export const getOpenPositions = (positions: Position[]): Position[] => {
+export const getOpenPositions = (
+  positions: Position[],
+  tradeType: TradeType
+): Position[] => {
   const openPositions = [];
+  const expiryDate =
+    tradeType === TradeType.INTRADAY
+      ? getNextExpiry()
+      : getLastThursdayOfCurrentMonth();
   for (const position of positions) {
     const netqty = parseInt(position.netqty);
-    if (netqty > 0 || netqty < 0) {
+    const positionExpiryDate = position.expirydate;
+    if (netqty < 0 && expiryDate === positionExpiryDate) {
       openPositions.push(position);
     }
   }
