@@ -545,13 +545,16 @@ export const repeatShortStraddle = async (
       tradeType === TradeType.INTRADAY
         ? STRIKE_DIFFERENCE
         : STRIKE_DIFFERENCE_POSITIONAL;
+
+    const isSameStrikeAlreadyTraded = checkStrike(
+      data.tradeDetails,
+      atmStrike.toString(),
+      tradeType
+    );
     console.log(
       `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE (${strikeDiff}): ${
         difference >= strikeDiff
-      }\n2. if this same strike is already traded: ${checkStrike(
-        data.tradeDetails,
-        atmStrike.toString()
-      )}`
+      }\n2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`
     );
     const result = areBothOptionTypesPresentForStrike(
       data.tradeDetails,
@@ -560,7 +563,7 @@ export const repeatShortStraddle = async (
     );
     console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
     const cepe_present = checkBoth_CE_PE_Present(result);
-    if (difference >= strikeDiff && (!result.ce || !result.pe)) {
+    if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
         const shortStraddleData = await shortStraddle(tradeType);

@@ -256,10 +256,18 @@ export const readJsonFile = (
 };
 export const checkStrike = (
   tradeDetails: TradeDetails[],
-  strike: string
+  strike: string,
+  tradeType: TradeType
 ): boolean => {
+  const expiry =
+    tradeType === TradeType.INTRADAY
+      ? getNextExpiry()
+      : getLastThursdayOfCurrentMonth();
   for (const trade of tradeDetails) {
-    if (parseInt(trade.strike) === parseInt(strike)) {
+    if (
+      parseInt(trade.strike) === parseInt(strike) &&
+      trade.expireDate === expiry
+    ) {
       return true;
     }
   }
