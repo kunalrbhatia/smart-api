@@ -987,19 +987,25 @@ export const checkMarketConditionsAndExecuteTrade = async (
   tradeType: TradeType,
   strategy: Strategy = Strategy.SHORTSTRADDLE
 ) => {
-  let data = await createJsonFile(tradeType);
-  if (await isTradeAllowed(data)) {
-    try {
-      if (strategy === Strategy.SHORTSTRADDLE) {
-        return await executeTrade(tradeType);
-      } else if (strategy === Strategy.RSI) {
-        return await runRsiAlgo();
-      }
-    } catch (err) {
-      return err;
+  try {
+    const data = await createJsonFile(tradeType);
+
+    if (!(await isTradeAllowed(data))) {
+      return MESSAGE_NOT_TAKE_TRADE;
     }
-  } else {
-    return MESSAGE_NOT_TAKE_TRADE;
+    if (
+      strategy === Strategy.SHORTSTRADDLE &&
+      (getNextExpiry() !== getLastThursdayOfCurrentMonth() ||
+        tradeType !== TradeType.INTRADAY)
+    ) {
+      return await executeTrade(tradeType);
+    } else if (strategy === Strategy.RSI) {
+      return await runRsiAlgo();
+    } else {
+      return MESSAGE_NOT_TAKE_TRADE;
+    }
+  } catch (err) {
+    return err;
   }
 };
 
