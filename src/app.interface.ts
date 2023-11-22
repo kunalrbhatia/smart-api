@@ -105,6 +105,9 @@ export type Credentails = {
   CLIENT_PIN: string;
   CLIENT_TOTP_PIN: string;
 };
+export type OrderStoreDataType = {
+  QUANTITY: number;
+};
 export type CheckPosition = { position: Position; trades: TradeDetails[] };
 export type getLtpDataType = {
   exchange: string;

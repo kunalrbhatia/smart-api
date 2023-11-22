@@ -29,7 +29,13 @@ import {
   setCred,
 } from './helpers/functions';
 import dotenv from 'dotenv';
-import { Position, TradeType, bodyType, reqType } from './app.interface';
+import {
+  Position,
+  Strategy,
+  TradeType,
+  bodyType,
+  reqType,
+} from './app.interface';
 import { get } from 'lodash';
 import { Socket } from 'net';
 const app: Application = express();
@@ -113,10 +119,14 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
+    const lots: number = req.body.lots;
+    // console.log(`${ALGO}: lots: ${lots}`);
     const response = await checkMarketConditionsAndExecuteTrade(
-      TradeType.INTRADAY
+      TradeType.INTRADAY,
+      Strategy.SHORTSTRADDLE,
+      lots
     );
-    console.log(`response: ${response}`);
+    //console.log(`${ALGO} response: ${response}`);
     res.send({ response: response });
   } catch (err) {
     console.log(err);

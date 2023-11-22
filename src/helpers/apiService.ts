@@ -75,6 +75,7 @@ import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
 import moment from 'moment-timezone';
 import { findTrade, makeNewTrade } from './dbService';
+import OrderStore from '../store/orderStore';
 const tulind = require('tulind');
 export const getLtpData = async ({
   exchange,
@@ -338,12 +339,14 @@ export const doOrder = async ({
   await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
+  const orderStoreData = OrderStore.getInstance().getPostData();
+  const quantity = 15 * orderStoreData.QUANTITY;
   let data = JSON.stringify({
     exchange: 'NFO',
     tradingsymbol,
     symboltoken,
-    quantity: 15,
-    disclosedquantity: 15,
+    quantity: quantity,
+    disclosedquantity: quantity,
     transactiontype: transactionType,
     ordertype: 'MARKET',
     variety: 'NORMAL',
@@ -442,10 +445,12 @@ export const doOrderByStrike = async (
       transactionType: TRANSACTION_TYPE_SELL,
     });
     console.log(`${ALGO} {doOrderByStrike}: orderData: `, orderData);
+    const lots = OrderStore.getInstance().getPostData().QUANTITY;
+    const netQty = 15 * lots * -1;
     return {
       stikePrice: strike.toString(),
       expiryDate: expiryDate,
-      netQty: '-15',
+      netQty: netQty.toString(),
       token: get(token, '0.token', ''),
       symbol: get(token, '0.symbol', ''),
       status: orderData.status,
@@ -985,11 +990,12 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
 };
 export const checkMarketConditionsAndExecuteTrade = async (
   tradeType: TradeType,
-  strategy: Strategy = Strategy.SHORTSTRADDLE
+  strategy: Strategy = Strategy.SHORTSTRADDLE,
+  lots: number = 1
 ) => {
+  OrderStore.getInstance().setPostData({ QUANTITY: lots });
   try {
     const data = await createJsonFile(tradeType);
-
     if (!(await isTradeAllowed(data))) {
       return MESSAGE_NOT_TAKE_TRADE;
     }
