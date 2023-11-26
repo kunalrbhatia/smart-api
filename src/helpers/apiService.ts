@@ -11,7 +11,6 @@ import {
   delay,
   getAtmStrikePrice,
   getCurrentTimeAndPastTime,
-  getData,
   getLastThursdayOfCurrentMonth,
   getNearestStrike,
   getNextExpiry,
@@ -41,7 +40,6 @@ import {
   Strategy,
   TimeComparisonType,
   TradeDetails,
-  TradeType,
   checkPositionToCloseType,
   doOrderResponse,
   doOrderType,
@@ -382,20 +380,11 @@ export const doOrder = async ({
       throw error;
     });
 };
-export const calculateMtm = async ({
-  data,
-  tradeType,
-}: {
-  data: JsonFileStructure;
-  tradeType: TradeType;
-}) => {
+export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   const currentPositions = await getPositions();
   const currentPositionsData: object[] = get(currentPositions, 'data');
   let mtm = 0;
-  const expiryDate =
-    tradeType === TradeType.INTRADAY
-      ? getNextExpiry()
-      : getLastThursdayOfCurrentMonth();
+  const expiryDate = getNextExpiry();
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
       if (
@@ -420,15 +409,11 @@ export const calculateMtm = async ({
   return mtm;
 };
 export const doOrderByStrike = async (
-  tradeType: TradeType,
   strike: number,
   optionType: OptionType
 ): Promise<OrderData> => {
   try {
-    const expiryDate =
-      tradeType === TradeType.INTRADAY
-        ? getNextExpiry()
-        : getLastThursdayOfCurrentMonth();
+    const expiryDate = getNextExpiry();
     console.log(`${ALGO} {doOrderByStrike}: expiryDate: ${expiryDate}`);
     await delay({ milliSeconds: DELAY });
     const token = await getScrip({
@@ -462,26 +447,16 @@ export const doOrderByStrike = async (
     throw error;
   }
 };
-export const shortStraddle = async (
-  tradeType: TradeType = TradeType.INTRADAY
-) => {
+export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
     await delay({ milliSeconds: DELAY });
-    const atmStrike = await getAtmStrikePrice(tradeType);
+    const atmStrike = await getAtmStrikePrice();
     await delay({ milliSeconds: DELAY });
-    const ceOrderData = await doOrderByStrike(
-      tradeType,
-      atmStrike,
-      OptionType.CE
-    );
+    const ceOrderData = await doOrderByStrike(atmStrike, OptionType.CE);
     console.log(`${ALGO} {shortStraddle}: ceOrderData: `, ceOrderData);
     await delay({ milliSeconds: DELAY });
-    const peOrderData = await doOrderByStrike(
-      tradeType,
-      atmStrike,
-      OptionType.PE
-    );
+    const peOrderData = await doOrderByStrike(atmStrike, OptionType.PE);
     console.log(`${ALGO} {shortStraddle}: peOrderData: `, peOrderData);
     return {
       stikePrice: atmStrike.toString(),
@@ -541,20 +516,15 @@ export const checkBoth_CE_PE_Present = (data: BothPresent) => {
 };
 export const repeatShortStraddle = async (
   difference: number,
-  atmStrike: number,
-  tradeType: TradeType
+  atmStrike: number
 ) => {
   try {
-    const data = readJsonFile(tradeType);
-    const strikeDiff =
-      tradeType === TradeType.INTRADAY
-        ? STRIKE_DIFFERENCE
-        : STRIKE_DIFFERENCE_POSITIONAL;
+    const data = readJsonFile();
+    const strikeDiff = STRIKE_DIFFERENCE;
 
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,
-      atmStrike.toString(),
-      tradeType
+      atmStrike.toString()
     );
     console.log(
       `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE (${strikeDiff}): ${
@@ -563,30 +533,21 @@ export const repeatShortStraddle = async (
     );
     const result = areBothOptionTypesPresentForStrike(
       data.tradeDetails,
-      atmStrike.toString(),
-      tradeType
+      atmStrike.toString()
     );
     console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
     const cepe_present = checkBoth_CE_PE_Present(result);
     if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
-        const shortStraddleData = await shortStraddle(tradeType);
-        await addShortStraddleData({ data, shortStraddleData, tradeType });
+        const shortStraddleData = await shortStraddle();
+        await addShortStraddleData({ data, shortStraddleData });
       } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
-        const orderData = await doOrderByStrike(
-          tradeType,
-          atmStrike,
-          OptionType.PE
-        );
-        addOrderData(data, orderData, OptionType.PE, tradeType);
+        const orderData = await doOrderByStrike(atmStrike, OptionType.PE);
+        addOrderData(data, orderData, OptionType.PE);
       } else if (cepe_present === CheckOptionType.ONLY_PE_PRESENT) {
-        const orderData = await doOrderByStrike(
-          tradeType,
-          atmStrike,
-          OptionType.CE
-        );
-        addOrderData(data, orderData, OptionType.CE, tradeType);
+        const orderData = await doOrderByStrike(atmStrike, OptionType.CE);
+        addOrderData(data, orderData, OptionType.CE);
       }
     }
   } catch (error) {
@@ -628,10 +589,9 @@ export const shouldCloseTrade = async ({
 };
 export const checkPositionToClose = async ({
   openPositions,
-  tradeType = TradeType.INTRADAY,
 }: checkPositionToCloseType) => {
   try {
-    const data = readJsonFile(tradeType);
+    const data = readJsonFile();
     const tradeDetails = data.tradeDetails;
     for (const position of openPositions) {
       for (const trade of tradeDetails) {
@@ -642,7 +602,7 @@ export const checkPositionToClose = async ({
         }
       }
     }
-    await writeJsonFile(data, tradeType);
+    await writeJsonFile(data);
     for (const trade of tradeDetails) {
       if (
         trade &&
@@ -669,18 +629,16 @@ export const checkPositionToClose = async ({
     throw error;
   }
 };
-export const getPositionsJson = async (
-  tradeType: TradeType = TradeType.INTRADAY
-) => {
+export const getPositionsJson = async () => {
   try {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
-    const openPositions = getOpenPositions(positions, tradeType);
-    await checkPositionToClose({ openPositions, tradeType });
+    const openPositions = getOpenPositions(positions);
+    await checkPositionToClose({ openPositions });
     console.log(
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
     );
-    const json = await createJsonFile(tradeType);
+    const json = await createJsonFile();
     if (openPositions.length > 0) {
       json.isTradeExecuted = true;
     }
@@ -706,7 +664,7 @@ export const getPositionsJson = async (
         tradeDetails.push(trade);
       }
     }
-    await writeJsonFile(json, tradeType);
+    await writeJsonFile(json);
     return json;
   } catch (error) {
     const errorMessage = `${ALGO}: getPositionsJson failed error below`;
@@ -737,30 +695,23 @@ export const closeParticularTrade = async ({
     throw error;
   }
 };
-export const closeAllTrades = async (
-  tradeType: TradeType = TradeType.INTRADAY
-) => {
+export const closeAllTrades = async () => {
   try {
     await delay({ milliSeconds: DELAY });
-    const data = readJsonFile(tradeType);
-    console.log(`${ALGO}: closeAllTrades tradetype: `, tradeType);
+    const data = readJsonFile();
+    console.log(`${ALGO}: closeAllTrades`);
     await delay({ milliSeconds: DELAY });
     const tradeDetails = data.tradeDetails;
     if (Array.isArray(tradeDetails)) {
       const nextExpiry = getNextExpiry();
       const lastThursdayOfMonth = getLastThursdayOfCurrentMonth();
       for (const trade of tradeDetails) {
-        if (
-          (trade.expireDate === nextExpiry &&
-            tradeType === TradeType.INTRADAY) ||
-          (trade.expireDate === lastThursdayOfMonth &&
-            tradeType === TradeType.POSITIONAL)
-        ) {
+        if (trade.expireDate === nextExpiry) {
           await closeParticularTrade({ trade });
         }
       }
       await delay({ milliSeconds: DELAY });
-      await writeJsonFile(data, tradeType);
+      await writeJsonFile(data);
     }
   } catch (error) {
     const errorMessage = `${ALGO}: closeAllTrades failed error below`;
@@ -769,39 +720,32 @@ export const closeAllTrades = async (
     throw error;
   }
 };
-export const closeTrade = async (tradeType: TradeType = TradeType.INTRADAY) => {
+export const closeTrade = async () => {
   console.log(`${ME}: check if all the trades are closed.`);
-  while ((await areAllTradesClosed(tradeType)) === false) {
+  while ((await areAllTradesClosed()) === false) {
     console.log(`${ALGO}: all trades are not closed, closing trades...`);
-    await closeAllTrades(tradeType);
+    await closeAllTrades();
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
   await delay({ milliSeconds: DELAY });
-  const data = readJsonFile(tradeType);
+  const data = readJsonFile();
   data.isTradeClosed = true;
   await delay({ milliSeconds: DELAY });
-  await writeJsonFile(data, tradeType);
+  await writeJsonFile(data);
 };
-export const areAllTradesClosed = async (
-  tradeType: TradeType = TradeType.INTRADAY
-) => {
+export const areAllTradesClosed = async () => {
   console.log(
-    `${ALGO}: {areAllTradesClosed} checking if all the trades are closed.`,
-    tradeType
+    `${ALGO}: {areAllTradesClosed} checking if all the trades are closed.`
   );
   await delay({ milliSeconds: DELAY });
-  const data = readJsonFile(tradeType);
+  const data = readJsonFile();
   await delay({ milliSeconds: DELAY });
   const tradeDetails = data.tradeDetails;
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
-      const isTradeOpen = !trade.closed;
-      const isExpiryMatch =
-        (tradeType === TradeType.INTRADAY &&
-          trade.expireDate === getNextExpiry()) ||
-        (tradeType === TradeType.POSITIONAL &&
-          trade.expireDate === getLastThursdayOfCurrentMonth());
-      if (isTradeOpen && isExpiryMatch) {
+      const isTradeClosed = trade.closed;
+      const isExpiryMatch = trade.expireDate === getNextExpiry();
+      if (isTradeClosed === false && isExpiryMatch) {
         return false;
       }
     }
@@ -810,8 +754,7 @@ export const areAllTradesClosed = async (
 };
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
-  previousTradeStrikePrice: number,
-  tradeType: TradeType
+  previousTradeStrikePrice: number
 ) => {
   console.log(
     `${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
@@ -823,14 +766,14 @@ export const checkToRepeatShortStraddle = async (
         `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`
       );
       await delay({ milliSeconds: DELAY });
-      await repeatShortStraddle(difference, atmStrike, tradeType);
+      await repeatShortStraddle(difference, atmStrike);
     } else if (atmStrike < previousTradeStrikePrice) {
       const difference = previousTradeStrikePrice - atmStrike;
       console.log(
         `${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`
       );
       await delay({ milliSeconds: DELAY });
-      await repeatShortStraddle(difference, atmStrike, tradeType);
+      await repeatShortStraddle(difference, atmStrike);
     } else {
       console.log(
         `${ALGO}: atm strike is equal to previously traded strike price`
@@ -844,8 +787,7 @@ export const checkToRepeatShortStraddle = async (
 export const addOrderData = async (
   data: JsonFileStructure,
   orderData: OrderData,
-  optionType: OptionType,
-  tradeType: TradeType
+  optionType: OptionType
 ) => {
   if (orderData.status) {
     data.tradeDetails.push({
@@ -861,12 +803,11 @@ export const addOrderData = async (
       tradingSymbol: '',
     });
   }
-  await writeJsonFile(data, tradeType);
+  await writeJsonFile(data);
 };
 export const addShortStraddleData = async ({
   data,
   shortStraddleData,
-  tradeType = TradeType.INTRADAY,
 }: AddShortStraddleData) => {
   if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
     data.isTradeExecuted = true;
@@ -895,40 +836,35 @@ export const addShortStraddleData = async ({
       exchange: '',
       tradingSymbol: '',
     });
-    await writeJsonFile(data, tradeType);
+    await writeJsonFile(data);
   }
 };
-const coreTradeExecution = async (tradeType: TradeType) => {
-  let data = await getData(tradeType);
+const coreTradeExecution = async () => {
+  let data = await getPositionsJson();
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
-    const shortStraddleData = await shortStraddle(tradeType);
-    await addShortStraddleData({ data, shortStraddleData, tradeType });
+    const shortStraddleData = await shortStraddle();
+    await addShortStraddleData({ data, shortStraddleData });
   } else {
     console.log(
       `${ALGO}: trade executed already checking conditions to repeat the trade`
     );
     await delay({ milliSeconds: DELAY });
-    const atmStrike = await getAtmStrikePrice(tradeType);
+    const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.tradeDetails.length;
     const getAlgoTrades = data.tradeDetails;
     let previousTradeStrikePrice: string | number = getNearestStrike({
       algoTrades: getAlgoTrades,
       atmStrike: atmStrike,
-      tradeType: tradeType,
     });
     console.log(
       `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
     );
-    await checkToRepeatShortStraddle(
-      atmStrike,
-      previousTradeStrikePrice,
-      tradeType
-    );
+    await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
   console.log(`${ALGO}: calculating mtm...`);
   await delay({ milliSeconds: DELAY });
-  let mtmData = await calculateMtm({ data, tradeType });
+  let mtmData = await calculateMtm({ data });
   console.log(`${ALGO}: mtm: ${mtmData}`);
   await delay({ milliSeconds: DELAY });
   const istTz = new Date().toLocaleString('default', {
@@ -937,14 +873,14 @@ const coreTradeExecution = async (tradeType: TradeType) => {
   const mtm = data.mtm;
   mtm.push({ time: istTz, value: mtmData.toString() });
   await delay({ milliSeconds: DELAY });
-  await writeJsonFile(data, tradeType);
+  await writeJsonFile(data);
   return mtmData;
 };
-export const executeTrade = async (tradeType: TradeType) => {
-  const mtmData = await coreTradeExecution(tradeType);
+export const executeTrade = async () => {
+  const mtmData = await coreTradeExecution();
   //const mtmData = 0;
   await delay({ milliSeconds: DELAY });
-  await getPositionsJson(tradeType);
+  await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   console.log(
     `${ALGO}: checking condition hasTimePassed15:15: ${isCurrentTimeGreater(
@@ -952,12 +888,9 @@ export const executeTrade = async (tradeType: TradeType) => {
     )}`
   );
   const mtmThreshold = -MTMDATATHRESHOLD;
-  if (
-    tradeType === TradeType.INTRADAY &&
-    (mtmData < mtmThreshold || isCurrentTimeGreater(closingTime))
-  ) {
+  if (mtmData < mtmThreshold || isCurrentTimeGreater(closingTime)) {
     console.log(`${ALGO}: closing the trade`);
-    await closeTrade(tradeType);
+    await closeTrade();
     return '${ALGO}: Trade Closed';
   } else {
     console.log(`${ALGO}: returning mtm to api response`);
@@ -989,27 +922,26 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async (
-  tradeType: TradeType,
   strategy: Strategy = Strategy.SHORTSTRADDLE,
   lots: number = 1
 ) => {
   OrderStore.getInstance().setPostData({ QUANTITY: lots });
   try {
-    const data = await createJsonFile(tradeType);
-    if (!(await isTradeAllowed(data))) {
-      return MESSAGE_NOT_TAKE_TRADE;
-    }
-    if (
-      strategy === Strategy.SHORTSTRADDLE &&
-      (getNextExpiry() !== getLastThursdayOfCurrentMonth() ||
-        tradeType !== TradeType.INTRADAY)
-    ) {
-      return await executeTrade(tradeType);
-    } else if (strategy === Strategy.RSI) {
-      return await runRsiAlgo();
-    } else {
-      return MESSAGE_NOT_TAKE_TRADE;
-    }
+    const data = await createJsonFile();
+    return await executeTrade();
+    // if (!(await isTradeAllowed(data))) {
+    //   return MESSAGE_NOT_TAKE_TRADE;
+    // }
+    // if (
+    //   strategy === Strategy.SHORTSTRADDLE &&
+    //   getNextExpiry() !== getLastThursdayOfCurrentMonth()
+    // ) {
+    //   return await executeTrade();
+    // } else if (strategy === Strategy.RSI) {
+    //   return await runRsiAlgo();
+    // } else {
+    //   return MESSAGE_NOT_TAKE_TRADE;
+    // }
   } catch (err) {
     return err;
   }

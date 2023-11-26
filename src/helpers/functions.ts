@@ -9,7 +9,6 @@ import {
   Position,
   TimeComparisonType,
   TradeDetails,
-  TradeType,
   delayType,
   reqType,
   updateMaxSlType,
@@ -113,13 +112,8 @@ export const findNearestStrike = (options: object[], target: number) => {
   }
   return nearestStrike;
 };
-export const getAtmStrikePrice = async (
-  tradeType: TradeType = TradeType.INTRADAY
-) => {
+export const getAtmStrikePrice = async () => {
   let expiryDate = getNextExpiry();
-  if (TradeType.POSITIONAL === tradeType) {
-    expiryDate = getLastThursdayOfCurrentMonth();
-  }
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
   try {
     const optionChain = await getScrip({
@@ -178,17 +172,12 @@ export const getCurrentDate = (): string => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}_${month}_${day}`;
 };
-export const createJsonFile = async (
-  tradeType: TradeType = TradeType.INTRADAY
-): Promise<JsonFileStructure> => {
+export const createJsonFile = async (): Promise<JsonFileStructure> => {
   const currentDate = getCurrentDate();
   let fileName = `${currentDate}_trades.json`;
-  if (tradeType === TradeType.POSITIONAL) {
-    fileName = `positional_trades.json`;
-  }
   const exists = fs.existsSync(fileName);
   if (exists) {
-    return readJsonFile(tradeType);
+    return readJsonFile();
   } else {
     let json: JsonFileStructure = {
       isTradeExecuted: false,
@@ -199,7 +188,7 @@ export const createJsonFile = async (
       isTradeClosed: false,
       mtm: [],
     };
-    await writeJsonFile(json, tradeType);
+    await writeJsonFile(json);
     return json;
   }
 };
@@ -212,15 +201,9 @@ export const isJson = (string: string) => {
     return false;
   }
 };
-export const writeJsonFile = async (
-  data: JsonFileStructure,
-  tradeType: TradeType = TradeType.INTRADAY
-) => {
+export const writeJsonFile = async (data: JsonFileStructure) => {
   const currentDate = getCurrentDate();
   let fileName = `${currentDate}_trades.json`;
-  if (tradeType === TradeType.POSITIONAL) {
-    fileName = `positional_trades.json`;
-  }
   const dataToStoreString = JSON.stringify(data);
   console.log(`${ALGO}: json data: `, dataToStoreString);
   if (isJson(dataToStoreString)) {
@@ -235,15 +218,10 @@ export const writeJsonFile = async (
     await delay({ milliSeconds: DELAY });
   }
 };
-export const readJsonFile = (
-  tradeType: TradeType = TradeType.INTRADAY
-): JsonFileStructure => {
+export const readJsonFile = (): JsonFileStructure => {
   try {
     const currentDate = getCurrentDate();
     let fileName = `${currentDate}_trades.json`;
-    if (tradeType === TradeType.POSITIONAL) {
-      fileName = `positional_trades.json`;
-    }
     console.log(`${ALGO}: reading from json file with name ${fileName}`);
     const dataFromFile = fs.readFileSync(fileName, 'utf-8');
     const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);
@@ -256,13 +234,9 @@ export const readJsonFile = (
 };
 export const checkStrike = (
   tradeDetails: TradeDetails[],
-  strike: string,
-  tradeType: TradeType
+  strike: string
 ): boolean => {
-  const expiry =
-    tradeType === TradeType.INTRADAY
-      ? getNextExpiry()
-      : getLastThursdayOfCurrentMonth();
+  const expiry = getNextExpiry();
   for (const trade of tradeDetails) {
     if (
       parseInt(trade.strike) === parseInt(strike) &&
@@ -275,13 +249,9 @@ export const checkStrike = (
 };
 export const areBothOptionTypesPresentForStrike = (
   tradeDetails: TradeDetails[],
-  strike: string,
-  tradeType: TradeType
+  strike: string
 ): BothPresent => {
-  const expirationDate =
-    tradeType === TradeType.INTRADAY
-      ? getNextExpiry()
-      : getLastThursdayOfCurrentMonth();
+  const expirationDate = getNextExpiry();
   let cePresent = false;
   let pePresent = false;
   const filteredTrades = tradeDetails
@@ -299,15 +269,9 @@ export const areBothOptionTypesPresentForStrike = (
     });
   return { ce: cePresent, pe: pePresent, stike: strike };
 };
-export const getOpenPositions = (
-  positions: Position[],
-  tradeType: TradeType
-): Position[] => {
+export const getOpenPositions = (positions: Position[]): Position[] => {
   const openPositions = [];
-  const expiryDate =
-    tradeType === TradeType.INTRADAY
-      ? getNextExpiry()
-      : getLastThursdayOfCurrentMonth();
+  const expiryDate = getNextExpiry();
   for (const position of positions) {
     const netqty = parseInt(position.netqty);
     const positionExpiryDate = position.expirydate;
@@ -330,19 +294,14 @@ export const isMarketClosed = () => {
 type GetNearestStrike = {
   algoTrades: TradeDetails[];
   atmStrike: number;
-  tradeType: TradeType;
 };
 export const getNearestStrike = ({
   algoTrades,
   atmStrike,
-  tradeType,
 }: GetNearestStrike): number => {
   let nearestStrike: number = Infinity;
   let minDifference = Number.MAX_SAFE_INTEGER;
-  const expirationDate =
-    tradeType === TradeType.INTRADAY
-      ? getNextExpiry()
-      : getLastThursdayOfCurrentMonth();
+  const expirationDate = getNextExpiry();
   console.log(`${ALGO}: getNearestStrike -> expirationDate: ${expirationDate}`);
   algoTrades
     .filter((trade) => trade.expireDate === expirationDate)
@@ -375,10 +334,7 @@ export const getLastThursdayOfCurrentMonth = () => {
   }
   return lastDayOfMonth.format('DDMMMYYYY').toUpperCase();
 };
-export const getData = async (tradeType: TradeType) => {
-  console.log(`${ALGO}: wait fetching positions...`);
-  return await getPositionsJson(tradeType);
-};
+
 export const checkPositionsExistsForMonthlyExpiry = (
   openPositions: Position[]
 ): boolean => {

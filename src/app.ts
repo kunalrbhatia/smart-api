@@ -29,13 +29,7 @@ import {
   setCred,
 } from './helpers/functions';
 import dotenv from 'dotenv';
-import {
-  Position,
-  Strategy,
-  TradeType,
-  bodyType,
-  reqType,
-} from './app.interface';
+import { Position, Strategy, bodyType, reqType } from './app.interface';
 import { get } from 'lodash';
 import { Socket } from 'net';
 const app: Application = express();
@@ -80,17 +74,16 @@ app.get('/kill', (req, res) => {
 });
 app.post('/closeTrade', async (req: Request, res: Response) => {
   setCred(req);
-  await closeTrade(TradeType.POSITIONAL);
+  await closeTrade();
   res.send({ ok: 123 });
 });
 app.post('/check-positions-to-close', async (req: Request, res: Response) => {
   setCred(req);
   const currentPositions = await getPositions();
   const positions: Position[] = get(currentPositions, 'data', []) || [];
-  const openPositions = getOpenPositions(positions, TradeType.INTRADAY);
+  const openPositions = getOpenPositions(positions);
   checkPositionToClose({
     openPositions: openPositions,
-    tradeType: TradeType.INTRADAY,
   });
   res.send().status(200);
 });
@@ -122,7 +115,6 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     const lots: number = req.body.lots;
     // console.log(`${ALGO}: lots: ${lots}`);
     const response = await checkMarketConditionsAndExecuteTrade(
-      TradeType.INTRADAY,
       Strategy.SHORTSTRADDLE,
       lots
     );
@@ -134,28 +126,6 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
-app.post(
-  '/run-short-straddle-positional-algo',
-  async (req: Request, res: Response) => {
-    console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
-    try {
-      const istTz = new Date().toLocaleString('default', {
-        timeZone: 'Asia/Kolkata',
-      });
-      console.log(`${ALGO}: time, ${istTz}`);
-      setCred(req);
-      const response = await checkMarketConditionsAndExecuteTrade(
-        TradeType.POSITIONAL
-      );
-      // console.log(`response: ${response}`);
-      res.send({ response: response });
-    } catch (err) {
-      console.log(err);
-      res.send({ response: err });
-    }
-    console.log(`${ALGO}: -----------------------------------`);
-  }
-);
 if (process.env.NODE_ENV === 'development') {
   cron.schedule('*/5 * * * *', async () => {
     console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
@@ -174,9 +144,7 @@ if (process.env.NODE_ENV === 'development') {
         body: body,
       };
       setCred(req);
-      const response = await checkMarketConditionsAndExecuteTrade(
-        TradeType.INTRADAY
-      );
+      const response = await checkMarketConditionsAndExecuteTrade();
       console.log(`response: ${response}`);
     } catch (err) {
       console.log(err);
@@ -213,14 +181,13 @@ app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
 });
 app.post('/get-positions', async (req: Request, res: Response) => {
   setCred(req);
-  const response = await getPositionsJson(TradeType.POSITIONAL);
+  const response = await getPositionsJson();
   res.send(response);
 });
 app.post('/calc-mtm', async (req: Request, res: Response) => {
   setCred(req);
   const response = await calculateMtm({
-    data: readJsonFile(TradeType.INTRADAY),
-    tradeType: TradeType.POSITIONAL,
+    data: readJsonFile(),
   });
   res.jsonp({ mtm: response });
 });

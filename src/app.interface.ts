@@ -36,10 +36,6 @@ export enum HistoryInterval {
   ONE_HOUR = 'ONE_HOUR',
   ONE_DAY = 'ONE_DAY',
 }
-export enum TradeType {
-  POSITIONAL = 'positional',
-  INTRADAY = 'intraday',
-}
 export enum Strategy {
   RSI = 'rsi',
   SHORTSTRADDLE = 'shortStraddle',
@@ -196,7 +192,6 @@ export type ShortStraddleData = {
 export type AddShortStraddleData = {
   data: JsonFileStructure;
   shortStraddleData: ShortStraddleData;
-  tradeType: TradeType;
 };
 export type BothPresent = { ce: boolean; pe: boolean; stike: string };
 export type OrderData = {
@@ -213,7 +208,6 @@ export enum OptionType {
 }
 export type checkPositionToCloseType = {
   openPositions: Position[];
-  tradeType: TradeType;
 };
 export enum CheckOptionType {
   BOTH_CE_PE_PRESENT = 'both_present',
