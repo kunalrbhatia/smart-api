@@ -928,20 +928,20 @@ export const checkMarketConditionsAndExecuteTrade = async (
   OrderStore.getInstance().setPostData({ QUANTITY: lots });
   try {
     const data = await createJsonFile();
-    return await executeTrade();
-    // if (!(await isTradeAllowed(data))) {
-    //   return MESSAGE_NOT_TAKE_TRADE;
-    // }
-    // if (
-    //   strategy === Strategy.SHORTSTRADDLE &&
-    //   getNextExpiry() !== getLastThursdayOfCurrentMonth()
-    // ) {
-    //   return await executeTrade();
-    // } else if (strategy === Strategy.RSI) {
-    //   return await runRsiAlgo();
-    // } else {
-    //   return MESSAGE_NOT_TAKE_TRADE;
-    // }
+    // return await executeTrade();
+    if (!(await isTradeAllowed(data))) {
+      return MESSAGE_NOT_TAKE_TRADE;
+    }
+    if (
+      strategy === Strategy.SHORTSTRADDLE &&
+      getNextExpiry() !== getLastThursdayOfCurrentMonth()
+    ) {
+      return await executeTrade();
+    } else if (strategy === Strategy.RSI) {
+      return await runRsiAlgo();
+    } else {
+      return MESSAGE_NOT_TAKE_TRADE;
+    }
   } catch (err) {
     return err;
   }
