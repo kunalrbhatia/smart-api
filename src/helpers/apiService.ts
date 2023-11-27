@@ -450,25 +450,15 @@ export const doOrderByStrike = async (
 export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
-    await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
-    await delay({ milliSeconds: DELAY });
-    const ceOrderData = await doOrderByStrike(atmStrike, OptionType.CE);
-    console.log(`${ALGO} {shortStraddle}: ceOrderData: `, ceOrderData);
-    await delay({ milliSeconds: DELAY });
-    const peOrderData = await doOrderByStrike(atmStrike, OptionType.PE);
-    console.log(`${ALGO} {shortStraddle}: peOrderData: `, peOrderData);
-    return {
-      stikePrice: atmStrike.toString(),
-      expiryDate: ceOrderData.expiryDate,
-      netQty: ceOrderData.netQty,
-      ceOrderToken: ceOrderData.token,
-      peOrderToken: peOrderData.token,
-      ceOrderSymbol: ceOrderData.symbol,
-      peOrderSymbol: peOrderData.symbol,
-      ceOrderStatus: ceOrderData.status,
-      peOrderStatus: peOrderData.status,
-    };
+    let order = await doOrderByStrike(atmStrike, OptionType.CE);
+    await addOrderData(readJsonFile(), order, OptionType.CE);
+    order = await doOrderByStrike(atmStrike + 1000, OptionType.CE);
+    await addOrderData(readJsonFile(), order, OptionType.CE);
+    order = await doOrderByStrike(atmStrike, OptionType.PE);
+    await addOrderData(readJsonFile(), order, OptionType.PE);
+    order = await doOrderByStrike(atmStrike - 1000, OptionType.PE);
+    await addOrderData(readJsonFile(), order, OptionType.PE);
   } catch (error) {
     const errorMessage = `${ALGO}: shortStraddle failed error below`;
     console.log(errorMessage);
@@ -521,7 +511,6 @@ export const repeatShortStraddle = async (
   try {
     const data = readJsonFile();
     const strikeDiff = STRIKE_DIFFERENCE;
-
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,
       atmStrike.toString()
@@ -540,8 +529,7 @@ export const repeatShortStraddle = async (
     if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
-        const shortStraddleData = await shortStraddle();
-        await addShortStraddleData({ data, shortStraddleData });
+        await shortStraddle();
       } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
         const orderData = await doOrderByStrike(atmStrike, OptionType.PE);
         addOrderData(data, orderData, OptionType.PE);
@@ -843,8 +831,7 @@ const coreTradeExecution = async () => {
   let data = await getPositionsJson();
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
-    const shortStraddleData = await shortStraddle();
-    await addShortStraddleData({ data, shortStraddleData });
+    await shortStraddle();
   } else {
     console.log(
       `${ALGO}: trade executed already checking conditions to repeat the trade`
@@ -943,7 +930,6 @@ export const checkMarketConditionsAndExecuteTrade = async (
     return err;
   }
 };
-
 export const checkPositionAlreadyExists = async ({
   position,
   trades,

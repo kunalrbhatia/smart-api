@@ -72,38 +72,38 @@ app.get('/kill', (req, res) => {
   }, 1000);
   res.send("Execution of the 'Kill Algo' command has been initiated.");
 });
-app.post('/closeTrade', async (req: Request, res: Response) => {
-  setCred(req);
-  await closeTrade();
-  res.send({ ok: 123 });
-});
-app.post('/check-positions-to-close', async (req: Request, res: Response) => {
-  setCred(req);
-  const currentPositions = await getPositions();
-  const positions: Position[] = get(currentPositions, 'data', []) || [];
-  const openPositions = getOpenPositions(positions);
-  checkPositionToClose({
-    openPositions: openPositions,
-  });
-  res.send().status(200);
-});
-app.post('/rsi', async (req: Request, res: Response) => {
-  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
-  try {
-    const istTz = new Date().toLocaleString('default', {
-      timeZone: 'Asia/Kolkata',
-    });
-    console.log(`${ALGO}: time, ${istTz}`);
-    setCred(req);
-    const response = await runRsiAlgo();
-    //console.log(`response: ${response}`);
-    res.send({ response: response });
-  } catch (err) {
-    console.log(err);
-    res.send({ response: err });
-  }
-  console.log(`${ALGO}: -----------------------------------`);
-});
+// app.post('/closeTrade', async (req: Request, res: Response) => {
+//   setCred(req);
+//   await closeTrade();
+//   res.send({ ok: 123 });
+// });
+// app.post('/check-positions-to-close', async (req: Request, res: Response) => {
+//   setCred(req);
+//   const currentPositions = await getPositions();
+//   const positions: Position[] = get(currentPositions, 'data', []) || [];
+//   const openPositions = getOpenPositions(positions);
+//   checkPositionToClose({
+//     openPositions: openPositions,
+//   });
+//   res.send().status(200);
+// });
+// app.post('/rsi', async (req: Request, res: Response) => {
+//   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+//   try {
+//     const istTz = new Date().toLocaleString('default', {
+//       timeZone: 'Asia/Kolkata',
+//     });
+//     console.log(`${ALGO}: time, ${istTz}`);
+//     setCred(req);
+//     const response = await runRsiAlgo();
+//     //console.log(`response: ${response}`);
+//     res.send({ response: response });
+//   } catch (err) {
+//     console.log(err);
+//     res.send({ response: err });
+//   }
+//   console.log(`${ALGO}: -----------------------------------`);
+// });
 app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
@@ -126,59 +126,59 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
-if (process.env.NODE_ENV === 'development') {
-  cron.schedule('*/5 * * * *', async () => {
-    console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
-    try {
-      const istTz = new Date().toLocaleString('default', {
-        timeZone: 'Asia/Kolkata',
-      });
-      console.log(`${ALGO}: time, ${istTz}`);
-      const body: bodyType = {
-        api_key: process.env.API_KEY ?? '',
-        client_code: process.env.CLIENT_CODE ?? '',
-        client_pin: process.env.CLIENT_PIN ?? '',
-        client_totp_pin: process.env.CLIENT_TOTP_PIN ?? '',
-      };
-      const req: reqType = {
-        body: body,
-      };
-      setCred(req);
-      const response = await checkMarketConditionsAndExecuteTrade();
-      console.log(`response: ${response}`);
-    } catch (err) {
-      console.log(err);
-    }
-    console.log(`${ALGO}: -----------------------------------`);
-  });
-}
+// if (process.env.NODE_ENV === 'development') {
+//   cron.schedule('*/5 * * * *', async () => {
+//     console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+//     try {
+//       const istTz = new Date().toLocaleString('default', {
+//         timeZone: 'Asia/Kolkata',
+//       });
+//       console.log(`${ALGO}: time, ${istTz}`);
+//       const body: bodyType = {
+//         api_key: process.env.API_KEY ?? '',
+//         client_code: process.env.CLIENT_CODE ?? '',
+//         client_pin: process.env.CLIENT_PIN ?? '',
+//         client_totp_pin: process.env.CLIENT_TOTP_PIN ?? '',
+//       };
+//       const req: reqType = {
+//         body: body,
+//       };
+//       setCred(req);
+//       const response = await checkMarketConditionsAndExecuteTrade();
+//       console.log(`response: ${response}`);
+//     } catch (err) {
+//       console.log(err);
+//     }
+//     console.log(`${ALGO}: -----------------------------------`);
+//   });
+// }
 app.post('/get-atm-strike-price', async (req: Request, res: Response) => {
   setCred(req);
   res.json({ atm: await getAtmStrikePrice() });
 });
-app.post(
-  '/script/details/get-script-ltp',
-  async (req: Request, res: Response) => {
-    setCred(req);
-    const tradingsymbol: string = req.body.tradingsymbol;
-    const exchange: string = req.body.exchange;
-    const symboltoken: string = req.body.symboltoken;
-    const ltpData = await getLtpData({
-      exchange,
-      symboltoken,
-      tradingsymbol,
-    });
-    res.send(ltpData);
-  }
-);
-app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
-  setCred(req);
-  const scriptName: string = req.body.scriptName;
-  const strikePrice: string = req.body.strikePrice;
-  const optionType: 'CE' | 'PE' = req.body.optionType || '';
-  const expiryDate: string = req.body.expiryDate;
-  res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
-});
+// app.post(
+//   '/script/details/get-script-ltp',
+//   async (req: Request, res: Response) => {
+//     setCred(req);
+//     const tradingsymbol: string = req.body.tradingsymbol;
+//     const exchange: string = req.body.exchange;
+//     const symboltoken: string = req.body.symboltoken;
+//     const ltpData = await getLtpData({
+//       exchange,
+//       symboltoken,
+//       tradingsymbol,
+//     });
+//     res.send(ltpData);
+//   }
+// );
+// app.post('/scrip/details/get-script', async (req: Request, res: Response) => {
+//   setCred(req);
+//   const scriptName: string = req.body.scriptName;
+//   const strikePrice: string = req.body.strikePrice;
+//   const optionType: 'CE' | 'PE' = req.body.optionType || '';
+//   const expiryDate: string = req.body.expiryDate;
+//   res.send(await getScrip({ scriptName, strikePrice, optionType, expiryDate }));
+// });
 app.post('/get-positions', async (req: Request, res: Response) => {
   setCred(req);
   const response = await getPositionsJson();

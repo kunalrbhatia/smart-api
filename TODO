@@ -1,14 +1,5 @@
-Read positions from profile and make respective json out of it. -- DONE
-Calculate timewise mtm and store it to json. Example: timewise_mtm:[time:'12:30',mtm:280] -- DONE
-Keep Credentails outside -- DONE
-Wrap await inside try catch statement -- DONE
-Deploy on GCP -- DONE
-Run cron job in every 5 mins for 24 hours -- DONE
-Find a way to see log whenever needed -- DONE
-Write a positional algo -- DONE
-Remove positional from this project and make a seperate project for it. -- DONE
+
 Optimize to not do things which are not needed
 Remove json file logic
 Write a logic for margin benefit
-Write logic to end positional algo one week before monthly expiry on Wednesday
 Find a way to backtest 
