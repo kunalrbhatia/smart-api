@@ -201,6 +201,7 @@ export type OrderData = {
   token: string;
   symbol: string;
   status: boolean;
+  exchange: string;
 };
 export enum OptionType {
   CE = 'CE',
