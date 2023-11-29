@@ -933,8 +933,8 @@ export const checkMarketConditionsAndExecuteTrade = async (
   OrderStore.getInstance().setPostData({ QUANTITY: lots });
   try {
     const data = await createJsonFile();
-    return await executeTrade();
-    /* if (!(await isTradeAllowed(data))) {
+    // return await executeTrade();
+    if (!(await isTradeAllowed(data))) {
       return MESSAGE_NOT_TAKE_TRADE;
     }
     if (strategy === Strategy.SHORTSTRADDLE) {
@@ -943,7 +943,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
       return await runRsiAlgo();
     } else {
       return MESSAGE_NOT_TAKE_TRADE;
-    } */
+    }
   } catch (err) {
     return err;
   }
