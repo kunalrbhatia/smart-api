@@ -410,11 +410,14 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
 };
 export const doOrderByStrike = async (
   strike: number,
-  optionType: OptionType
+  optionType: OptionType,
+  transactionType: 'BUY' | 'SELL'
 ): Promise<OrderData> => {
   try {
     const expiryDate = getNextExpiry();
-    console.log(`${ALGO} {doOrderByStrike}: expiryDate: ${expiryDate}`);
+    console.log(
+      `${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`
+    );
     await delay({ milliSeconds: DELAY });
     const token = await getScrip({
       scriptName: 'BANKNIFTY',
@@ -422,22 +425,24 @@ export const doOrderByStrike = async (
       optionType: optionType,
       strikePrice: strike.toString(),
     });
-    console.log(`${ALGO} {doOrderByStrike}: token: ${token}`);
+    //console.log(`${ALGO} {doOrderByStrike}: token: `, token);
     await delay({ milliSeconds: DELAY });
     const orderData = await doOrder({
       tradingsymbol: get(token, '0.symbol', ''),
       symboltoken: get(token, '0.token', ''),
-      transactionType: TRANSACTION_TYPE_SELL,
+      transactionType: transactionType,
     });
-    console.log(`${ALGO} {doOrderByStrike}: orderData: `, orderData);
+    console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
     const lots = OrderStore.getInstance().getPostData().QUANTITY;
-    const netQty = 15 * lots * -1;
+    const qty = 15 * lots;
+    const netQty = transactionType === 'SELL' ? qty * -1 : qty;
     return {
       stikePrice: strike.toString(),
       expiryDate: expiryDate,
       netQty: netQty.toString(),
       token: get(token, '0.token', ''),
       symbol: get(token, '0.symbol', ''),
+      exchange: get(token, '0.exch_seg', ''),
       status: orderData.status,
     };
   } catch (error) {
@@ -450,25 +455,15 @@ export const doOrderByStrike = async (
 export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
-    await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
-    await delay({ milliSeconds: DELAY });
-    const ceOrderData = await doOrderByStrike(atmStrike, OptionType.CE);
-    console.log(`${ALGO} {shortStraddle}: ceOrderData: `, ceOrderData);
-    await delay({ milliSeconds: DELAY });
-    const peOrderData = await doOrderByStrike(atmStrike, OptionType.PE);
-    console.log(`${ALGO} {shortStraddle}: peOrderData: `, peOrderData);
-    return {
-      stikePrice: atmStrike.toString(),
-      expiryDate: ceOrderData.expiryDate,
-      netQty: ceOrderData.netQty,
-      ceOrderToken: ceOrderData.token,
-      peOrderToken: peOrderData.token,
-      ceOrderSymbol: ceOrderData.symbol,
-      peOrderSymbol: peOrderData.symbol,
-      ceOrderStatus: ceOrderData.status,
-      peOrderStatus: peOrderData.status,
-    };
+    let order = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
+    await addOrderData(readJsonFile(), order, OptionType.CE);
+    order = await doOrderByStrike(atmStrike + 1000, OptionType.CE, 'BUY');
+    await addOrderData(readJsonFile(), order, OptionType.CE);
+    order = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
+    await addOrderData(readJsonFile(), order, OptionType.PE);
+    order = await doOrderByStrike(atmStrike - 1000, OptionType.PE, 'BUY');
+    await addOrderData(readJsonFile(), order, OptionType.PE);
   } catch (error) {
     const errorMessage = `${ALGO}: shortStraddle failed error below`;
     console.log(errorMessage);
@@ -521,7 +516,6 @@ export const repeatShortStraddle = async (
   try {
     const data = readJsonFile();
     const strikeDiff = STRIKE_DIFFERENCE;
-
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,
       atmStrike.toString()
@@ -540,13 +534,24 @@ export const repeatShortStraddle = async (
     if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
-        const shortStraddleData = await shortStraddle();
-        await addShortStraddleData({ data, shortStraddleData });
+        await shortStraddle();
       } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
-        const orderData = await doOrderByStrike(atmStrike, OptionType.PE);
+        let orderData = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
+        addOrderData(data, orderData, OptionType.PE);
+        orderData = await doOrderByStrike(
+          atmStrike - 1000,
+          OptionType.PE,
+          'BUY'
+        );
         addOrderData(data, orderData, OptionType.PE);
       } else if (cepe_present === CheckOptionType.ONLY_PE_PRESENT) {
-        const orderData = await doOrderByStrike(atmStrike, OptionType.CE);
+        let orderData = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
+        addOrderData(data, orderData, OptionType.CE);
+        orderData = await doOrderByStrike(
+          atmStrike + 1000,
+          OptionType.CE,
+          'BUY'
+        );
         addOrderData(data, orderData, OptionType.CE);
       }
     }
@@ -685,7 +690,7 @@ export const closeParticularTrade = async ({
       transactionType: TRANSACTION_TYPE_BUY,
       symboltoken: trade.token,
     });
-    console.log(`${ALGO} transactionStatus: `, transactionStatus);
+    // console.log(`${ALGO} transactionStatus: `, transactionStatus);
     trade.closed = transactionStatus.status;
     return transactionStatus.status;
   } catch (error) {
@@ -799,8 +804,8 @@ export const addOrderData = async (
       symbol: orderData.symbol,
       closed: false,
       tradedPrice: 0,
-      exchange: '',
-      tradingSymbol: '',
+      exchange: orderData.exchange,
+      tradingSymbol: orderData.symbol,
     });
   }
   await writeJsonFile(data);
@@ -843,8 +848,7 @@ const coreTradeExecution = async () => {
   let data = await getPositionsJson();
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
-    const shortStraddleData = await shortStraddle();
-    await addShortStraddleData({ data, shortStraddleData });
+    await shortStraddle();
   } else {
     console.log(
       `${ALGO}: trade executed already checking conditions to repeat the trade`
@@ -870,6 +874,7 @@ const coreTradeExecution = async () => {
   const istTz = new Date().toLocaleString('default', {
     timeZone: 'Asia/Kolkata',
   });
+  data = readJsonFile();
   const mtm = data.mtm;
   mtm.push({ time: istTz, value: mtmData.toString() });
   await delay({ milliSeconds: DELAY });
@@ -891,7 +896,7 @@ export const executeTrade = async () => {
   if (mtmData < mtmThreshold || isCurrentTimeGreater(closingTime)) {
     console.log(`${ALGO}: closing the trade`);
     await closeTrade();
-    return '${ALGO}: Trade Closed';
+    return `${ALGO}: Trade Closed`;
   } else {
     console.log(`${ALGO}: returning mtm to api response`);
     return mtmData;
@@ -943,7 +948,6 @@ export const checkMarketConditionsAndExecuteTrade = async (
     return err;
   }
 };
-
 export const checkPositionAlreadyExists = async ({
   position,
   trades,
