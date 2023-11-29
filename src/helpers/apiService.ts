@@ -932,10 +932,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
     if (!(await isTradeAllowed(data))) {
       return MESSAGE_NOT_TAKE_TRADE;
     }
-    if (
-      strategy === Strategy.SHORTSTRADDLE &&
-      getNextExpiry() !== getLastThursdayOfCurrentMonth()
-    ) {
+    if (strategy === Strategy.SHORTSTRADDLE) {
       return await executeTrade();
     } else if (strategy === Strategy.RSI) {
       return await runRsiAlgo();
