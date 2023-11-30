@@ -104,6 +104,9 @@ export type Credentails = {
 export type OrderStoreDataType = {
   QUANTITY: number;
 };
+export type ScripMasterStoreDataType = {
+  SCRIP_MASTER_JSON: object[];
+};
 export type CheckPosition = { position: Position; trades: TradeDetails[] };
 export type getLtpDataType = {
   exchange: string;

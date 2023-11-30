@@ -1,11 +1,9 @@
 import { get, isArray, isEmpty } from 'lodash';
-
 let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
   areBothOptionTypesPresentForStrike,
-  checkPositionsExistsForMonthlyExpiry,
   checkStrike,
   createJsonFile,
   delay,
@@ -21,7 +19,6 @@ import {
   removeJsonFile,
   roundToNearestHundred,
   setSmartSession,
-  updateMaxSl,
   writeJsonFile,
 } from './functions';
 import { Response } from 'express';
@@ -48,7 +45,6 @@ import {
   getPositionByTokenType,
   getScripFutType,
   getScripType,
-  runOrbType,
   scripMasterResponse,
   shouldCloseTradeType,
 } from '../app.interface';
@@ -66,7 +62,6 @@ import {
   SCRIPMASTER,
   SHORT_DELAY,
   STRIKE_DIFFERENCE,
-  STRIKE_DIFFERENCE_POSITIONAL,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
 } from './constants';
@@ -75,6 +70,7 @@ import SmartSession from '../store/smartSession';
 import moment from 'moment-timezone';
 import { findTrade, makeNewTrade } from './dbService';
 import OrderStore from '../store/orderStore';
+import ScripMasterStore from '../store/scripMasterStore';
 const tulind = require('tulind');
 export const getLtpData = async ({
   exchange,
@@ -130,27 +126,35 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
     });
 };
 export const fetchData = async (): Promise<scripMasterResponse[]> => {
-  return await axios
-    .get(SCRIPMASTER)
-    .then((response: object) => {
-      let acData: object[] = get(response, 'data', []) || [];
-      console.log(
-        `${ALGO}: response if script master api loaded and its length is ${acData.length}`
-      );
-      let scripMaster = acData.map((element, index) => {
-        return {
-          ...element,
-          label: get(element, 'name', 'NONAME') || 'NONAME',
-          key: '0' + index + get(element, 'token', '00') || '00',
-        };
+  const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
+  if (data.length > 0) {
+    return data as scripMasterResponse[];
+  } else {
+    return await axios
+      .get(SCRIPMASTER)
+      .then((response: object) => {
+        let acData: object[] = get(response, 'data', []) || [];
+        console.log(
+          `${ALGO}: response if script master api loaded and its length is ${acData.length}`
+        );
+        let scripMaster = acData.map((element, index) => {
+          return {
+            ...element,
+            label: get(element, 'name', 'NONAME') || 'NONAME',
+            key: '0' + index + get(element, 'token', '00') || '00',
+          };
+        });
+        ScripMasterStore.getInstance().setPostData({
+          SCRIP_MASTER_JSON: scripMaster,
+        });
+        return scripMaster;
+      })
+      .catch((evt: object) => {
+        console.log(`${ALGO}: fetchData failed error below`);
+        console.log(evt);
+        throw evt;
       });
-      return scripMaster;
-    })
-    .catch((evt: object) => {
-      console.log(`${ALGO}: fetchData failed error below`);
-      console.log(evt);
-      throw evt;
-    });
+  }
 };
 export const getAllFut = async () => {
   let scripMaster: scripMasterResponse[] = await fetchData();
@@ -711,7 +715,6 @@ export const closeAllTrades = async () => {
     const tradeDetails = data.tradeDetails;
     if (Array.isArray(tradeDetails)) {
       const nextExpiry = getNextExpiry();
-      const lastThursdayOfMonth = getLastThursdayOfCurrentMonth();
       for (const trade of tradeDetails) {
         if (trade.expireDate === nextExpiry) {
           await closeParticularTrade({ trade });
@@ -889,6 +892,7 @@ export const executeTrade = async () => {
   let mtmData = 0;
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   if (isPastClosingTime === false) mtmData = await coreTradeExecution();
+  // mtmData = await coreTradeExecution();
   const mtmThreshold = -MTMDATATHRESHOLD;
   let resp: number | string = `${ALGO}: Trade Closed`;
   if (mtmData < mtmThreshold || isPastClosingTime) await closeTrade();
