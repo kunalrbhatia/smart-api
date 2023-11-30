@@ -133,17 +133,14 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
     return await axios
       .get(SCRIPMASTER)
       .then((response: object) => {
-        let acData: object[] = get(response, 'data', []) || [];
+        let acData: scripMasterResponse[] = get(response, 'data', []) || [];
         console.log(
           `${ALGO}: response if script master api loaded and its length is ${acData.length}`
         );
-        let scripMaster = acData.map((element, index) => {
-          return { ...element };
-        });
         ScripMasterStore.getInstance().setPostData({
-          SCRIP_MASTER_JSON: scripMaster,
+          SCRIP_MASTER_JSON: acData,
         });
-        return scripMaster;
+        return acData;
       })
       .catch((evt: object) => {
         console.log(`${ALGO}: fetchData failed error below`);
