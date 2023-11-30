@@ -138,11 +138,7 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
           `${ALGO}: response if script master api loaded and its length is ${acData.length}`
         );
         let scripMaster = acData.map((element, index) => {
-          return {
-            ...element,
-            label: get(element, 'name', 'NONAME') || 'NONAME',
-            key: '0' + index + get(element, 'token', '00') || '00',
-          };
+          return { ...element };
         });
         ScripMasterStore.getInstance().setPostData({
           SCRIP_MASTER_JSON: scripMaster,
@@ -250,8 +246,6 @@ export const getScrip = async ({
         symbol: get(element, 'symbol', '') || '',
         tick_size: get(element, 'tick_size', '') || '',
         token: get(element, 'token', '') || '',
-        label: get(element, 'name', 'NoName') || 'NoName',
-        key: index.toString(),
       };
     });
     return scrips;

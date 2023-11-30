@@ -142,8 +142,6 @@ export type scripMasterResponse = {
   instrumenttype: string;
   exch_seg: string;
   tick_size: string;
-  label: string;
-  key: string;
 };
 
 export type doOrderType = {
