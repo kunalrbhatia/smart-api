@@ -172,6 +172,17 @@ export const getCurrentDate = (): string => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}_${month}_${day}`;
 };
+export const removeJsonFile = async (): Promise<boolean> => {
+  const currentDate = getCurrentDate();
+  let fileName = `${currentDate}_trades.json`;
+  const exists = fs.existsSync(fileName);
+  if (exists)
+    fs.unlink(fileName, (err) => {
+      if (err) console.log(`${ALGO}: error deleting file ${err.message}`);
+      else return true;
+    });
+  return false;
+};
 export const createJsonFile = async (): Promise<JsonFileStructure> => {
   const currentDate = getCurrentDate();
   let fileName = `${currentDate}_trades.json`;

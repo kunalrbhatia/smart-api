@@ -18,6 +18,7 @@ import {
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
+  removeJsonFile,
   roundToNearestHundred,
   setSmartSession,
   updateMaxSl,
@@ -685,9 +686,10 @@ export const closeParticularTrade = async ({
 }) => {
   try {
     await delay({ milliSeconds: DELAY });
+    const qty = parseInt(trade.netQty);
     const transactionStatus = await doOrder({
       tradingsymbol: trade.tradingSymbol,
-      transactionType: TRANSACTION_TYPE_BUY,
+      transactionType: qty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL,
       symboltoken: trade.token,
     });
     // console.log(`${ALGO} transactionStatus: `, transactionStatus);
@@ -882,25 +884,17 @@ const coreTradeExecution = async () => {
   return mtmData;
 };
 export const executeTrade = async () => {
-  const mtmData = await coreTradeExecution();
-  //const mtmData = 0;
-  await delay({ milliSeconds: DELAY });
-  await getPositionsJson();
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
-  console.log(
-    `${ALGO}: checking condition hasTimePassed15:15: ${isCurrentTimeGreater(
-      closingTime
-    )}`
-  );
+  const isPastClosingTime = isCurrentTimeGreater(closingTime);
+  let mtmData = 0;
+  console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
+  if (isPastClosingTime === false) mtmData = await coreTradeExecution();
   const mtmThreshold = -MTMDATATHRESHOLD;
-  if (mtmData < mtmThreshold || isCurrentTimeGreater(closingTime)) {
-    console.log(`${ALGO}: closing the trade`);
-    await closeTrade();
-    return `${ALGO}: Trade Closed`;
-  } else {
-    console.log(`${ALGO}: returning mtm to api response`);
-    return mtmData;
-  }
+  let resp: number | string = `${ALGO}: Trade Closed`;
+  if (mtmData < mtmThreshold || isPastClosingTime) await closeTrade();
+  else resp = mtmData;
+  await removeJsonFile();
+  return resp;
 };
 const isTradeAllowed = async (data: JsonFileStructure) => {
   const isMarketOpen = !isMarketClosed();
