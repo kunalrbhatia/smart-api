@@ -113,10 +113,12 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
     const lots: number = req.body.lots;
+    const stoploss: number = req.body.stoploss;
     // console.log(`${ALGO}: lots: ${lots}`);
     const response = await checkMarketConditionsAndExecuteTrade(
       Strategy.SHORTSTRADDLE,
-      lots
+      lots,
+      stoploss
     );
     //console.log(`${ALGO} response: ${response}`);
     res.send({ response: response });

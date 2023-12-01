@@ -10,6 +10,7 @@ class OrderStore {
     // Initialize postData with default values or leave it empty.
     this.postData = {
       QUANTITY: 0,
+      STOPLOSS: 10000,
     };
   }
 

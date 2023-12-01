@@ -57,7 +57,6 @@ import {
   HISTORIC_API,
   ME,
   MESSAGE_NOT_TAKE_TRADE,
-  MTMDATATHRESHOLD,
   ORDER_API,
   SCRIPMASTER,
   SHORT_DELAY,
@@ -884,7 +883,8 @@ export const executeTrade = async () => {
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   if (isPastClosingTime === false) mtmData = await coreTradeExecution();
   // mtmData = await coreTradeExecution();
-  const mtmThreshold = -MTMDATATHRESHOLD;
+  const stoploss = OrderStore.getInstance().getPostData().STOPLOSS;
+  const mtmThreshold = -stoploss;
   let resp: number | string = `${ALGO}: Trade Closed`;
   if (mtmData < mtmThreshold || isPastClosingTime) await closeTrade();
   else resp = mtmData;
@@ -917,9 +917,10 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
 };
 export const checkMarketConditionsAndExecuteTrade = async (
   strategy: Strategy = Strategy.SHORTSTRADDLE,
-  lots: number = 1
+  lots: number = 1,
+  stoploss: number = 10000
 ) => {
-  OrderStore.getInstance().setPostData({ QUANTITY: lots });
+  OrderStore.getInstance().setPostData({ QUANTITY: lots, STOPLOSS: stoploss });
   try {
     const data = await createJsonFile();
     // return await executeTrade();

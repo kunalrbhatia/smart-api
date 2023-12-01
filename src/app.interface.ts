@@ -103,6 +103,7 @@ export type Credentails = {
 };
 export type OrderStoreDataType = {
   QUANTITY: number;
+  STOPLOSS: number;
 };
 export type ScripMasterStoreDataType = {
   SCRIP_MASTER_JSON: object[];
