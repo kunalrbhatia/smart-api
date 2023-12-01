@@ -286,7 +286,7 @@ export const getOpenPositions = (positions: Position[]): Position[] => {
   for (const position of positions) {
     const netqty = parseInt(position.netqty);
     const positionExpiryDate = position.expirydate;
-    if (netqty < 0 && expiryDate === positionExpiryDate) {
+    if (expiryDate === positionExpiryDate) {
       openPositions.push(position);
     }
   }
