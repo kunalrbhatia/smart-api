@@ -387,20 +387,11 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
         trade.token === get(value, 'symboltoken', '') &&
         trade.expireDate === expiryDate
       ) {
-        console.log(
-          `${ALGO}: cfsellavgprice: ${get(
-            value,
-            'cfsellavgprice'
-          )}, strikeprice: ${get(value, 'strikeprice')}, expirydate: ${get(
-            value,
-            'expirydate'
-          )}`
-        );
-        mtm += parseInt(get(value, 'unrealised', ''));
+        const unrealised = get(value, 'unrealised', '');
+        mtm += parseInt(unrealised);
       }
     });
   });
-  console.log(`${ALGO}: calculateMtm: ${mtm}`);
   return mtm;
 };
 export const doOrderByStrike = async (
