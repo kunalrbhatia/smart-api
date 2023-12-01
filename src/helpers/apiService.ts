@@ -581,6 +581,7 @@ export const shouldCloseTrade = async ({
 export const checkPositionToClose = async ({
   openPositions,
 }: checkPositionToCloseType) => {
+  console.log(`${ALGO}, checkPositionToClose`);
   try {
     const data = readJsonFile();
     const tradeDetails = data.tradeDetails;
@@ -593,7 +594,6 @@ export const checkPositionToClose = async ({
         }
       }
     }
-    await writeJsonFile(data);
     for (const trade of tradeDetails) {
       if (
         trade &&
@@ -613,6 +613,7 @@ export const checkPositionToClose = async ({
         });
       }
     }
+    await writeJsonFile(data);
   } catch (error) {
     const errorMessage = `${ALGO}: checkPositionToClose failed error below`;
     console.log(errorMessage);
@@ -625,7 +626,6 @@ export const getPositionsJson = async () => {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
     const openPositions = getOpenPositions(positions);
-    await checkPositionToClose({ openPositions });
     console.log(
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
     );
@@ -656,6 +656,7 @@ export const getPositionsJson = async () => {
       }
     }
     await writeJsonFile(json);
+    await checkPositionToClose({ openPositions });
     return json;
   } catch (error) {
     const errorMessage = `${ALGO}: getPositionsJson failed error below`;
