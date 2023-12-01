@@ -831,8 +831,7 @@ export const addShortStraddleData = async ({
     await writeJsonFile(data);
   }
 };
-const coreTradeExecution = async () => {
-  let data = await getPositionsJson();
+const coreTradeExecution = async ({ data }: { data: JsonFileStructure }) => {
   if (!data.isTradeExecuted) {
     console.log(`${ALGO}: executing trade`);
     await shortStraddle();
@@ -873,7 +872,8 @@ export const executeTrade = async () => {
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
   let mtmData = 0;
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
-  if (isPastClosingTime === false) mtmData = await coreTradeExecution();
+  let data = await getPositionsJson();
+  if (isPastClosingTime === false) mtmData = await coreTradeExecution({ data });
   // mtmData = await coreTradeExecution();
   const stoploss = OrderStore.getInstance().getPostData().STOPLOSS;
   const mtmThreshold = -stoploss;
