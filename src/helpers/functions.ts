@@ -1,4 +1,9 @@
-import { getLtpData, getPositionsJson, getScrip } from './apiService';
+import {
+  getIndexScrip,
+  getLtpData,
+  getPositionsJson,
+  getScrip,
+} from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
 import {
@@ -123,13 +128,15 @@ export const getAtmStrikePrice = async () => {
     console.log(
       `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
     );
+    const bnfScrip = await getIndexScrip({ scriptName: 'BANKNIFTY' });
     const ltp = await getLtpData({
-      exchange: 'NSE',
-      tradingsymbol: 'BANKNIFTY',
-      symboltoken: '26009',
+      exchange: bnfScrip[0].exch_seg,
+      tradingsymbol: bnfScrip[0].symbol,
+      symboltoken: bnfScrip[0].token,
     });
     const ltpPrice = ltp.ltp;
     console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
+    // throw new Error(`ltpPrice is not a valid number!`);
     if (typeof ltpPrice === 'number' && !isNaN(ltpPrice)) {
       return findNearestStrike(optionChain, ltpPrice);
     } else {

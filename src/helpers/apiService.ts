@@ -251,6 +251,28 @@ export const getScrip = async ({
     throw errorMessage;
   }
 };
+export const getIndexScrip = async ({
+  scriptName,
+}: {
+  scriptName: string;
+}): Promise<scripMasterResponse[]> => {
+  let scripMaster: scripMasterResponse[] = await fetchData();
+  if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
+    let scrips = scripMaster.filter((scrip) => {
+      const _scripName: string = get(scrip, 'name', '') || '';
+      return (
+        (_scripName.includes(scriptName) || _scripName === scriptName) &&
+        get(scrip, 'exch_seg') === 'NSE' &&
+        get(scrip, 'instrumenttype') === 'AMXIDX'
+      );
+    });
+    return scrips;
+  } else {
+    const errorMessage = `${ALGO}: getScrip failed`;
+    console.log(errorMessage);
+    throw errorMessage;
+  }
+};
 export const getPositions = async () => {
   await delay({ milliSeconds: DELAY });
   const smartInstance = SmartSession.getInstance();
