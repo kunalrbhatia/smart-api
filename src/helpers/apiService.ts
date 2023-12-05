@@ -581,6 +581,15 @@ export const getPositionByToken = ({
   }
   return null;
 };
+export const findTradeByStrike = (tradeStrike: number) => {
+  const data = readJsonFile();
+  const tradeDetails = data.tradeDetails;
+  for (const trade of tradeDetails) {
+    const strike = parseInt(trade.strike);
+    if (strike === tradeStrike) return trade;
+  }
+  return null;
+};
 export const shouldCloseTrade = async ({
   ltp,
   avg,
@@ -591,9 +600,20 @@ export const shouldCloseTrade = async ({
     `${ALGO}: checking shouldCloseTrade, ltp: ${ltp}, doubledPrice: ${doubledPrice}`
   );
   if (parseInt(trade.netQty) < 0 && ltp >= doubledPrice) {
-    console.log(`${ALGO}: shouldCloseTrade true`);
+    console.log(
+      `${ALGO}: Yes, close this particular trade with strike price ${trade.strike}`
+    );
     try {
-      return await closeParticularTrade({ trade });
+      const isCloseSellTrade = await closeParticularTrade({ trade });
+      let buyStrike;
+      if (trade.optionType === 'CE') buyStrike = parseInt(trade.strike) + 1000;
+      else buyStrike = parseInt(trade.strike) - 1000;
+      const buyTrade = findTradeByStrike(buyStrike);
+      let isCloseBuyTrade;
+      if (buyTrade) {
+        isCloseBuyTrade = await closeParticularTrade({ trade: buyTrade });
+      }
+      return isCloseSellTrade && isCloseBuyTrade ? true : false;
     } catch (error) {
       console.log(`${ALGO}: closeParticularTrade could not be called`);
       throw error;
