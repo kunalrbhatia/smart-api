@@ -13,6 +13,7 @@ import {
   getNearestStrike,
   getNextExpiry,
   getOpenPositions,
+  hedgeCalculation,
   isCurrentTimeGreater,
   isFriday,
   isMarketClosed,
@@ -466,15 +467,6 @@ export const doOrderByStrike = async (
 export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
-    const hedgeCalculation = () => {
-      if (isThursday()) {
-        return 1500;
-      } else if (isFriday() || isMonday()) {
-        return 1300;
-      } else {
-        return 1000;
-      }
-    };
     const atmStrike = await getAtmStrikePrice();
     let order = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
     await addOrderData(readJsonFile(), order, OptionType.CE);

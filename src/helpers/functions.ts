@@ -375,3 +375,12 @@ export const isMonday = (): boolean => {
   const today = new Date();
   return today.getDay() === 1;
 };
+export const hedgeCalculation = () => {
+  if (isThursday() || isFriday()) {
+    return 1500;
+  } else if (isMonday()) {
+    return 1300;
+  } else {
+    return 1000;
+  }
+};
