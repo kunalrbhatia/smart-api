@@ -363,3 +363,15 @@ export const checkPositionsExistsForMonthlyExpiry = (
 export const roundToNearestHundred = (input: number): number => {
   return Math.ceil(input / 100) * 100;
 };
+export const isThursday = (): boolean => {
+  const today = new Date();
+  return today.getDay() === 4;
+};
+export const isFriday = (): boolean => {
+  const today = new Date();
+  return today.getDay() === 5;
+};
+export const isMonday = (): boolean => {
+  const today = new Date();
+  return today.getDay() === 1;
+};

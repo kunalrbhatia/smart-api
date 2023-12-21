@@ -1,5 +1,4 @@
 
 Optimize to not do things which are not needed
 Remove json file logic
-Write a logic for margin benefit
 Find a way to backtest 

@@ -14,7 +14,10 @@ import {
   getNextExpiry,
   getOpenPositions,
   isCurrentTimeGreater,
+  isFriday,
   isMarketClosed,
+  isMonday,
+  isThursday,
   readJsonFile,
   removeJsonFile,
   roundToNearestHundred,
@@ -463,14 +466,31 @@ export const doOrderByStrike = async (
 export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
+    const hedgeCalculation = () => {
+      if (isThursday()) {
+        return 1500;
+      } else if (isFriday() || isMonday()) {
+        return 1300;
+      } else {
+        return 1000;
+      }
+    };
     const atmStrike = await getAtmStrikePrice();
     let order = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
     await addOrderData(readJsonFile(), order, OptionType.CE);
-    order = await doOrderByStrike(atmStrike + 1000, OptionType.CE, 'BUY');
+    order = await doOrderByStrike(
+      atmStrike + hedgeCalculation(),
+      OptionType.CE,
+      'BUY'
+    );
     await addOrderData(readJsonFile(), order, OptionType.CE);
     order = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
     await addOrderData(readJsonFile(), order, OptionType.PE);
-    order = await doOrderByStrike(atmStrike - 1000, OptionType.PE, 'BUY');
+    order = await doOrderByStrike(
+      atmStrike - hedgeCalculation(),
+      OptionType.PE,
+      'BUY'
+    );
     await addOrderData(readJsonFile(), order, OptionType.PE);
   } catch (error) {
     const errorMessage = `${ALGO}: shortStraddle failed error below`;
