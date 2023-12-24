@@ -73,6 +73,10 @@ export const getLastWednesdayOfMonth = () => {
   }
   return lastDayOfMonth;
 };
+export const getTodayExpiry = () => {
+  const today = moment();
+  return today.format('DDMMMYYYY').toUpperCase();
+};
 export const getNextExpiry = () => {
   const today = moment();
   const currentDay = today.day();

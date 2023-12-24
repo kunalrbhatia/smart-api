@@ -74,7 +74,6 @@ import moment from 'moment-timezone';
 import { findTrade, makeNewTrade } from './dbService';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
-const tulind = require('tulind');
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
@@ -975,8 +974,6 @@ export const checkMarketConditionsAndExecuteTrade = async (
     }
     if (strategy === Strategy.SHORTSTRADDLE) {
       return await executeTrade();
-    } else if (strategy === Strategy.RSI) {
-      return await runRsiAlgo();
     } else {
       return MESSAGE_NOT_TAKE_TRADE;
     }
@@ -996,103 +993,4 @@ export const checkPositionAlreadyExists = async ({
       return true;
   }
   return false;
-};
-export const runRsiAlgo = async () => {
-  const todaysTrade = await findTrade(Strategy.RSI);
-  if (todaysTrade) {
-    console.log(todaysTrade);
-  } else {
-    const scrip = await getScripFut({ scriptName: 'BANKNIFTY' });
-    const data: HistoryInterface = {
-      exchange: scrip.exch_seg,
-      interval: HistoryInterval.FIVE_MINUTE,
-      symboltoken: scrip.token,
-      fromdate: getCurrentTimeAndPastTime().pastTime,
-      todate: getCurrentTimeAndPastTime().currentTime,
-    };
-    await delay({ milliSeconds: SHORT_DELAY });
-    const historicData = await getHistoricPrices(data);
-    if (historicData && isArray(historicData)) {
-      const closingPrices: number[] = historicData.map((d) => d[4]);
-      return new Promise(async (resolve, reject) => {
-        await tulind.indicators.rsi.indicator(
-          [closingPrices],
-          [14],
-          async (err: object, res: any) => {
-            if (err) {
-              console.log(`${ALGO}: `, err);
-              reject(err);
-            }
-            const calculatedRsi = res[0].slice(-1)[0];
-            console.log(`${ALGO}: calculatedRsi: ${calculatedRsi}`);
-            const ltp = await getLtpData({
-              exchange: scrip.exch_seg,
-              tradingsymbol: scrip.symbol,
-              symboltoken: scrip.token,
-            });
-            console.log(`${ALGO}: ltp: ${ltp.ltp}`);
-            if (calculatedRsi > 80) {
-              const ltpPlus500 = roundToNearestHundred(ltp.ltp + 500);
-              const optScrip = await getScrip({
-                scriptName: scrip.name,
-                strikePrice: ltpPlus500.toString(),
-                optionType: 'CE',
-                expiryDate: getNextExpiry(),
-              });
-              const orderDetails = await doOrder({
-                tradingsymbol: optScrip[0].symbol,
-                symboltoken: optScrip[0].token,
-                transactionType: TRANSACTION_TYPE_SELL,
-                productType: 'DELIVERY',
-              });
-
-              if (orderDetails.status) {
-                let positionsResponse = await getPositions();
-                let positionsData = get(positionsResponse, 'data', []) ?? [];
-                let mtm = 0;
-                if (Array.isArray(positionsData) && positionsData.length > 0) {
-                  const position = positionsData.filter((position) => {
-                    if (get(position, 'symboltoken') === scrip.token)
-                      return position;
-                  });
-                  mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
-                }
-                const istTz = new Date().toLocaleString('default', {
-                  timeZone: 'Asia/Kolkata',
-                });
-                const json: JsonFileStructure = {
-                  isTradeExecuted: true,
-                  accountDetails: { capitalUsed: 0 },
-                  isTradeClosed: false,
-                  tradeDate: moment().format('DD/MM/YYYY'),
-                  tradeDetails: [
-                    {
-                      exchange: optScrip[0].exch_seg,
-                      expireDate: optScrip[0].expiry,
-                      netQty: '15',
-                      optionType: 'CE',
-                      strike: optScrip[0].strike,
-                      symbol: optScrip[0].symbol,
-                      token: optScrip[0].token,
-                      tradingSymbol: optScrip[0].symbol,
-                      closed: false,
-                      tradedPrice: 0,
-                    },
-                  ],
-                  mtm: [{ time: istTz, value: mtm.toString() }],
-                };
-
-                makeNewTrade(Strategy.RSI, json);
-              }
-              //makeNewTrade(Strategy.RSI);
-              //HERE AFTER I'VE TO WRITE CODE TO READ FIREBASE DATABASE SO THAT I CAN KNOW, IF A TRADE IS ALREADY PLACED AND ALSO TO READ MTM SO AS TO BOOK PROFIT/LOSS
-              resolve(optScrip);
-            } else {
-              resolve({ rsi: calculatedRsi });
-            }
-          }
-        );
-      });
-    }
-  }
 };
