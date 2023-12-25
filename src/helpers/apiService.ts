@@ -13,6 +13,8 @@ import {
   getNearestStrike,
   getNextExpiry,
   getOpenPositions,
+  getScripName,
+  getTodayExpiry,
   hedgeCalculation,
   isCurrentTimeGreater,
   isFriday,
@@ -352,13 +354,14 @@ export const doOrder = async ({
   transactionType,
   symboltoken,
   productType = 'CARRYFORWARD',
+  qty,
 }: doOrderType): Promise<doOrderResponse> => {
   const smartInstance = SmartSession.getInstance();
   await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   const orderStoreData = OrderStore.getInstance().getPostData();
-  const quantity = 15 * orderStoreData.QUANTITY;
+  const quantity = qty * orderStoreData.QUANTITY;
   let data = JSON.stringify({
     exchange: 'NFO',
     tradingsymbol,
@@ -431,21 +434,23 @@ export const doOrderByStrike = async (
     );
     await delay({ milliSeconds: DELAY });
     const token = await getScrip({
-      scriptName: 'BANKNIFTY',
-      expiryDate: expiryDate,
+      scriptName: getScripName(),
+      expiryDate: getTodayExpiry(),
       optionType: optionType,
       strikePrice: strike.toString(),
     });
-    //console.log(`${ALGO} {doOrderByStrike}: token: `, token);
+    console.log(`${ALGO} {doOrderByStrike}: token: `, token);
     await delay({ milliSeconds: DELAY });
+    const lotsize = get(token, 'lotsize', 0) || 0;
     const orderData = await doOrder({
       tradingsymbol: get(token, '0.symbol', ''),
       symboltoken: get(token, '0.token', ''),
       transactionType: transactionType,
+      qty: lotsize,
     });
     console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
     const lots = OrderStore.getInstance().getPostData().QUANTITY;
-    const qty = 15 * lots;
+    const qty = lotsize * lots;
     const netQty = transactionType === 'SELL' ? qty * -1 : qty;
     return {
       stikePrice: strike.toString(),
@@ -467,21 +472,21 @@ export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
     const atmStrike = await getAtmStrikePrice();
-    let order = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
-    await addOrderData(readJsonFile(), order, OptionType.CE);
-    order = await doOrderByStrike(
+    let order = await doOrderByStrike(
       atmStrike + hedgeCalculation(),
       OptionType.CE,
       'BUY'
     );
     await addOrderData(readJsonFile(), order, OptionType.CE);
-    order = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
-    await addOrderData(readJsonFile(), order, OptionType.PE);
+    order = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
+    await addOrderData(readJsonFile(), order, OptionType.CE);
     order = await doOrderByStrike(
       atmStrike - hedgeCalculation(),
       OptionType.PE,
       'BUY'
     );
+    await addOrderData(readJsonFile(), order, OptionType.PE);
+    order = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
     await addOrderData(readJsonFile(), order, OptionType.PE);
   } catch (error) {
     const errorMessage = `${ALGO}: shortStraddle failed error below`;
@@ -730,6 +735,7 @@ export const closeParticularTrade = async ({
       tradingsymbol: trade.tradingSymbol,
       transactionType: qty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL,
       symboltoken: trade.token,
+      qty: qty / OrderStore.getInstance().getPostData().QUANTITY,
     });
     // console.log(`${ALGO} transactionStatus: `, transactionStatus);
     trade.closed = transactionStatus.status;
@@ -923,11 +929,12 @@ const coreTradeExecution = async ({ data }: { data: JsonFileStructure }) => {
 export const executeTrade = async () => {
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
+  // const isPastClosingTime = false; //HARDCODED FOR TESTING
   let mtmData = 0;
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   let data = await getPositionsJson();
   if (isPastClosingTime === false) mtmData = await coreTradeExecution({ data });
-  // mtmData = await coreTradeExecution();
+  // mtmData = await coreTradeExecution(); //HARDCODED FOR TESTING
   const stoploss = OrderStore.getInstance().getPostData().STOPLOSS;
   const mtmThreshold = -stoploss;
   let resp: number | string = `${ALGO}: Trade Closed`;
@@ -968,7 +975,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
   OrderStore.getInstance().setPostData({ QUANTITY: lots, STOPLOSS: stoploss });
   try {
     const data = await createJsonFile();
-    // return await executeTrade();
+    // return await executeTrade(); //HARDCODED FOR TESTING
     if (!(await isTradeAllowed(data))) {
       return MESSAGE_NOT_TAKE_TRADE;
     }

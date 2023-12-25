@@ -73,10 +73,6 @@ export const getLastWednesdayOfMonth = () => {
   }
   return lastDayOfMonth;
 };
-export const getTodayExpiry = () => {
-  const today = moment();
-  return today.format('DDMMMYYYY').toUpperCase();
-};
 export const getNextExpiry = () => {
   const today = moment();
   const currentDay = today.day();
@@ -122,17 +118,18 @@ export const findNearestStrike = (options: object[], target: number) => {
   return nearestStrike;
 };
 export const getAtmStrikePrice = async () => {
-  let expiryDate = getNextExpiry();
+  // let expiryDate = getNextExpiry();
+  let expiryDate = getTodayExpiry();
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
   try {
     const optionChain = await getScrip({
-      scriptName: 'BANKNIFTY',
-      expiryDate: expiryDate,
+      scriptName: getScripName(),
+      expiryDate: getTodayExpiry(),
     });
     console.log(
       `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
     );
-    const bnfScrip = await getIndexScrip({ scriptName: 'BANKNIFTY' });
+    const bnfScrip = await getIndexScrip({ scriptName: getScripName() });
     const ltp = await getLtpData({
       exchange: bnfScrip[0].exch_seg,
       tradingsymbol: bnfScrip[0].symbol,
@@ -354,16 +351,6 @@ export const getLastThursdayOfCurrentMonth = () => {
   }
   return lastDayOfMonth.format('DDMMMYYYY').toUpperCase();
 };
-
-export const checkPositionsExistsForMonthlyExpiry = (
-  openPositions: Position[]
-): boolean => {
-  return openPositions.some(
-    (position) =>
-      position.symbolname === 'BANKNIFTY' &&
-      position.expirydate === getLastThursdayOfCurrentMonth()
-  );
-};
 export const roundToNearestHundred = (input: number): number => {
   return Math.ceil(input / 100) * 100;
 };
@@ -379,12 +366,30 @@ export const isMonday = (): boolean => {
   const today = new Date();
   return today.getDay() === 1;
 };
-export const hedgeCalculation = () => {
-  if (isThursday() || isFriday()) {
-    return 1500;
-  } else if (isMonday()) {
-    return 1300;
-  } else {
-    return 1000;
-  }
+export const isTuesday = (): boolean => {
+  const today = new Date();
+  return today.getDay() === 2;
 };
+export const isWednesday = (): boolean => {
+  const today = new Date();
+  return today.getDay() === 3;
+};
+export const hedgeCalculation = () => {
+  return 1000;
+};
+export const getScripName = () => {
+  let scripName = '';
+  if (isMonday()) {
+    scripName = 'MIDCPNIFTY';
+  } else if (isTuesday()) {
+    scripName = 'FINNIFTY';
+  } else if (isWednesday()) {
+    scripName = 'BANKNIFTY';
+  } else if (isThursday()) {
+    scripName = 'NIFTY';
+  } else if (isFriday()) {
+    scripName = 'SENSEX';
+  }
+  return scripName;
+};
+export const getTodayExpiry = () => moment().format('DDMMMYYYY').toUpperCase();

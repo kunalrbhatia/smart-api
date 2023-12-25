@@ -150,6 +150,7 @@ export type doOrderType = {
   symboltoken: string;
   transactionType: string | undefined;
   productType?: 'DELIVERY' | 'CARRYFORWARD' | 'MARGIN' | 'INTRADAY' | 'BO';
+  qty: number;
 };
 export type doOrderResponse = {
   status: boolean;
