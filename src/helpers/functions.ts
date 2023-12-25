@@ -393,3 +393,33 @@ export const getScripName = () => {
   return scripName;
 };
 export const getTodayExpiry = () => moment().format('DDMMMYYYY').toUpperCase();
+export const isTradingHoliday = (): boolean => {
+  const tradingHolidays = [
+    '26-Jan-2023',
+    '07-Mar-2023',
+    '30-Mar-2023',
+    '04-Apr-2023',
+    '07-Apr-2023',
+    '14-Apr-2023',
+    '01-May-2023',
+    '29-Jun-2023',
+    '15-Aug-2023',
+    '19-Sep-2023',
+    '02-Oct-2023',
+    '24-Oct-2023',
+    '14-Nov-2023',
+    '27-Nov-2023',
+    '25-Dec-2023',
+  ];
+
+  // Get today's date
+  const today = moment();
+
+  // Check if today is in the array of trading holidays
+  const isHoliday = tradingHolidays.some((holiday) => {
+    const holidayDate = moment(holiday, 'DD-MMM-YYYY');
+    return today.isSame(holidayDate, 'day');
+  });
+
+  return isHoliday;
+};

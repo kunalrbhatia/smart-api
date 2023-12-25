@@ -21,6 +21,7 @@ import {
   isMarketClosed,
   isMonday,
   isThursday,
+  isTradingHoliday,
   readJsonFile,
   removeJsonFile,
   roundToNearestHundred,
@@ -114,10 +115,11 @@ export const getLtpData = async ({
 };
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const cred = DataStore.getInstance().getPostData();
+  const TOTP = totp(cred.CLIENT_TOTP_PIN);
   const smart_api = new SmartAPI({
     api_key: cred.APIKEY,
+    totp: TOTP,
   });
-  const TOTP = totp(cred.CLIENT_TOTP_PIN);
   return smart_api
     .generateSession(cred.CLIENT_CODE, cred.CLIENT_PIN, TOTP)
     .then(async (response: object) => {
@@ -945,6 +947,7 @@ export const executeTrade = async () => {
 };
 const isTradeAllowed = async (data: JsonFileStructure) => {
   const isMarketOpen = !isMarketClosed();
+  const isHoliday = isTradingHoliday();
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,
@@ -953,6 +956,7 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
   let isSmartAPIWorking = false;
   try {
     const smartData = await generateSmartSession();
+    await delay({ milliSeconds: DELAY });
     isSmartAPIWorking = !isEmpty(smartData);
     if (isSmartAPIWorking) {
       setSmartSession(smartData);
@@ -961,10 +965,14 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
     console.log('Error occurred for generateSmartSession');
   }
   console.log(
-    `${ALGO}: checking conditions, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}`
+    `${ALGO}: checking conditions, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}`
   );
   return (
-    isMarketOpen && hasTimePassedToTakeTrade && isTradeOpen && isSmartAPIWorking
+    isMarketOpen &&
+    hasTimePassedToTakeTrade &&
+    isTradeOpen &&
+    isSmartAPIWorking &&
+    isHoliday === false
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async (
