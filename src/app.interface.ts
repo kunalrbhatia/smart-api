@@ -104,6 +104,8 @@ export type Credentails = {
 export type OrderStoreDataType = {
   QUANTITY: number;
   STOPLOSS: number;
+  EXPIRYDATE: string;
+  INDEX: string;
 };
 export type ScripMasterStoreDataType = {
   SCRIP_MASTER_JSON: object[];
@@ -227,3 +229,10 @@ export type runOrbType = {
   trailSl: number;
 };
 export type updateMaxSlType = { mtm: number; maxSl: number; trailSl: number };
+export enum INDICES {
+  NIFTY = 'NIFTY',
+  MIDCPNIFTY = 'MIDCPNIFTY',
+  FINNIFTY = 'FINNIFTY',
+  BANKNIFTY = 'BANKNIFTY',
+  SENSEX = 'SENSEX',
+}

@@ -8,23 +8,20 @@ import {
   createJsonFile,
   delay,
   getAtmStrikePrice,
-  getCurrentTimeAndPastTime,
   getLastThursdayOfCurrentMonth,
+  getLastWednesdayOfMonth,
   getNearestStrike,
   getNextExpiry,
   getOpenPositions,
   getScripName,
+  getStrikeDifference,
   getTodayExpiry,
   hedgeCalculation,
   isCurrentTimeGreater,
-  isFriday,
   isMarketClosed,
-  isMonday,
-  isThursday,
   isTradingHoliday,
   readJsonFile,
   removeJsonFile,
-  roundToNearestHundred,
   setSmartSession,
   writeJsonFile,
 } from './functions';
@@ -35,7 +32,6 @@ import {
   CheckOptionType,
   CheckPosition,
   HistoryInterface,
-  HistoryInterval,
   ISmartApiData,
   JsonFileStructure,
   LtpDataType,
@@ -57,6 +53,7 @@ import {
 } from '../app.interface';
 import {
   ALGO,
+  DATEFORMAT,
   DELAY,
   GET_LTP_DATA_API,
   GET_MARGIN,
@@ -66,8 +63,6 @@ import {
   MESSAGE_NOT_TAKE_TRADE,
   ORDER_API,
   SCRIPMASTER,
-  SHORT_DELAY,
-  STRIKE_DIFFERENCE,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
 } from './constants';
@@ -183,7 +178,7 @@ export const getAllFut = async () => {
 export const getScripFut = async ({ scriptName }: getScripFutType) => {
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
-    `${ALGO}:scriptName: ${scriptName}, is scrip master an array: ${isArray(
+    `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
       scripMaster
     )}, its length is: ${scripMaster.length}`
   );
@@ -215,7 +210,7 @@ export const getScrip = async ({
 }: getScripType): Promise<scripMasterResponse[]> => {
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
-    `${ALGO}:scriptName: ${scriptName}, is scrip master an array: ${isArray(
+    `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
       scripMaster
     )}, its length is: ${scripMaster.length}`
   );
@@ -268,7 +263,7 @@ export const getIndexScrip = async ({
     let scrips = scripMaster.filter((scrip) => {
       const _scripName: string = get(scrip, 'name', '') || '';
       return (
-        (_scripName.includes(scriptName) || _scripName === scriptName) &&
+        _scripName === scriptName &&
         get(scrip, 'exch_seg') === 'NSE' &&
         get(scrip, 'instrumenttype') === 'AMXIDX'
       );
@@ -409,7 +404,7 @@ export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
   const currentPositions = await getPositions();
   const currentPositionsData: object[] = get(currentPositions, 'data');
   let mtm = 0;
-  const expiryDate = getNextExpiry();
+  const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   currentPositionsData.forEach((value) => {
     data.tradeDetails.forEach((trade) => {
       if (
@@ -430,29 +425,29 @@ export const doOrderByStrike = async (
   transactionType: 'BUY' | 'SELL'
 ): Promise<OrderData> => {
   try {
-    const expiryDate = getNextExpiry();
+    const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
     console.log(
       `${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`
     );
     await delay({ milliSeconds: DELAY });
     const token = await getScrip({
-      scriptName: getScripName(),
-      expiryDate: getTodayExpiry(),
+      scriptName: OrderStore.getInstance().getPostData().INDEX,
+      expiryDate: expiryDate,
       optionType: optionType,
       strikePrice: strike.toString(),
     });
     console.log(`${ALGO} {doOrderByStrike}: token: `, token);
     await delay({ milliSeconds: DELAY });
-    const lotsize = get(token, 'lotsize', 0) || 0;
+    const lotsize = get(token, '0.lotsize', '0') || '0';
     const orderData = await doOrder({
       tradingsymbol: get(token, '0.symbol', ''),
       symboltoken: get(token, '0.token', ''),
       transactionType: transactionType,
-      qty: lotsize,
+      qty: parseInt(lotsize),
     });
     console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
     const lots = OrderStore.getInstance().getPostData().QUANTITY;
-    const qty = lotsize * lots;
+    const qty = parseInt(lotsize) * lots;
     const netQty = transactionType === 'SELL' ? qty * -1 : qty;
     return {
       stikePrice: strike.toString(),
@@ -474,6 +469,9 @@ export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
     const atmStrike = await getAtmStrikePrice();
+    let strikeDiff = atmStrike * getStrikeDifference();
+    if (strikeDiff < 100) strikeDiff = 100;
+    console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
     let order = await doOrderByStrike(
       atmStrike + hedgeCalculation(),
       OptionType.CE,
@@ -541,7 +539,9 @@ export const repeatShortStraddle = async (
 ) => {
   try {
     const data = readJsonFile();
-    const strikeDiff = STRIKE_DIFFERENCE;
+    let strikeDiff = atmStrike * getStrikeDifference();
+    if (strikeDiff < 100) strikeDiff = 100;
+    console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,
       atmStrike.toString()
@@ -757,9 +757,9 @@ export const closeAllTrades = async () => {
     await delay({ milliSeconds: DELAY });
     const tradeDetails = data.tradeDetails;
     if (Array.isArray(tradeDetails)) {
-      const nextExpiry = getNextExpiry();
+      const expireDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
       for (const trade of tradeDetails) {
-        if (trade.expireDate === nextExpiry) {
+        if (trade.expireDate === expireDate) {
           await closeParticularTrade({ trade });
         }
       }
@@ -797,7 +797,8 @@ export const areAllTradesClosed = async () => {
   if (Array.isArray(tradeDetails)) {
     for (const trade of tradeDetails) {
       const isTradeClosed = trade.closed;
-      const isExpiryMatch = trade.expireDate === getNextExpiry();
+      const isExpiryMatch =
+        trade.expireDate === OrderStore.getInstance().getPostData().EXPIRYDATE;
       if (isTradeClosed === false && isExpiryMatch) {
         return false;
       }
@@ -980,7 +981,24 @@ export const checkMarketConditionsAndExecuteTrade = async (
   lots: number = 1,
   stoploss: number = 10000
 ) => {
-  OrderStore.getInstance().setPostData({ QUANTITY: lots, STOPLOSS: stoploss });
+  let expiryDate = getTodayExpiry();
+  const isTodayLastWednesdayOfMonth =
+    expiryDate === getLastWednesdayOfMonth().format(DATEFORMAT).toUpperCase();
+  if (isTodayLastWednesdayOfMonth) expiryDate = getLastThursdayOfCurrentMonth();
+  console.log('expiryDate: ', expiryDate);
+  const convertedDate = moment(expiryDate, 'DDMMMYYYY').toDate();
+  if (convertedDate.getDay() === 5)
+    expiryDate = moment().add(4, 'days').format(DATEFORMAT).toUpperCase();
+  OrderStore.getInstance().setPostData({
+    QUANTITY: lots,
+    STOPLOSS: stoploss,
+    EXPIRYDATE: expiryDate,
+    INDEX: getScripName(expiryDate),
+  });
+  console.log(
+    `${ALGO}, OrderStore data: `,
+    OrderStore.getInstance().getPostData()
+  );
   try {
     const data = await createJsonFile();
     // return await executeTrade(); //HARDCODED FOR TESTING

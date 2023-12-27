@@ -9,6 +9,7 @@ import fs from 'fs';
 import {
   BothPresent,
   Credentails,
+  INDICES,
   ISmartApiData,
   JsonFileStructure,
   Position,
@@ -19,10 +20,11 @@ import {
   updateMaxSlType,
 } from '../app.interface';
 import moment, { Moment } from 'moment-timezone';
-import { ALGO, DELAY } from './constants';
+import { ALGO, DATEFORMAT, DELAY } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
+import OrderStore from '../store/orderStore';
 export const setCred = (req: Request | reqType) => {
   const creds: Credentails = {
     APIKEY: req.body.api_key,
@@ -118,18 +120,19 @@ export const findNearestStrike = (options: object[], target: number) => {
   return nearestStrike;
 };
 export const getAtmStrikePrice = async () => {
-  // let expiryDate = getNextExpiry();
-  let expiryDate = getTodayExpiry();
+  let expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
   try {
     const optionChain = await getScrip({
-      scriptName: getScripName(),
-      expiryDate: getTodayExpiry(),
+      scriptName: OrderStore.getInstance().getPostData().INDEX,
+      expiryDate: expiryDate,
     });
     console.log(
       `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
     );
-    const bnfScrip = await getIndexScrip({ scriptName: getScripName() });
+    const bnfScrip = await getIndexScrip({
+      scriptName: OrderStore.getInstance().getPostData().INDEX,
+    });
     const ltp = await getLtpData({
       exchange: bnfScrip[0].exch_seg,
       tradingsymbol: bnfScrip[0].symbol,
@@ -255,7 +258,7 @@ export const checkStrike = (
   tradeDetails: TradeDetails[],
   strike: string
 ): boolean => {
-  const expiry = getNextExpiry();
+  const expiry = OrderStore.getInstance().getPostData().EXPIRYDATE;
   for (const trade of tradeDetails) {
     if (
       parseInt(trade.strike) === parseInt(strike) &&
@@ -270,7 +273,7 @@ export const areBothOptionTypesPresentForStrike = (
   tradeDetails: TradeDetails[],
   strike: string
 ): BothPresent => {
-  const expirationDate = getNextExpiry();
+  const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   let cePresent = false;
   let pePresent = false;
   const filteredTrades = tradeDetails
@@ -290,7 +293,7 @@ export const areBothOptionTypesPresentForStrike = (
 };
 export const getOpenPositions = (positions: Position[]): Position[] => {
   const openPositions = [];
-  const expiryDate = getNextExpiry();
+  const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   for (const position of positions) {
     const netqty = parseInt(position.netqty);
     const positionExpiryDate = position.expirydate;
@@ -320,7 +323,7 @@ export const getNearestStrike = ({
 }: GetNearestStrike): number => {
   let nearestStrike: number = Infinity;
   let minDifference = Number.MAX_SAFE_INTEGER;
-  const expirationDate = getNextExpiry();
+  const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   algoTrades
     .filter((trade) => trade.expireDate === expirationDate)
     .forEach((trade) => {
@@ -354,41 +357,23 @@ export const getLastThursdayOfCurrentMonth = () => {
 export const roundToNearestHundred = (input: number): number => {
   return Math.ceil(input / 100) * 100;
 };
-export const isThursday = (): boolean => {
-  const today = new Date();
-  return today.getDay() === 4;
-};
-export const isFriday = (): boolean => {
-  const today = new Date();
-  return today.getDay() === 5;
-};
-export const isMonday = (): boolean => {
-  const today = new Date();
-  return today.getDay() === 1;
-};
-export const isTuesday = (): boolean => {
-  const today = new Date();
-  return today.getDay() === 2;
-};
-export const isWednesday = (): boolean => {
-  const today = new Date();
-  return today.getDay() === 3;
-};
+
 export const hedgeCalculation = () => {
   return 1000;
 };
-export const getScripName = () => {
+export const getScripName = (expireDate: string) => {
   let scripName = '';
-  if (isMonday()) {
-    scripName = 'MIDCPNIFTY';
-  } else if (isTuesday()) {
-    scripName = 'FINNIFTY';
-  } else if (isWednesday()) {
-    scripName = 'BANKNIFTY';
-  } else if (isThursday()) {
-    scripName = 'NIFTY';
-  } else if (isFriday()) {
-    scripName = 'SENSEX';
+  const today = new Date(expireDate);
+  if (today.getDay() === 1) {
+    scripName = INDICES.MIDCPNIFTY;
+  } else if (today.getDay() === 2) {
+    scripName = INDICES.FINNIFTY;
+  } else if (today.getDay() === 3) {
+    scripName = INDICES.BANKNIFTY;
+  } else if (today.getDay() === 4) {
+    scripName = INDICES.NIFTY;
+  } else if (today.getDay() === 5) {
+    scripName = INDICES.MIDCPNIFTY;
   }
   return scripName;
 };
@@ -422,4 +407,17 @@ export const isTradingHoliday = (): boolean => {
   });
 
   return isHoliday;
+};
+export const getStrikeDifference = () => {
+  switch (OrderStore.getInstance().getPostData().INDEX) {
+    case INDICES.NIFTY:
+    case INDICES.FINNIFTY:
+      return 0.01;
+    case INDICES.MIDCPNIFTY:
+    case INDICES.SENSEX:
+    case INDICES.BANKNIFTY:
+      return 0.006;
+    default:
+      return 0.01;
+  }
 };
