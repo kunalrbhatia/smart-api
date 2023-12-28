@@ -1,6 +1,7 @@
 // orderStore.ts
 
 import { OrderStoreDataType } from '../app.interface';
+import { getNextExpiry } from '../helpers/functions';
 
 class OrderStore {
   private static instance: OrderStore;
@@ -11,6 +12,8 @@ class OrderStore {
     this.postData = {
       QUANTITY: 0,
       STOPLOSS: 10000,
+      EXPIRYDATE: getNextExpiry(),
+      INDEX: '',
     };
   }
 
