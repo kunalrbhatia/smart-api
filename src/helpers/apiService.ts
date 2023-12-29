@@ -358,7 +358,7 @@ export const doOrder = async ({
   const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   const orderStoreData = OrderStore.getInstance().getPostData();
-  const quantity = qty * orderStoreData.QUANTITY;
+  const quantity = Math.abs(qty * orderStoreData.QUANTITY);
   let data = JSON.stringify({
     exchange: 'NFO',
     tradingsymbol,
@@ -389,9 +389,12 @@ export const doOrder = async ({
     },
     data: data,
   };
+  console.log(`${ALGO}, doOrder config `, config);
   return axios(config)
     .then((response: Response) => {
-      return get(response, 'data');
+      const resData = get(response, 'data');
+      console.log(`${ALGO}, order response `, resData);
+      return resData;
     })
     .catch(function (error: Response) {
       const errorMessage = `${ALGO}: doOrder failed error below`;
@@ -739,7 +742,7 @@ export const closeParticularTrade = async ({
       symboltoken: trade.token,
       qty: qty / OrderStore.getInstance().getPostData().QUANTITY,
     });
-    // console.log(`${ALGO} transactionStatus: `, transactionStatus);
+    console.log(`${ALGO} transactionStatus: `, transactionStatus);
     trade.closed = transactionStatus.status;
     return transactionStatus.status;
   } catch (error) {
@@ -758,8 +761,10 @@ export const closeAllTrades = async () => {
     const tradeDetails = data.tradeDetails;
     if (Array.isArray(tradeDetails)) {
       const expireDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
+      console.log(`${ALGO}, expireDate: ${expireDate}`);
       for (const trade of tradeDetails) {
-        if (trade.expireDate === expireDate) {
+        console.log(`${ALGO}, trade: `, trade);
+        if (trade.expireDate === expireDate && trade.closed === false) {
           await closeParticularTrade({ trade });
         }
       }
@@ -988,7 +993,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
   console.log('expiryDate: ', expiryDate);
   const convertedDate = moment(expiryDate, 'DDMMMYYYY').toDate();
   if (convertedDate.getDay() === 5)
-    expiryDate = moment().add(4, 'days').format(DATEFORMAT).toUpperCase();
+    expiryDate = moment().add(3, 'days').format(DATEFORMAT).toUpperCase();
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
     STOPLOSS: stoploss,
