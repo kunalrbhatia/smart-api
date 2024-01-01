@@ -7,6 +7,7 @@
     "express": "^4.18.2",
     "firebase": "^10.5.2",
     "http-errors": "^2.0.0",
+    "krb-smart-api-module": "^1.0.10",
     "lodash": "^4.17.21",
     "moment-timezone": "^0.5.43",
     "smartapi-javascript": "^1.0.20",

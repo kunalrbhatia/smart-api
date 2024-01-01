@@ -3,6 +3,13 @@ let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
 const totp = require('totp-generator');
 import {
+  getScripName,
+  getStrikeDifference,
+  getTodayExpiry,
+  hedgeCalculation,
+  isTradingHoliday,
+} from 'krb-smart-api-module';
+import {
   areBothOptionTypesPresentForStrike,
   checkStrike,
   createJsonFile,
@@ -13,13 +20,8 @@ import {
   getNearestStrike,
   getNextExpiry,
   getOpenPositions,
-  getScripName,
-  getStrikeDifference,
-  getTodayExpiry,
-  hedgeCalculation,
   isCurrentTimeGreater,
   isMarketClosed,
-  isTradingHoliday,
   readJsonFile,
   removeJsonFile,
   setSmartSession,
@@ -472,11 +474,13 @@ export const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
     const atmStrike = await getAtmStrikePrice();
-    let strikeDiff = atmStrike * getStrikeDifference();
+    const index = OrderStore.getInstance().getPostData().INDEX;
+    const hedgeVariance = hedgeCalculation(index);
+    let strikeDiff = atmStrike * getStrikeDifference(index);
     if (strikeDiff < 100) strikeDiff = 100;
     console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
     let order = await doOrderByStrike(
-      atmStrike + hedgeCalculation(),
+      atmStrike + hedgeVariance,
       OptionType.CE,
       'BUY'
     );
@@ -484,7 +488,7 @@ export const shortStraddle = async () => {
     order = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
     await addOrderData(readJsonFile(), order, OptionType.CE);
     order = await doOrderByStrike(
-      atmStrike - hedgeCalculation(),
+      atmStrike - hedgeVariance,
       OptionType.PE,
       'BUY'
     );
@@ -542,8 +546,9 @@ export const repeatShortStraddle = async (
 ) => {
   try {
     const data = readJsonFile();
-    let strikeDiff = atmStrike * getStrikeDifference();
-    if (strikeDiff < 100) strikeDiff = 100;
+    let strikeDiff =
+      atmStrike *
+      getStrikeDifference(OrderStore.getInstance().getPostData().INDEX);
     console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,

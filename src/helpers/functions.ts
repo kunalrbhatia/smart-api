@@ -9,7 +9,6 @@ import fs from 'fs';
 import {
   BothPresent,
   Credentails,
-  INDICES,
   ISmartApiData,
   JsonFileStructure,
   Position,
@@ -356,64 +355,4 @@ export const getLastThursdayOfCurrentMonth = () => {
 };
 export const roundToNearestHundred = (input: number): number => {
   return Math.ceil(input / 100) * 100;
-};
-
-export const hedgeCalculation = () => {
-  return 1000;
-};
-export const getScripName = (expireDate: string) => {
-  let scripName = '';
-  const today = new Date(expireDate);
-  if (today.getDay() === 1) {
-    scripName = INDICES.MIDCPNIFTY;
-  } else if (today.getDay() === 2) {
-    scripName = INDICES.FINNIFTY;
-  } else if (today.getDay() === 3) {
-    scripName = INDICES.BANKNIFTY;
-  } else if (today.getDay() === 4) {
-    scripName = INDICES.NIFTY;
-  } else if (today.getDay() === 5) {
-    scripName = INDICES.MIDCPNIFTY;
-  }
-  return scripName;
-};
-export const getTodayExpiry = () => moment().format('DDMMMYYYY').toUpperCase();
-export const isTradingHoliday = (): boolean => {
-  const tradingHolidays = [
-    '26-Jan-2024', // Republic Day
-    '08-Mar-2024', // Mahashivratri
-    '25-Mar-2024', // Holi
-    '29-Mar-2024', // Good Friday
-    '11-Apr-2024', // Id-Ul-Fitr (Ramzan Eid)
-    '17-Apr-2024', // Ram Navmi
-    '01-May-2024', // Maharashtra Day
-    '17-Jun-2024', // Bakri Id
-    '17-Jul-2024', // Muharram
-    '15-Aug-2024', // Independence Day/Parsi New Year
-    '02-Oct-2024', // Mahatma Gandhi Jayanti
-    '01-Nov-2024', // Diwali Laxmi Pujan (Muhurat Trading)
-    '15-Nov-2024', // Gurunanak Jayanti
-    '25-Dec-2024', // Christmas
-  ];
-  // Get today's date
-  const today = moment();
-  // Check if today is in the array of trading holidays
-  const isHoliday = tradingHolidays.some((holiday) => {
-    const holidayDate = moment(holiday, 'DD-MMM-YYYY');
-    return today.isSame(holidayDate, 'day');
-  });
-  return isHoliday;
-};
-export const getStrikeDifference = () => {
-  switch (OrderStore.getInstance().getPostData().INDEX) {
-    case INDICES.NIFTY:
-    case INDICES.FINNIFTY:
-      return 0.01;
-    case INDICES.MIDCPNIFTY:
-    case INDICES.SENSEX:
-    case INDICES.BANKNIFTY:
-      return 0.006;
-    default:
-      return 0.01;
-  }
 };
