@@ -629,10 +629,12 @@ export const shouldCloseTrade = async ({
       `${ALGO}: Yes, close this particular trade with strike price ${trade.strike}`
     );
     try {
+      const index = OrderStore.getInstance().getPostData().INDEX;
       const isCloseSellTrade = await closeParticularTrade({ trade });
       let buyStrike;
-      if (trade.optionType === 'CE') buyStrike = parseInt(trade.strike) + 1000;
-      else buyStrike = parseInt(trade.strike) - 1000;
+      if (trade.optionType === 'CE')
+        buyStrike = parseInt(trade.strike) + hedgeCalculation(index);
+      else buyStrike = parseInt(trade.strike) - hedgeCalculation(index);
       const buyTrade = findTradeByStrike(buyStrike);
       let isCloseBuyTrade;
       if (buyTrade) {
