@@ -476,9 +476,8 @@ export const shortStraddle = async () => {
     const atmStrike = await getAtmStrikePrice();
     const index = OrderStore.getInstance().getPostData().INDEX;
     const hedgeVariance = hedgeCalculation(index);
-    let strikeDiff = atmStrike * getStrikeDifference(index);
-    if (strikeDiff < 100) strikeDiff = 100;
-    console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
+    let strikeDiff = getStrikeDifference(index);
+    console.log(`${ALGO}, STRIKEDIFF: ${strikeDiff}`);
     let order = await doOrderByStrike(
       atmStrike + hedgeVariance,
       OptionType.CE,
@@ -546,9 +545,9 @@ export const repeatShortStraddle = async (
 ) => {
   try {
     const data = readJsonFile();
-    let strikeDiff =
-      atmStrike *
-      getStrikeDifference(OrderStore.getInstance().getPostData().INDEX);
+    let strikeDiff = getStrikeDifference(
+      OrderStore.getInstance().getPostData().INDEX
+    );
     console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,
