@@ -236,3 +236,7 @@ export enum INDICES {
   BANKNIFTY = 'BANKNIFTY',
   SENSEX = 'SENSEX',
 }
+export type checkBothLegsType = {
+  cepe_present: CheckOptionType;
+  atmStrike: number;
+};

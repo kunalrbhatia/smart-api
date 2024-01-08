@@ -43,6 +43,7 @@ import {
   Strategy,
   TimeComparisonType,
   TradeDetails,
+  checkBothLegsType,
   checkPositionToCloseType,
   doOrderResponse,
   doOrderType,
@@ -539,22 +540,59 @@ export const checkBoth_CE_PE_Present = (data: BothPresent) => {
   else if (!data.ce && data.pe) return CheckOptionType.ONLY_PE_PRESENT;
   else return CheckOptionType.ONLY_CE_PRESENT;
 };
+export const checkBothLegs = async ({
+  cepe_present,
+  atmStrike,
+}: checkBothLegsType) => {
+  const idx = OrderStore.getInstance().getPostData().INDEX;
+  const hedge = hedgeCalculation(idx);
+  const data = readJsonFile();
+  try {
+    if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
+      await shortStraddle();
+    } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
+      console.log(`${ALGO}: only calls present, selling puts`);
+      let orderData = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
+      addOrderData(data, orderData, OptionType.PE);
+      orderData = await doOrderByStrike(
+        atmStrike - hedge,
+        OptionType.PE,
+        'BUY'
+      );
+      addOrderData(data, orderData, OptionType.PE);
+    } else if (cepe_present === CheckOptionType.ONLY_PE_PRESENT) {
+      console.log(`${ALGO}: only puts present, selling calls`);
+      let orderData = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
+      addOrderData(data, orderData, OptionType.CE);
+      orderData = await doOrderByStrike(
+        atmStrike + hedge,
+        OptionType.CE,
+        'BUY'
+      );
+      addOrderData(data, orderData, OptionType.CE);
+    }
+  } catch (error) {
+    const errorMessage = `${ALGO}: checkBothLegs failed ...`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
+  }
+};
 export const repeatShortStraddle = async (
   difference: number,
   atmStrike: number
 ) => {
   try {
+    const idx = OrderStore.getInstance().getPostData().INDEX;
     const data = readJsonFile();
-    let strikeDiff = getStrikeDifference(
-      OrderStore.getInstance().getPostData().INDEX
-    );
+    let strikeDiff = getStrikeDifference(idx);
     console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,
       atmStrike.toString()
     );
     console.log(
-      `${ALGO}: checking conditions\n1. if the difference is more or equal to than env const STRIKE_DIFFERENCE (${strikeDiff}): ${
+      `${ALGO}: checking conditions\n1. if the difference is more or equal to strikeDiff (${strikeDiff}): ${
         difference >= strikeDiff
       }\n2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`
     );
@@ -566,27 +604,10 @@ export const repeatShortStraddle = async (
     const cepe_present = checkBoth_CE_PE_Present(result);
     if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
-      if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
-        await shortStraddle();
-      } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
-        let orderData = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
-        addOrderData(data, orderData, OptionType.PE);
-        orderData = await doOrderByStrike(
-          atmStrike - 1000,
-          OptionType.PE,
-          'BUY'
-        );
-        addOrderData(data, orderData, OptionType.PE);
-      } else if (cepe_present === CheckOptionType.ONLY_PE_PRESENT) {
-        let orderData = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
-        addOrderData(data, orderData, OptionType.CE);
-        orderData = await doOrderByStrike(
-          atmStrike + 1000,
-          OptionType.CE,
-          'BUY'
-        );
-        addOrderData(data, orderData, OptionType.CE);
-      }
+      checkBothLegs({ cepe_present, atmStrike });
+    } else if (difference === 0 && isSameStrikeAlreadyTraded) {
+      console.log(`${ALGO}: same strike already traded checking both legs ...`);
+      checkBothLegs({ cepe_present, atmStrike });
     }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
@@ -825,23 +846,20 @@ export const checkToRepeatShortStraddle = async (
     `${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`
   );
   if (isFinite(atmStrike)) {
+    const difference = atmStrike - previousTradeStrikePrice;
+    await delay({ milliSeconds: DELAY });
+    await repeatShortStraddle(difference, atmStrike);
     if (atmStrike > previousTradeStrikePrice) {
-      const difference = atmStrike - previousTradeStrikePrice;
       console.log(
         `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`
       );
-      await delay({ milliSeconds: DELAY });
-      await repeatShortStraddle(difference, atmStrike);
     } else if (atmStrike < previousTradeStrikePrice) {
-      const difference = previousTradeStrikePrice - atmStrike;
       console.log(
         `${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`
       );
-      await delay({ milliSeconds: DELAY });
-      await repeatShortStraddle(difference, atmStrike);
     } else {
       console.log(
-        `${ALGO}: atm strike is equal to previously traded strike price`
+        `${ALGO}: atm strike is equal to previously traded strike price. The difference is ${difference}`
       );
     }
   } else {
