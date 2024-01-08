@@ -967,10 +967,8 @@ export const executeTrade = async () => {
   let data = await getPositionsJson();
   if (isPastClosingTime === false) mtmData = await coreTradeExecution({ data });
   // mtmData = await coreTradeExecution(); //HARDCODED FOR TESTING
-  const stoploss = OrderStore.getInstance().getPostData().STOPLOSS;
-  const mtmThreshold = -stoploss;
   let resp: number | string = `${ALGO}: Trade Closed`;
-  if (mtmData < mtmThreshold || isPastClosingTime) await closeTrade();
+  if (isPastClosingTime) await closeTrade();
   else resp = mtmData;
   await removeJsonFile();
   return resp;
@@ -1007,8 +1005,7 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
 };
 export const checkMarketConditionsAndExecuteTrade = async (
   strategy: Strategy = Strategy.SHORTSTRADDLE,
-  lots: number = 1,
-  stoploss: number = 10000
+  lots: number = 1
 ) => {
   let expiryDate = getTodayExpiry();
   const isTodayLastWednesdayOfMonth =
@@ -1020,7 +1017,6 @@ export const checkMarketConditionsAndExecuteTrade = async (
     expiryDate = moment().add(3, 'days').format(DATEFORMAT).toUpperCase();
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
-    STOPLOSS: stoploss,
     EXPIRYDATE: expiryDate,
     INDEX: getScripName(expiryDate),
   });

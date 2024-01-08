@@ -103,7 +103,6 @@ export type Credentails = {
 };
 export type OrderStoreDataType = {
   QUANTITY: number;
-  STOPLOSS: number;
   EXPIRYDATE: string;
   INDEX: string;
 };

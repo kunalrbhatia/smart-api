@@ -229,14 +229,12 @@ export const writeJsonFile = async (data: JsonFileStructure) => {
   console.log(`${ALGO}: json data: `, dataToStoreString);
   if (isJson(dataToStoreString)) {
     console.log(`${ALGO}: writing into json file with name ${fileName}`);
-    fs.writeFile(fileName, dataToStoreString, (err) => {
-      if (err) {
-        console.error(`${ALGO}: Error writing data to file:`, err);
-      } else {
-        console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
-      }
-    });
-    await delay({ milliSeconds: DELAY });
+    try {
+      fs.writeFileSync(fileName, dataToStoreString);
+      console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
+    } catch (err) {
+      console.error(`${ALGO}: Error writing data to file:`, err);
+    }
   }
 };
 export const readJsonFile = (): JsonFileStructure => {
