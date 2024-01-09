@@ -649,10 +649,12 @@ export const shouldCloseTrade = async ({
   trade,
 }: shouldCloseTradeType) => {
   const doubledPrice = avg * 2;
+  const isPriceDoubled = parseInt(trade.netQty) < 0 && ltp >= doubledPrice;
+  const isLtpBelowOne = parseInt(trade.netQty) < 0 && ltp <= 1;
   console.log(
     `${ALGO}: checking shouldCloseTrade, trade strike: ${trade.strike}, trade option type: ${trade.optionType}, ltp: ${ltp}, doubledPrice: ${doubledPrice}`
   );
-  if (parseInt(trade.netQty) < 0 && ltp >= doubledPrice) {
+  if (isPriceDoubled || isLtpBelowOne) {
     console.log(
       `${ALGO}: Yes, close this particular trade with strike price ${trade.strike}`
     );
