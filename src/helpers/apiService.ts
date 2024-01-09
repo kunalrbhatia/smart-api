@@ -746,7 +746,7 @@ export const getPositionsJson = async () => {
           symbol: position.symbolname,
           token: position.symboltoken,
           closed: false,
-          tradedPrice: parseInt(position.netprice),
+          tradedPrice: parseInt(position.sellavgprice),
           exchange: position.exchange,
           tradingSymbol: position.tradingsymbol,
         };
@@ -983,6 +983,8 @@ export const executeTrade = async () => {
   if (isPastClosingTime) await closeTrade();
   else resp = mtmData;
   await removeJsonFile();
+  const marginDetails = await getMarginDetails();
+  console.log(`${ALGO}, margin details : `, marginDetails);
   return resp;
 };
 const isTradeAllowed = async (data: JsonFileStructure) => {
