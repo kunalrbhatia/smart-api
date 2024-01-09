@@ -37,6 +37,7 @@ import {
   ISmartApiData,
   JsonFileStructure,
   LtpDataType,
+  MarginAPIResponseType,
   OptionType,
   OrderData,
   Position,
@@ -502,7 +503,7 @@ export const shortStraddle = async () => {
     throw error;
   }
 };
-export const getMarginDetails = async () => {
+export const getMarginDetails = async (): Promise<MarginAPIResponseType> => {
   const smartInstance = SmartSession.getInstance();
   await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = smartInstance.getPostData();
@@ -525,7 +526,7 @@ export const getMarginDetails = async () => {
   };
   return axios(config)
     .then((response: Response) => {
-      return get(response, 'data');
+      return get(response, 'data') as MarginAPIResponseType | undefined;
     })
     .catch(function (error: Response) {
       const errorMessage = `${ALGO}: getMarginDetails failed error below`;
@@ -611,11 +612,10 @@ export const repeatShortStraddle = async (
     if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    }
-    /* else if (difference === 0 && isSameStrikeAlreadyTraded) {
+    } else if (difference === 0 && isSameStrikeAlreadyTraded) {
       console.log(`${ALGO}: same strike already traded checking both legs ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    } */
+    }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
     console.log(errorMessage);
@@ -987,6 +987,12 @@ export const executeTrade = async () => {
   await removeJsonFile();
   const marginDetails = await getMarginDetails();
   console.log(`${ALGO}, margin details : `, marginDetails);
+  if (marginDetails.m2munrealized && marginDetails.m2mrealized) {
+    const mtm =
+      parseFloat(marginDetails.m2munrealized) +
+      parseFloat(marginDetails.m2mrealized);
+    resp = mtm;
+  }
   return resp;
 };
 const isTradeAllowed = async (data: JsonFileStructure) => {
