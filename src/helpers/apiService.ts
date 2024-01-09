@@ -549,6 +549,7 @@ export const checkBothLegs = async ({
   const data = readJsonFile();
   try {
     if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
+      console.log(`${ALGO}, Both legs not present, selling both!`);
       await shortStraddle();
     } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
       console.log(`${ALGO}: only calls present, selling puts`);
@@ -570,6 +571,10 @@ export const checkBothLegs = async ({
         'BUY'
       );
       addOrderData(data, orderData, OptionType.CE);
+    } else {
+      console.log(
+        `${ALGO}, Both legs of the atm strike present, no need to worry!`
+      );
     }
   } catch (error) {
     const errorMessage = `${ALGO}: checkBothLegs failed ...`;
