@@ -685,7 +685,7 @@ export const checkPositionToClose = async ({
     for (const position of openPositions) {
       for (const trade of tradeDetails) {
         if (trade && trade.token === position.symboltoken) {
-          trade.tradedPrice = parseInt(position.netprice);
+          trade.tradedPrice = parseInt(position.sellavgprice);
           trade.exchange = position.exchange;
           trade.tradingSymbol = position.tradingsymbol;
         }
