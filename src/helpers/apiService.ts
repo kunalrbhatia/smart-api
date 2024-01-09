@@ -392,11 +392,11 @@ export const doOrder = async ({
     },
     data: data,
   };
-  console.log(`${ALGO}, doOrder config `, config);
+  //console.log(`${ALGO}, doOrder config `, config);
   return axios(config)
     .then((response: Response) => {
       const resData = get(response, 'data');
-      console.log(`${ALGO}, order response `, resData);
+      //console.log(`${ALGO}, order response `, resData);
       return resData;
     })
     .catch(function (error: Response) {
@@ -650,7 +650,7 @@ export const shouldCloseTrade = async ({
 }: shouldCloseTradeType) => {
   const doubledPrice = avg * 2;
   console.log(
-    `${ALGO}: checking shouldCloseTrade, ltp: ${ltp}, doubledPrice: ${doubledPrice}`
+    `${ALGO}: checking shouldCloseTrade, trade strike: ${trade.strike}, trade option type: ${trade.optionType}, ltp: ${ltp}, doubledPrice: ${doubledPrice}`
   );
   if (parseInt(trade.netQty) < 0 && ltp >= doubledPrice) {
     console.log(
@@ -726,6 +726,7 @@ export const getPositionsJson = async () => {
     console.log(
       `${ALGO}: currentPositions fetch successfully, currently total open positions are ${openPositions.length}`
     );
+    console.log(`${ALGO}, `, JSON.stringify(openPositions));
     const json = await createJsonFile();
     if (openPositions.length > 0) {
       json.isTradeExecuted = true;
@@ -749,6 +750,7 @@ export const getPositionsJson = async () => {
           exchange: position.exchange,
           tradingSymbol: position.tradingsymbol,
         };
+
         tradeDetails.push(trade);
       }
     }
@@ -776,7 +778,10 @@ export const closeParticularTrade = async ({
       symboltoken: trade.token,
       qty: qty / OrderStore.getInstance().getPostData().QUANTITY,
     });
-    console.log(`${ALGO} transactionStatus: `, transactionStatus);
+    console.log(
+      `${ALGO} closeParticularTrade transactionStatus: `,
+      transactionStatus
+    );
     trade.closed = transactionStatus.status;
     return transactionStatus.status;
   } catch (error) {
