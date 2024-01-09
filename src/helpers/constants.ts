@@ -38,3 +38,5 @@ export const ALGO = 'Algo';
 export const HISTORIC_API =
   'https://apiconnect.angelbroking.com/rest/secure/angelbroking/historical/v1/getCandleData';
 export const DATEFORMAT = 'DDMMMYYYY';
+export const LOSSPERLOT = 3500;
+export const LOTS = 1;

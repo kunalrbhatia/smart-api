@@ -105,6 +105,7 @@ export type OrderStoreDataType = {
   QUANTITY: number;
   EXPIRYDATE: string;
   INDEX: string;
+  LOSSPERLOT: number;
 };
 export type ScripMasterStoreDataType = {
   SCRIP_MASTER_JSON: object[];

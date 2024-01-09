@@ -11,6 +11,7 @@ class OrderStore {
       QUANTITY: 0,
       EXPIRYDATE: getNextExpiry(),
       INDEX: '',
+      LOSSPERLOT: 0,
     };
   }
   static getInstance() {

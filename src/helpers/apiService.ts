@@ -63,6 +63,8 @@ import {
   GET_MARGIN,
   GET_POSITIONS,
   HISTORIC_API,
+  LOSSPERLOT,
+  LOTS,
   ME,
   MESSAGE_NOT_TAKE_TRADE,
   ORDER_API,
@@ -407,25 +409,7 @@ export const doOrder = async ({
       throw error;
     });
 };
-export const calculateMtm = async ({ data }: { data: JsonFileStructure }) => {
-  const currentPositions = await getPositions();
-  const currentPositionsData: object[] = get(currentPositions, 'data');
-  let mtm = 0;
-  const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
-  currentPositionsData.forEach((value) => {
-    data.tradeDetails.forEach((trade) => {
-      if (
-        trade &&
-        trade.token === get(value, 'symboltoken', '') &&
-        trade.expireDate === expiryDate
-      ) {
-        const unrealised = get(value, 'unrealised', '');
-        mtm += parseInt(unrealised);
-      }
-    });
-  });
-  return mtm;
-};
+
 export const doOrderByStrike = async (
   strike: number,
   optionType: OptionType,
@@ -526,7 +510,7 @@ export const getMarginDetails = async (): Promise<MarginAPIResponseType> => {
   };
   return axios(config)
     .then((response: Response) => {
-      return get(response, 'data') as MarginAPIResponseType | undefined;
+      return get(response, 'data.data') as MarginAPIResponseType | undefined;
     })
     .catch(function (error: Response) {
       const errorMessage = `${ALGO}: getMarginDetails failed error below`;
@@ -780,10 +764,10 @@ export const closeParticularTrade = async ({
       symboltoken: trade.token,
       qty: qty / OrderStore.getInstance().getPostData().QUANTITY,
     });
-    console.log(
+    /* console.log(
       `${ALGO} closeParticularTrade transactionStatus: `,
       transactionStatus
-    );
+    ); */
     trade.closed = transactionStatus.status;
     return transactionStatus.status;
   } catch (error) {
@@ -804,7 +788,7 @@ export const closeAllTrades = async () => {
       const expireDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
       console.log(`${ALGO}, expireDate: ${expireDate}`);
       for (const trade of tradeDetails) {
-        console.log(`${ALGO}, trade: `, trade);
+        // console.log(`${ALGO}, trade: `, trade);
         if (trade.expireDate === expireDate && trade.closed === false) {
           await closeParticularTrade({ trade });
         }
@@ -957,42 +941,35 @@ const coreTradeExecution = async ({ data }: { data: JsonFileStructure }) => {
     );
     await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
-  console.log(`${ALGO}: calculating mtm...`);
-  await delay({ milliSeconds: DELAY });
-  let mtmData = await calculateMtm({ data });
-  console.log(`${ALGO}: mtm: ${mtmData}`);
-  await delay({ milliSeconds: DELAY });
-  const istTz = new Date().toLocaleString('default', {
-    timeZone: 'Asia/Kolkata',
-  });
-  data = readJsonFile();
-  const mtm = data.mtm;
-  mtm.push({ time: istTz, value: mtmData.toString() });
-  await delay({ milliSeconds: DELAY });
-  await writeJsonFile(data);
-  return mtmData;
 };
 export const executeTrade = async () => {
+  let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
-  // const isPastClosingTime = false; //HARDCODED FOR TESTING
-  let mtmData = 0;
-  console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
-  let data = await getPositionsJson();
-  if (isPastClosingTime === false) mtmData = await coreTradeExecution({ data });
-  // mtmData = await coreTradeExecution(); //HARDCODED FOR TESTING
-  let resp: number | string = `${ALGO}: Trade Closed`;
-  if (isPastClosingTime) await closeTrade();
-  else resp = mtmData;
-  await removeJsonFile();
   const marginDetails = await getMarginDetails();
-  console.log(`${ALGO}, margin details : `, marginDetails);
+  // console.log(`${ALGO}, marginDetails: `, marginDetails);
+  const quantity = OrderStore.getInstance().getPostData().QUANTITY;
+  const lossPerLot = OrderStore.getInstance().getPostData().LOSSPERLOT;
+  const calculatedFixStopLoss = quantity * lossPerLot;
+  console.log(`${ALGO}, calculatedFixStopLoss: ${calculatedFixStopLoss}`);
+  let mtmData = 0;
+  // console.log('marginDetails.m2munrealized: ', marginDetails.m2munrealized);
+  // console.log('marginDetails.m2mrealized: ', marginDetails.m2mrealized);
   if (marginDetails.m2munrealized && marginDetails.m2mrealized) {
-    const mtm =
+    mtmData =
       parseFloat(marginDetails.m2munrealized) +
       parseFloat(marginDetails.m2mrealized);
-    resp = mtm;
+    resp = mtmData;
   }
+  console.log(`${ALGO}, mtmData: ${mtmData}`);
+  const isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
+  console.log(`${ALGO}, isStoplossExceeded: ${isStoplossExceeded}`);
+  // const isPastClosingTime = false; //HARDCODED FOR TESTING
+  console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
+  let data = await getPositionsJson();
+  if (isPastClosingTime === false) await coreTradeExecution({ data });
+  if (isPastClosingTime || isStoplossExceeded) await closeTrade();
+  await removeJsonFile();
   return resp;
 };
 const isTradeAllowed = async (data: JsonFileStructure) => {
@@ -1027,7 +1004,8 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
 };
 export const checkMarketConditionsAndExecuteTrade = async (
   strategy: Strategy = Strategy.SHORTSTRADDLE,
-  lots: number = 1
+  lots: number = LOTS,
+  lossPerLot: number = LOSSPERLOT
 ) => {
   let expiryDate = getTodayExpiry();
   const isTodayLastWednesdayOfMonth =
@@ -1041,6 +1019,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
     QUANTITY: lots,
     EXPIRYDATE: expiryDate,
     INDEX: getScripName(expiryDate),
+    LOSSPERLOT: lossPerLot,
   });
   console.log(
     `${ALGO}, OrderStore data: `,
