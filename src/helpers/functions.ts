@@ -9,6 +9,7 @@ import fs from 'fs';
 import {
   BothPresent,
   Credentails,
+  INDICES,
   ISmartApiData,
   JsonFileStructure,
   Position,
@@ -353,4 +354,18 @@ export const getLastThursdayOfCurrentMonth = () => {
 };
 export const roundToNearestHundred = (input: number): number => {
   return Math.ceil(input / 100) * 100;
+};
+export const getStrikeDifference = (index: string) => {
+  switch (index) {
+    case INDICES.NIFTY:
+    case INDICES.FINNIFTY:
+      return 100;
+    case INDICES.MIDCPNIFTY:
+      return 50;
+    case INDICES.SENSEX:
+    case INDICES.BANKNIFTY:
+      return 200;
+    default:
+      return 100;
+  }
 };

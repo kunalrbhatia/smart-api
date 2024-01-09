@@ -4,7 +4,6 @@ const axios = require('axios');
 const totp = require('totp-generator');
 import {
   getScripName,
-  getStrikeDifference,
   getTodayExpiry,
   hedgeCalculation,
   isTradingHoliday,
@@ -20,6 +19,7 @@ import {
   getNearestStrike,
   getNextExpiry,
   getOpenPositions,
+  getStrikeDifference,
   isCurrentTimeGreater,
   isMarketClosed,
   readJsonFile,
@@ -592,6 +592,7 @@ export const repeatShortStraddle = async (
     const data = readJsonFile();
     let strikeDiff = getStrikeDifference(idx);
     console.log(`${ALGO}, strikeDiff: ${strikeDiff}`);
+    console.log(`${ALGO}, difference: ${difference}`);
     const isSameStrikeAlreadyTraded = checkStrike(
       data.tradeDetails,
       atmStrike.toString()
@@ -610,10 +611,11 @@ export const repeatShortStraddle = async (
     if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    } else if (difference === 0 && isSameStrikeAlreadyTraded) {
+    }
+    /* else if (difference === 0 && isSameStrikeAlreadyTraded) {
       console.log(`${ALGO}: same strike already traded checking both legs ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    }
+    } */
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
     console.log(errorMessage);
