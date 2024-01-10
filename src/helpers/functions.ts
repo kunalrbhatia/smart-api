@@ -255,14 +255,14 @@ export const readJsonFile = (): JsonFileStructure => {
   }
 };
 export const checkStrike = (
-  tradeDetails: TradeDetails[],
+  tradeDetails: Position[],
   strike: string
 ): boolean => {
   const expiry = OrderStore.getInstance().getPostData().EXPIRYDATE;
   for (const trade of tradeDetails) {
     if (
-      parseInt(trade.strike) === parseInt(strike) &&
-      trade.expireDate === expiry
+      parseInt(trade.strikeprice) === parseInt(strike) &&
+      trade.expirydate === expiry
     ) {
       return true;
     }
@@ -270,21 +270,21 @@ export const checkStrike = (
   return false;
 };
 export const areBothOptionTypesPresentForStrike = (
-  tradeDetails: TradeDetails[],
+  tradeDetails: Position[],
   strike: string
 ): BothPresent => {
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   let cePresent = false;
   let pePresent = false;
-  const filteredTrades = tradeDetails
-    .filter((trade) => trade.expireDate === expirationDate)
+  tradeDetails
+    .filter((trade) => trade.expirydate === expirationDate)
     .forEach((trade) => {
-      const tradedStrike = parseInt(trade.strike);
+      const tradedStrike = parseInt(trade.strikeprice);
       const compareStrike = parseInt(strike);
       if (tradedStrike === compareStrike) {
-        if (trade.optionType === 'CE') {
+        if (trade.optiontype === 'CE') {
           cePresent = true;
-        } else if (trade.optionType === 'PE') {
+        } else if (trade.optiontype === 'PE') {
           pePresent = true;
         }
       }
@@ -314,7 +314,7 @@ export const isMarketClosed = () => {
   }
 };
 type GetNearestStrike = {
-  algoTrades: TradeDetails[];
+  algoTrades: Position[];
   atmStrike: number;
 };
 export const getNearestStrike = ({
@@ -325,9 +325,9 @@ export const getNearestStrike = ({
   let minDifference = Number.MAX_SAFE_INTEGER;
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   algoTrades
-    .filter((trade) => trade.expireDate === expirationDate)
+    .filter((trade) => trade.expirydate === expirationDate)
     .forEach((trade) => {
-      const strikeNumber = parseInt(trade.strike, 10);
+      const strikeNumber = parseInt(trade.strikeprice, 10);
       const difference = Math.abs(strikeNumber - atmStrike);
       if (difference < minDifference) {
         nearestStrike = strikeNumber;
