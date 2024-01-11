@@ -1,9 +1,4 @@
-import {
-  getIndexScrip,
-  getLtpData,
-  getPositionsJson,
-  getScrip,
-} from './apiService';
+import { getIndexScrip, getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
 import {
@@ -11,16 +6,14 @@ import {
   Credentails,
   INDICES,
   ISmartApiData,
-  JsonFileStructure,
   Position,
   TimeComparisonType,
-  TradeDetails,
   delayType,
   reqType,
   updateMaxSlType,
 } from '../app.interface';
-import moment, { Moment } from 'moment-timezone';
-import { ALGO, DATEFORMAT, DELAY } from './constants';
+import moment from 'moment-timezone';
+import { ALGO } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
@@ -51,7 +44,6 @@ export const getCurrentTimeAndPastTime = (): GetCurrentTimeAndPastTimeType => {
     pastTime: currentTime.subtract(40, 'day').format('YYYY-MM-DD HH:mm'),
   };
 };
-
 export const setSmartSession = (data: ISmartApiData) => {
   const smartData: ISmartApiData = {
     feedToken: data.feedToken,
@@ -105,7 +97,6 @@ export const getNextExpiry = () => {
     return nextWednesday.format('DDMMMYYYY').toUpperCase();
   }
 };
-
 export const findNearestStrike = (options: object[], target: number) => {
   let nearestStrike = Infinity;
   let nearestDiff = Infinity;
@@ -182,27 +173,6 @@ export const getCurrentDate = (): string => {
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}_${month}_${day}`;
-};
-export const removeJsonFile = async (): Promise<boolean> => {
-  const currentDate = getCurrentDate();
-  let fileName = `${currentDate}_trades.json`;
-  const exists = fs.existsSync(fileName);
-  if (exists)
-    fs.unlink(fileName, (err) => {
-      if (err) console.log(`${ALGO}: error deleting file ${err.message}`);
-      else return true;
-    });
-  return false;
-};
-
-export const isJson = (string: string) => {
-  console.log(`${ALGO}: checking if json is proper.`);
-  try {
-    JSON.parse(string);
-    return true;
-  } catch (error) {
-    return false;
-  }
 };
 export const checkStrike = (
   tradeDetails: Position[],
