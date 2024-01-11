@@ -298,7 +298,7 @@ const getPositions = async () => {
   };
   return axios(config)
     .then(function (response: object) {
-      return get(response, 'data');
+      return get(response, 'data.data', []) as Position[];
     })
     .catch(function (error: object) {
       const errorMessage = `${ALGO}: getPositions failed error below`;
@@ -669,8 +669,7 @@ const checkPositionToClose = async ({
 };
 const getPositionsJson = async () => {
   try {
-    const currentPositions = await getPositions();
-    const positions: Position[] = get(currentPositions, 'data', []) || [];
+    const positions: Position[] = await getPositions();
     const openPositions = getOpenPositions(positions);
     console.log(`${ALGO}: total open positions are ${openPositions.length}`);
     return openPositions;
@@ -803,9 +802,25 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
     await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
 };
+const getMtm = async () => {
+  const tradedPositions: Position[] = await getPositions();
+  const tradedExpiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
+  const tradedIndex = OrderStore.getInstance().getPostData().INDEX;
+  let mtm = 0;
+  for (const position of tradedPositions) {
+    const isSameExpiryDate = position.expirydate === tradedExpiryDate;
+    const isSameIndex = position.symbolname === tradedIndex;
+    if (isSameExpiryDate && isSameIndex) {
+      const unrealised = parseFloat(position.unrealised);
+      const realised = parseFloat(position.realised);
+      mtm += unrealised + realised;
+    }
+  }
+  return mtm;
+};
 const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
-  const closingTime: TimeComparisonType = { hours: 15, minutes: 21 };
+  const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
   const marginDetails = await getMarginDetails();
   // console.log(`${ALGO}: marginDetails: `, marginDetails);
@@ -813,16 +828,8 @@ const executeTrade = async () => {
   const lossPerLot = OrderStore.getInstance().getPostData().LOSSPERLOT;
   const calculatedFixStopLoss = quantity * lossPerLot;
   console.log(`${ALGO}: calculatedFixStopLoss: ${calculatedFixStopLoss}`);
-  let mtmData = 0;
-  // console.log('marginDetails.m2munrealized: ', marginDetails.m2munrealized);
-  // console.log('marginDetails.m2mrealized: ', marginDetails.m2mrealized);
-  if (marginDetails.m2munrealized && marginDetails.m2mrealized) {
-    mtmData =
-      parseFloat(marginDetails.m2munrealized) +
-      parseFloat(marginDetails.m2mrealized);
-    resp = mtmData;
-  }
-  console.log(`${ALGO}: mtmData: ${mtmData}`);
+  let mtmData = await getMtm();
+  console.log(`${ALGO}: MTM: ${mtmData} -----`);
   const isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
   console.log(`${ALGO}: isStoplossExceeded: ${isStoplossExceeded}`);
   // const isPastClosingTime = false; //HARDCODED FOR TESTING
