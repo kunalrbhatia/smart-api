@@ -11,7 +11,6 @@ import {
 import {
   areBothOptionTypesPresentForStrike,
   checkStrike,
-  createJsonFile,
   delay,
   getAtmStrikePrice,
   getLastThursdayOfCurrentMonth,
@@ -22,10 +21,8 @@ import {
   getStrikeDifference,
   isCurrentTimeGreater,
   isMarketClosed,
-  readJsonFile,
   removeJsonFile,
   setSmartSession,
-  writeJsonFile,
 } from './functions';
 import { Response } from 'express';
 import {
@@ -526,7 +523,6 @@ export const checkBothLegs = async ({
 }: checkBothLegsType) => {
   const idx = OrderStore.getInstance().getPostData().INDEX;
   const hedge = hedgeCalculation(idx);
-  const data = readJsonFile();
   try {
     if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
       console.log(`${ALGO}, Both legs not present, selling both!`);
@@ -753,32 +749,25 @@ export const closeTrade = async () => {
     await closeAllTrades();
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
-  await delay({ milliSeconds: DELAY });
-  const data = readJsonFile();
-  data.isTradeClosed = true;
-  await delay({ milliSeconds: DELAY });
-  await writeJsonFile(data);
 };
 export const areAllTradesClosed = async () => {
   console.log(
     `${ALGO}: {areAllTradesClosed} checking if all the trades are closed.`
   );
-  await delay({ milliSeconds: DELAY });
-  const data = readJsonFile();
-  await delay({ milliSeconds: DELAY });
-  const tradeDetails = data.tradeDetails;
-  if (Array.isArray(tradeDetails)) {
-    for (const trade of tradeDetails) {
-      const isTradeClosed = trade.closed;
-      const isExpiryMatch =
-        trade.expireDate === OrderStore.getInstance().getPostData().EXPIRYDATE;
-      if (isTradeClosed === false && isExpiryMatch) {
-        return false;
-      }
-    }
+  try {
+    const positions = await getPositionsJson();
+    await delay({ milliSeconds: DELAY });
+    const expireDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
+    const hasOpenTrade = positions.some(
+      (trade) => trade.expirydate === expireDate
+    );
+    return !hasOpenTrade;
+  } catch (error) {
+    console.error('Error in areAllTradesClosed:', error);
+    return false;
   }
-  return true;
 };
+
 export const checkToRepeatShortStraddle = async (
   atmStrike: number,
   previousTradeStrikePrice: number
@@ -806,61 +795,6 @@ export const checkToRepeatShortStraddle = async (
   } else {
     console.log(`${ALGO}: Oops, 'atmStrike' is infinity! Stopping operations.`);
     throw new Error(`Oops, atmStrike is infinity! Stopping operations.`);
-  }
-};
-export const addOrderData = async (
-  data: JsonFileStructure,
-  orderData: OrderData,
-  optionType: OptionType
-) => {
-  if (orderData.status) {
-    data.tradeDetails.push({
-      optionType: optionType,
-      netQty: orderData.netQty,
-      expireDate: orderData.expiryDate,
-      strike: orderData.stikePrice,
-      token: orderData.token,
-      symbol: orderData.symbol,
-      closed: false,
-      tradedPrice: 0,
-      exchange: orderData.exchange,
-      tradingSymbol: orderData.symbol,
-    });
-  }
-  await writeJsonFile(data);
-};
-export const addShortStraddleData = async ({
-  data,
-  shortStraddleData,
-}: AddShortStraddleData) => {
-  if (shortStraddleData.ceOrderStatus && shortStraddleData.peOrderStatus) {
-    data.isTradeExecuted = true;
-    data.isTradeClosed = false;
-    data.tradeDetails.push({
-      optionType: 'CE',
-      netQty: shortStraddleData.netQty,
-      expireDate: shortStraddleData.expiryDate,
-      strike: shortStraddleData.stikePrice,
-      token: shortStraddleData.ceOrderToken,
-      symbol: shortStraddleData.ceOrderSymbol,
-      closed: false,
-      tradedPrice: 0,
-      exchange: '',
-      tradingSymbol: '',
-    });
-    data.tradeDetails.push({
-      optionType: 'PE',
-      netQty: shortStraddleData.netQty,
-      expireDate: shortStraddleData.expiryDate,
-      strike: shortStraddleData.stikePrice,
-      token: shortStraddleData.peOrderToken,
-      symbol: shortStraddleData.peOrderSymbol,
-      closed: false,
-      tradedPrice: 0,
-      exchange: '',
-      tradingSymbol: '',
-    });
-    await writeJsonFile(data);
   }
 };
 const coreTradeExecution = async ({ data }: { data: Position[] }) => {
@@ -916,14 +850,13 @@ export const executeTrade = async () => {
   await removeJsonFile();
   return resp;
 };
-const isTradeAllowed = async (data: JsonFileStructure) => {
+const isTradeAllowed = async () => {
   const isMarketOpen = !isMarketClosed();
   const isHoliday = isTradingHoliday();
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,
   });
-  const isTradeOpen = !data.isTradeClosed;
   let isSmartAPIWorking = false;
   try {
     const smartData = await generateSmartSession();
@@ -936,12 +869,11 @@ const isTradeAllowed = async (data: JsonFileStructure) => {
     console.log('Error occurred for generateSmartSession');
   }
   console.log(
-    `${ALGO}: checking conditions, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isTradeOpen: ${isTradeOpen}, isSmartAPIWorking: ${isSmartAPIWorking}`
+    `${ALGO}: checking conditions, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`
   );
   return (
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
-    isTradeOpen &&
     isSmartAPIWorking &&
     isHoliday === false
   );
@@ -970,9 +902,8 @@ export const checkMarketConditionsAndExecuteTrade = async (
     OrderStore.getInstance().getPostData()
   );
   try {
-    const data = await createJsonFile();
     // return await executeTrade(); //HARDCODED FOR TESTING
-    if (!(await isTradeAllowed(data))) {
+    if (!(await isTradeAllowed())) {
       return MESSAGE_NOT_TAKE_TRADE;
     }
     if (strategy === Strategy.SHORTSTRADDLE) {

@@ -194,26 +194,7 @@ export const removeJsonFile = async (): Promise<boolean> => {
     });
   return false;
 };
-export const createJsonFile = async (): Promise<JsonFileStructure> => {
-  const currentDate = getCurrentDate();
-  let fileName = `${currentDate}_trades.json`;
-  const exists = fs.existsSync(fileName);
-  if (exists) {
-    return readJsonFile();
-  } else {
-    let json: JsonFileStructure = {
-      isTradeExecuted: false,
-      accountDetails: {
-        capitalUsed: 0,
-      },
-      tradeDetails: [],
-      isTradeClosed: false,
-      mtm: [],
-    };
-    await writeJsonFile(json);
-    return json;
-  }
-};
+
 export const isJson = (string: string) => {
   console.log(`${ALGO}: checking if json is proper.`);
   try {
@@ -221,37 +202,6 @@ export const isJson = (string: string) => {
     return true;
   } catch (error) {
     return false;
-  }
-};
-export const writeJsonFile = async (data: JsonFileStructure) => {
-  const currentDate = getCurrentDate();
-  let fileName = `${currentDate}_trades.json`;
-  const dataToStoreString = JSON.stringify(data);
-  console.log(`${ALGO}: json data: `, dataToStoreString);
-  if (isJson(dataToStoreString)) {
-    console.log(`${ALGO}: writing into json file with name ${fileName}`);
-    fs.writeFile(fileName, dataToStoreString, (err) => {
-      if (err) {
-        console.error(`${ALGO}: Error writing data to file:`, err);
-      } else {
-        console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
-      }
-    });
-    await delay({ milliSeconds: DELAY });
-  }
-};
-export const readJsonFile = (): JsonFileStructure => {
-  try {
-    const currentDate = getCurrentDate();
-    let fileName = `${currentDate}_trades.json`;
-    console.log(`${ALGO}: reading from json file with name ${fileName}`);
-    const dataFromFile = fs.readFileSync(fileName, 'utf-8');
-    const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);
-    return dataFromFileJson;
-  } catch (error) {
-    console.log(`${ALGO}: Error reading from json file`);
-    console.log(error);
-    throw error;
   }
 };
 export const checkStrike = (
@@ -276,7 +226,7 @@ export const areBothOptionTypesPresentForStrike = (
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   let cePresent = false;
   let pePresent = false;
-  tradeDetails
+  const filteredTrades = tradeDetails
     .filter((trade) => trade.expirydate === expirationDate)
     .forEach((trade) => {
       const tradedStrike = parseInt(trade.strikeprice);
