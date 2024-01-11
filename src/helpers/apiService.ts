@@ -124,7 +124,7 @@ export const generateSmartSession = async (): Promise<ISmartApiData> => {
       throw ex;
     });
 };
-export const fetchData = async (): Promise<scripMasterResponse[]> => {
+const fetchData = async (): Promise<scripMasterResponse[]> => {
   const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
   if (data.length > 0) {
     return data as scripMasterResponse[];
@@ -148,7 +148,7 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
       });
   }
 };
-export const getAllFut = async () => {
+/* export const getAllFut = async () => {
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
     `${ALGO}: Scrip master an array: ${isArray(scripMaster)}, its length is: ${
@@ -172,8 +172,8 @@ export const getAllFut = async () => {
   } else {
     throw new Error('some error occurred');
   }
-};
-export const getScripFut = async ({ scriptName }: getScripFutType) => {
+}; */
+/* export const getScripFut = async ({ scriptName }: getScripFutType) => {
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
     `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
@@ -199,7 +199,7 @@ export const getScripFut = async ({ scriptName }: getScripFutType) => {
   } else {
     throw new Error('scrip not found');
   }
-};
+}; */
 export const getScrip = async ({
   scriptName,
   strikePrice,
@@ -273,7 +273,7 @@ export const getIndexScrip = async ({
     throw errorMessage;
   }
 };
-export const getPositions = async () => {
+const getPositions = async () => {
   await delay({ milliSeconds: DELAY });
   const smartInstance = SmartSession.getInstance();
   await delay({ milliSeconds: DELAY });
@@ -344,7 +344,7 @@ export const getHistoricPrices = async (data: HistoryInterface) => {
       return error;
     });
 };
-export const doOrder = async ({
+const doOrder = async ({
   tradingsymbol,
   transactionType,
   symboltoken,
@@ -401,7 +401,7 @@ export const doOrder = async ({
       throw error;
     });
 };
-export const doOrderByStrike = async (
+const doOrderByStrike = async (
   strike: number,
   optionType: OptionType,
   transactionType: 'BUY' | 'SELL'
@@ -447,7 +447,7 @@ export const doOrderByStrike = async (
     throw error;
   }
 };
-export const shortStraddle = async () => {
+const shortStraddle = async () => {
   try {
     //GET ATM STIKE PRICE
     const atmStrike = await getAtmStrikePrice();
@@ -474,7 +474,7 @@ export const shortStraddle = async () => {
     throw error;
   }
 };
-export const getMarginDetails = async (): Promise<MarginAPIResponseType> => {
+const getMarginDetails = async (): Promise<MarginAPIResponseType> => {
   const smartInstance = SmartSession.getInstance();
   await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = smartInstance.getPostData();
@@ -506,13 +506,13 @@ export const getMarginDetails = async (): Promise<MarginAPIResponseType> => {
       throw error;
     });
 };
-export const checkBoth_CE_PE_Present = (data: BothPresent) => {
+const checkBoth_CE_PE_Present = (data: BothPresent) => {
   if (data.ce && data.pe) return CheckOptionType.BOTH_CE_PE_PRESENT;
   else if (!data.ce && !data.pe) return CheckOptionType.BOTH_CE_PE_NOT_PRESENT;
   else if (!data.ce && data.pe) return CheckOptionType.ONLY_PE_PRESENT;
   else return CheckOptionType.ONLY_CE_PRESENT;
 };
-export const checkBothLegs = async ({
+const checkBothLegs = async ({
   cepe_present,
   atmStrike,
 }: checkBothLegsType) => {
@@ -550,10 +550,7 @@ export const checkBothLegs = async ({
     throw error;
   }
 };
-export const repeatShortStraddle = async (
-  difference: number,
-  atmStrike: number
-) => {
+const repeatShortStraddle = async (difference: number, atmStrike: number) => {
   try {
     const idx = OrderStore.getInstance().getPostData().INDEX;
     let strikeDiff = getStrikeDifference(idx);
@@ -590,10 +587,7 @@ export const repeatShortStraddle = async (
     throw error;
   }
 };
-export const getPositionByToken = ({
-  positions,
-  token,
-}: getPositionByTokenType) => {
+const getPositionByToken = ({ positions, token }: getPositionByTokenType) => {
   for (const position of positions) {
     if (position.symboltoken === token) {
       return position;
@@ -601,7 +595,7 @@ export const getPositionByToken = ({
   }
   return null;
 };
-export const findTradeByStrike = async (tradeStrike: number) => {
+const findTradeByStrike = async (tradeStrike: number) => {
   const positions = await getPositionsJson();
   for (const position of positions) {
     const strike = parseInt(position.strikeprice);
@@ -609,11 +603,7 @@ export const findTradeByStrike = async (tradeStrike: number) => {
   }
   return null;
 };
-export const shouldCloseTrade = async ({
-  ltp,
-  avg,
-  trade,
-}: shouldCloseTradeType) => {
+const shouldCloseTrade = async ({ ltp, avg, trade }: shouldCloseTradeType) => {
   const doubledPrice = avg * 2;
   const isPriceDoubled = parseInt(trade.netqty) < 0 && ltp >= doubledPrice;
   const isLtpBelowOne = parseInt(trade.netqty) < 0 && ltp < 1;
@@ -643,7 +633,7 @@ export const shouldCloseTrade = async ({
     }
   }
 };
-export const checkPositionToClose = async ({
+const checkPositionToClose = async ({
   openPositions,
 }: checkPositionToCloseType) => {
   console.log(`${ALGO}: checkPositionToClose`);
@@ -677,7 +667,7 @@ export const checkPositionToClose = async ({
     throw error;
   }
 };
-export const getPositionsJson = async () => {
+const getPositionsJson = async () => {
   try {
     const currentPositions = await getPositions();
     const positions: Position[] = get(currentPositions, 'data', []) || [];
@@ -691,7 +681,7 @@ export const getPositionsJson = async () => {
     throw error;
   }
 };
-export const closeParticularTrade = async ({ trade }: { trade: Position }) => {
+const closeParticularTrade = async ({ trade }: { trade: Position }) => {
   try {
     await delay({ milliSeconds: DELAY });
     const qty = parseInt(trade.netqty);
@@ -713,7 +703,7 @@ export const closeParticularTrade = async ({ trade }: { trade: Position }) => {
     throw error;
   }
 };
-export const closeAllTrades = async () => {
+const closeAllTrades = async () => {
   try {
     await delay({ milliSeconds: DELAY });
     const positions = await getPositionsJson();
@@ -736,7 +726,7 @@ export const closeAllTrades = async () => {
     throw error;
   }
 };
-export const closeTrade = async () => {
+const closeTrade = async () => {
   console.log(`${ME}: check if all the trades are closed.`);
   while ((await areAllTradesClosed()) === false) {
     console.log(`${ALGO}: all trades are not closed, closing trades...`);
@@ -762,7 +752,7 @@ export const areAllTradesClosed = async () => {
   }
 };
 
-export const checkToRepeatShortStraddle = async (
+const checkToRepeatShortStraddle = async (
   atmStrike: number,
   previousTradeStrikePrice: number
 ) => {
@@ -803,9 +793,8 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.length;
-    const getAlgoTrades = data;
     let previousTradeStrikePrice: string | number = getNearestStrike({
-      algoTrades: getAlgoTrades,
+      algoTrades: data,
       atmStrike: atmStrike,
     });
     console.log(
@@ -814,7 +803,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
     await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
 };
-export const executeTrade = async () => {
+const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 21 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
@@ -902,6 +891,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
     EXPIRYDATE: expiryDate,
     INDEX: getScripName(expiryDate),
     LOSSPERLOT: lossPerLot,
+    INDIAVIX: indiaVixLtp.ltp,
   });
   console.log(
     `${ALGO}: OrderStore data: `,

@@ -118,9 +118,9 @@ export const getAtmStrikePrice = async () => {
       scriptName: OrderStore.getInstance().getPostData().INDEX,
       expiryDate: expiryDate,
     });
-    console.log(
+    /* console.log(
       `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
-    );
+    ); */
     const bnfScrip = await getIndexScrip({
       scriptName: OrderStore.getInstance().getPostData().INDEX,
     });
@@ -278,16 +278,16 @@ export const roundToNearestHundred = (input: number): number => {
   return Math.ceil(input / 100) * 100;
 };
 export const getStrikeDifference = (index: string) => {
+  const indiaVix = OrderStore.getInstance().getPostData().INDIAVIX;
   switch (index) {
     case INDICES.NIFTY:
     case INDICES.FINNIFTY:
-      return 100;
     case INDICES.MIDCPNIFTY:
-      return 50;
+      return indiaVix < 14 ? 50 : 100;
     case INDICES.SENSEX:
     case INDICES.BANKNIFTY:
-      return 200;
+      return indiaVix < 14 ? 200 : 300;
     default:
-      return 100;
+      return 50;
   }
 };

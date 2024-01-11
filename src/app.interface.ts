@@ -106,6 +106,7 @@ export type OrderStoreDataType = {
   EXPIRYDATE: string;
   INDEX: string;
   LOSSPERLOT: number;
+  INDIAVIX: number;
 };
 export type ScripMasterStoreDataType = {
   SCRIP_MASTER_JSON: object[];

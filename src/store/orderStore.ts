@@ -12,6 +12,7 @@ class OrderStore {
       EXPIRYDATE: getNextExpiry(),
       INDEX: '',
       LOSSPERLOT: 0,
+      INDIAVIX: 0,
     };
   }
   static getInstance() {
