@@ -1,9 +1,4 @@
-import {
-  getIndexScrip,
-  getLtpData,
-  getPositionsJson,
-  getScrip,
-} from './apiService';
+import { getIndexScrip, getLtpData, getScrip } from './apiService';
 import { get } from 'lodash';
 import fs from 'fs';
 import {
@@ -11,16 +6,14 @@ import {
   Credentails,
   INDICES,
   ISmartApiData,
-  JsonFileStructure,
   Position,
   TimeComparisonType,
-  TradeDetails,
   delayType,
   reqType,
   updateMaxSlType,
 } from '../app.interface';
-import moment, { Moment } from 'moment-timezone';
-import { ALGO, DATEFORMAT, DELAY } from './constants';
+import moment from 'moment-timezone';
+import { ALGO } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
 import SmartSession from '../store/smartSession';
@@ -51,7 +44,6 @@ export const getCurrentTimeAndPastTime = (): GetCurrentTimeAndPastTimeType => {
     pastTime: currentTime.subtract(40, 'day').format('YYYY-MM-DD HH:mm'),
   };
 };
-
 export const setSmartSession = (data: ISmartApiData) => {
   const smartData: ISmartApiData = {
     feedToken: data.feedToken,
@@ -105,7 +97,6 @@ export const getNextExpiry = () => {
     return nextWednesday.format('DDMMMYYYY').toUpperCase();
   }
 };
-
 export const findNearestStrike = (options: object[], target: number) => {
   let nearestStrike = Infinity;
   let nearestDiff = Infinity;
@@ -183,86 +174,15 @@ export const getCurrentDate = (): string => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}_${month}_${day}`;
 };
-export const removeJsonFile = async (): Promise<boolean> => {
-  const currentDate = getCurrentDate();
-  let fileName = `${currentDate}_trades.json`;
-  const exists = fs.existsSync(fileName);
-  if (exists)
-    fs.unlink(fileName, (err) => {
-      if (err) console.log(`${ALGO}: error deleting file ${err.message}`);
-      else return true;
-    });
-  return false;
-};
-export const createJsonFile = async (): Promise<JsonFileStructure> => {
-  const currentDate = getCurrentDate();
-  let fileName = `${currentDate}_trades.json`;
-  const exists = fs.existsSync(fileName);
-  if (exists) {
-    return readJsonFile();
-  } else {
-    let json: JsonFileStructure = {
-      isTradeExecuted: false,
-      accountDetails: {
-        capitalUsed: 0,
-      },
-      tradeDetails: [],
-      isTradeClosed: false,
-      mtm: [],
-    };
-    await writeJsonFile(json);
-    return json;
-  }
-};
-export const isJson = (string: string) => {
-  console.log(`${ALGO}: checking if json is proper.`);
-  try {
-    JSON.parse(string);
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-export const writeJsonFile = async (data: JsonFileStructure) => {
-  const currentDate = getCurrentDate();
-  let fileName = `${currentDate}_trades.json`;
-  const dataToStoreString = JSON.stringify(data);
-  console.log(`${ALGO}: json data: `, dataToStoreString);
-  if (isJson(dataToStoreString)) {
-    console.log(`${ALGO}: writing into json file with name ${fileName}`);
-    fs.writeFile(fileName, dataToStoreString, (err) => {
-      if (err) {
-        console.error(`${ALGO}: Error writing data to file:`, err);
-      } else {
-        console.log(`${ALGO}: Data stored successfully in file: ${fileName}`);
-      }
-    });
-    await delay({ milliSeconds: DELAY });
-  }
-};
-export const readJsonFile = (): JsonFileStructure => {
-  try {
-    const currentDate = getCurrentDate();
-    let fileName = `${currentDate}_trades.json`;
-    console.log(`${ALGO}: reading from json file with name ${fileName}`);
-    const dataFromFile = fs.readFileSync(fileName, 'utf-8');
-    const dataFromFileJson: JsonFileStructure = JSON.parse(dataFromFile);
-    return dataFromFileJson;
-  } catch (error) {
-    console.log(`${ALGO}: Error reading from json file`);
-    console.log(error);
-    throw error;
-  }
-};
 export const checkStrike = (
-  tradeDetails: TradeDetails[],
+  tradeDetails: Position[],
   strike: string
 ): boolean => {
   const expiry = OrderStore.getInstance().getPostData().EXPIRYDATE;
   for (const trade of tradeDetails) {
     if (
-      parseInt(trade.strike) === parseInt(strike) &&
-      trade.expireDate === expiry
+      parseInt(trade.strikeprice) === parseInt(strike) &&
+      trade.expirydate === expiry
     ) {
       return true;
     }
@@ -270,21 +190,21 @@ export const checkStrike = (
   return false;
 };
 export const areBothOptionTypesPresentForStrike = (
-  tradeDetails: TradeDetails[],
+  tradeDetails: Position[],
   strike: string
 ): BothPresent => {
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   let cePresent = false;
   let pePresent = false;
   const filteredTrades = tradeDetails
-    .filter((trade) => trade.expireDate === expirationDate)
+    .filter((trade) => trade.expirydate === expirationDate)
     .forEach((trade) => {
-      const tradedStrike = parseInt(trade.strike);
+      const tradedStrike = parseInt(trade.strikeprice);
       const compareStrike = parseInt(strike);
       if (tradedStrike === compareStrike) {
-        if (trade.optionType === 'CE') {
+        if (trade.optiontype === 'CE') {
           cePresent = true;
-        } else if (trade.optionType === 'PE') {
+        } else if (trade.optiontype === 'PE') {
           pePresent = true;
         }
       }
@@ -314,7 +234,7 @@ export const isMarketClosed = () => {
   }
 };
 type GetNearestStrike = {
-  algoTrades: TradeDetails[];
+  algoTrades: Position[];
   atmStrike: number;
 };
 export const getNearestStrike = ({
@@ -325,9 +245,9 @@ export const getNearestStrike = ({
   let minDifference = Number.MAX_SAFE_INTEGER;
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   algoTrades
-    .filter((trade) => trade.expireDate === expirationDate)
+    .filter((trade) => trade.expirydate === expirationDate)
     .forEach((trade) => {
-      const strikeNumber = parseInt(trade.strike, 10);
+      const strikeNumber = parseInt(trade.strikeprice, 10);
       const difference = Math.abs(strikeNumber - atmStrike);
       if (difference < minDifference) {
         nearestStrike = strikeNumber;

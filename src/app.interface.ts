@@ -170,7 +170,7 @@ export type getPositionByTokenType = {
 export type shouldCloseTradeType = {
   ltp: number;
   avg: number;
-  trade: TradeDetails;
+  trade: Position;
 };
 export type delayType = {
   milliSeconds: number | undefined | string;
