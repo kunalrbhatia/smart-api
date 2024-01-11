@@ -816,7 +816,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
 };
 export const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
-  const closingTime: TimeComparisonType = { hours: 15, minutes: 15 };
+  const closingTime: TimeComparisonType = { hours: 15, minutes: 21 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
   const marginDetails = await getMarginDetails();
   // console.log(`${ALGO}: marginDetails: `, marginDetails);
@@ -890,8 +890,13 @@ export const checkMarketConditionsAndExecuteTrade = async (
   if (isTodayLastWednesdayOfMonth) expiryDate = getLastThursdayOfCurrentMonth();
   console.log(`${ALGO}: expiry date is ${expiryDate}`);
   const convertedDate = moment(expiryDate, 'DDMMMYYYY').toDate();
-  if (convertedDate.getDay() === 5)
+  if (convertedDate.getDay() === 2) {
+    expiryDate = moment().add(1, 'days').format(DATEFORMAT).toUpperCase();
+    lots = lots - 1;
+  } else if (convertedDate.getDay() === 5) {
     expiryDate = moment().add(3, 'days').format(DATEFORMAT).toUpperCase();
+    lots = lots - 1;
+  }
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
     EXPIRYDATE: expiryDate,
