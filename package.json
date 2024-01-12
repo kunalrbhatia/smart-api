@@ -9,9 +9,7 @@
     "http-errors": "^2.0.0",
     "krb-smart-api-module": "*",
     "lodash": "^4.17.21",
-    "moment-timezone": "^0.5.43",
-    "smartapi-javascript": "^1.0.20",
-    "totp-generator": "0.0.14"
+    "moment-timezone": "^0.5.43"
   },
   "devDependencies": {
     "@babel/cli": "^7.22.10",

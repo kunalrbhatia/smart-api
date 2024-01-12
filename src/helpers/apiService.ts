@@ -1,11 +1,9 @@
 import { get, isArray, isEmpty } from 'lodash';
-let { SmartAPI } = require('smartapi-javascript');
 const axios = require('axios');
-const totp = require('totp-generator');
 import {
+  generateSmartSession,
   getScripName,
   getTodayExpiry,
-  hedgeCalculation,
   isTradingHoliday,
 } from 'krb-smart-api-module';
 import {
@@ -18,6 +16,7 @@ import {
   getNearestStrike,
   getOpenPositions,
   getStrikeDifference,
+  hedgeCalculation,
   isCurrentTimeGreater,
   isMarketClosed,
   setSmartSession,
@@ -105,24 +104,6 @@ export const getLtpData = async ({
     console.log(error);
     throw error;
   }
-};
-export const generateSmartSession = async (): Promise<ISmartApiData> => {
-  const cred = DataStore.getInstance().getPostData();
-  const TOTP = totp(cred.CLIENT_TOTP_PIN);
-  const smart_api = new SmartAPI({
-    api_key: cred.APIKEY,
-    totp: TOTP,
-  });
-  return smart_api
-    .generateSession(cred.CLIENT_CODE, cred.CLIENT_PIN, TOTP)
-    .then(async (response: object) => {
-      return get(response, 'data');
-    })
-    .catch((ex: object) => {
-      console.log(`${ALGO}: generateSmartSession failed error below`);
-      console.log(ex);
-      throw ex;
-    });
 };
 const fetchData = async (): Promise<scripMasterResponse[]> => {
   const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
@@ -307,7 +288,7 @@ const getPositions = async () => {
       throw error;
     });
 };
-export const getHistoricPrices = async (data: HistoryInterface) => {
+/* const getHistoricPrices = async (data: HistoryInterface) => {
   const smartInstance = SmartSession.getInstance();
   await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = smartInstance.getPostData();
@@ -343,7 +324,7 @@ export const getHistoricPrices = async (data: HistoryInterface) => {
     .catch(function (error: any) {
       return error;
     });
-};
+}; */
 const doOrder = async ({
   tradingsymbol,
   transactionType,
@@ -616,17 +597,15 @@ const shouldCloseTrade = async ({ ltp, avg, trade }: shouldCloseTradeType) => {
     );
     try {
       const index = OrderStore.getInstance().getPostData().INDEX;
-      const isCloseSellTrade = await closeParticularTrade({ trade });
+      await closeParticularTrade({ trade });
       let buyStrike;
       if (trade.optiontype === 'CE')
         buyStrike = parseInt(trade.strikeprice) + hedgeCalculation(index);
       else buyStrike = parseInt(trade.strikeprice) - hedgeCalculation(index);
       const buyTrade = await findTradeByStrike(buyStrike);
-      let isCloseBuyTrade;
       if (buyTrade) {
-        isCloseBuyTrade = await closeParticularTrade({ trade: buyTrade });
+        await closeParticularTrade({ trade: buyTrade });
       }
-      return isCloseSellTrade && isCloseBuyTrade ? true : false;
     } catch (error) {
       console.log(`${ALGO}: closeParticularTrade could not be called`);
       throw error;
@@ -683,8 +662,8 @@ const getPositionsJson = async () => {
 const closeParticularTrade = async ({ trade }: { trade: Position }) => {
   try {
     await delay({ milliSeconds: DELAY });
-    const qty = parseInt(trade.netqty);
-    const tradingsymbol = trade.symbolname;
+    const qty = parseInt(trade.lotsize);
+    const tradingsymbol = trade.tradingsymbol;
     const transactionType =
       qty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
     const symboltoken = trade.symboltoken;
@@ -694,7 +673,7 @@ const closeParticularTrade = async ({ trade }: { trade: Position }) => {
       symboltoken,
       qty,
     });
-    return transactionStatus.status;
+    console.log(`${ALGO}, closeParticularTrade: `, transactionStatus);
   } catch (error) {
     const errorMessage = `${ALGO}: closeTrade failed error below`;
     console.log(errorMessage);
@@ -707,15 +686,8 @@ const closeAllTrades = async () => {
     await delay({ milliSeconds: DELAY });
     const positions = await getPositionsJson();
     if (Array.isArray(positions)) {
-      const expireDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
-      console.log(`${ALGO}: expireDate: ${expireDate}`);
       for (const position of positions) {
-        if (
-          position.expirydate === expireDate &&
-          parseInt(position.netqty) !== 0
-        ) {
-          await closeParticularTrade({ trade: position });
-        }
+        await closeParticularTrade({ trade: position });
       }
     }
   } catch (error) {
@@ -727,30 +699,12 @@ const closeAllTrades = async () => {
 };
 const closeTrade = async () => {
   console.log(`${ME}: check if all the trades are closed.`);
-  while ((await areAllTradesClosed()) === false) {
+  while ((await getPositionsJson()).length > 0) {
     console.log(`${ALGO}: all trades are not closed, closing trades...`);
     await closeAllTrades();
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
 };
-export const areAllTradesClosed = async () => {
-  console.log(
-    `${ALGO}: {areAllTradesClosed} checking if all the trades are closed.`
-  );
-  try {
-    const positions = await getPositionsJson();
-    await delay({ milliSeconds: DELAY });
-    const expireDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
-    const hasOpenTrade = positions.some(
-      (trade) => trade.expirydate === expireDate
-    );
-    return !hasOpenTrade;
-  } catch (error) {
-    console.error('Error in areAllTradesClosed:', error);
-    return false;
-  }
-};
-
 const checkToRepeatShortStraddle = async (
   atmStrike: number,
   previousTradeStrikePrice: number
@@ -822,7 +776,7 @@ const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
-  const marginDetails = await getMarginDetails();
+  // const marginDetails = await getMarginDetails();
   // console.log(`${ALGO}: marginDetails: `, marginDetails);
   const quantity = OrderStore.getInstance().getPostData().QUANTITY;
   const lossPerLot = OrderStore.getInstance().getPostData().LOSSPERLOT;
@@ -849,7 +803,8 @@ const isTradeAllowed = async () => {
   });
   let isSmartAPIWorking = false;
   try {
-    const smartData = await generateSmartSession();
+    const creds = DataStore.getInstance().getPostData();
+    const smartData = await generateSmartSession(creds);
     await delay({ milliSeconds: DELAY });
     isSmartAPIWorking = !isEmpty(smartData);
     if (isSmartAPIWorking) {
@@ -880,6 +835,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
     symboltoken: indiaVix[0].token,
     tradingsymbol: indiaVix[0].symbol,
   });
+  await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   const isTodayLastWednesdayOfMonth =
     expiryDate === getLastWednesdayOfMonth().format(DATEFORMAT).toUpperCase();
@@ -905,15 +861,12 @@ export const checkMarketConditionsAndExecuteTrade = async (
     OrderStore.getInstance().getPostData()
   );
   try {
+    // await isTradeAllowed(); //HARDCODED FOR TESTING
     // return await executeTrade(); //HARDCODED FOR TESTING
-    if (!(await isTradeAllowed())) {
-      return MESSAGE_NOT_TAKE_TRADE;
-    }
-    if (strategy === Strategy.SHORTSTRADDLE) {
-      return await executeTrade();
-    } else {
-      return MESSAGE_NOT_TAKE_TRADE;
-    }
+    const isAllowed = await isTradeAllowed();
+    if (!isAllowed) return MESSAGE_NOT_TAKE_TRADE;
+    if (strategy === Strategy.SHORTSTRADDLE) return await executeTrade();
+    else return MESSAGE_NOT_TAKE_TRADE;
   } catch (err) {
     return err;
   }

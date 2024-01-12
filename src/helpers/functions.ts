@@ -1,15 +1,16 @@
 import { getIndexScrip, getLtpData, getScrip } from './apiService';
-import { get } from 'lodash';
-import fs from 'fs';
 import {
   BothPresent,
   Credentails,
+  GetCurrentTimeAndPastTimeType,
+  GetNearestStrike,
   INDICES,
   ISmartApiData,
   Position,
   TimeComparisonType,
   delayType,
   reqType,
+  scripMasterResponse,
   updateMaxSlType,
 } from '../app.interface';
 import moment from 'moment-timezone';
@@ -27,8 +28,6 @@ export const setCred = (req: Request | reqType) => {
   };
   DataStore.getInstance().setPostData(creds);
 };
-
-type GetCurrentTimeAndPastTimeType = { currentTime: string; pastTime: string };
 export const getCurrentTimeAndPastTime = (): GetCurrentTimeAndPastTimeType => {
   let currentTime = moment();
   const endOfDay = moment('15:30', 'HH:mm');
@@ -97,11 +96,14 @@ export const getNextExpiry = () => {
     return nextWednesday.format('DDMMMYYYY').toUpperCase();
   }
 };
-export const findNearestStrike = (options: object[], target: number) => {
+export const findNearestStrike = (
+  options: scripMasterResponse[],
+  target: number
+) => {
   let nearestStrike = Infinity;
   let nearestDiff = Infinity;
   for (const option of options) {
-    const strike = parseInt(get(option, 'strike', '')) / 100;
+    const strike = parseInt(option.strike) / 100;
     const currentDiff = Math.abs(target - strike);
     if (currentDiff < nearestDiff) {
       nearestDiff = currentDiff;
@@ -214,10 +216,16 @@ export const areBothOptionTypesPresentForStrike = (
 export const getOpenPositions = (positions: Position[]): Position[] => {
   const openPositions = [];
   const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
+  const indexName = OrderStore.getInstance().getPostData().INDEX;
   for (const position of positions) {
     const netqty = parseInt(position.netqty);
     const positionExpiryDate = position.expirydate;
-    if (netqty !== 0 && expiryDate === positionExpiryDate) {
+    const symbolname = position.symbolname;
+    if (
+      netqty !== 0 &&
+      expiryDate === positionExpiryDate &&
+      symbolname === indexName
+    ) {
       openPositions.push(position);
     }
   }
@@ -232,10 +240,6 @@ export const isMarketClosed = () => {
   } else {
     return true;
   }
-};
-type GetNearestStrike = {
-  algoTrades: Position[];
-  atmStrike: number;
 };
 export const getNearestStrike = ({
   algoTrades,
@@ -289,5 +293,22 @@ export const getStrikeDifference = (index: string) => {
       return indiaVix < 14 ? 200 : 300;
     default:
       return 50;
+  }
+};
+export const hedgeCalculation = (index: string) => {
+  switch (index) {
+    case INDICES.NIFTY:
+      return 400;
+    case INDICES.FINNIFTY:
+      return 400;
+    case INDICES.MIDCPNIFTY:
+      let date = new Date();
+      if (date.getDay() === 5) return 150;
+      else return 100;
+    case INDICES.SENSEX:
+    case INDICES.BANKNIFTY:
+      return 1000;
+    default:
+      return 1000;
   }
 };

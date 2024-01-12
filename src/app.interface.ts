@@ -257,3 +257,11 @@ export type MarginAPIResponseType = {
   utilisedturnover: string | null;
   utilisedpayout: string | null;
 };
+export type GetNearestStrike = {
+  algoTrades: Position[];
+  atmStrike: number;
+};
+export type GetCurrentTimeAndPastTimeType = {
+  currentTime: string;
+  pastTime: string;
+};
