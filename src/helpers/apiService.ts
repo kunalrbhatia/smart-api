@@ -629,7 +629,7 @@ const getPositionsJson = async () => {
 const closeParticularTrade = async ({ trade }: { trade: Position }) => {
   try {
     await delay({ milliSeconds: DELAY });
-    const qty = parseInt(trade.lotsize);
+    const qty = parseInt(trade.netqty);
     const tradingsymbol = trade.tradingsymbol;
     const transactionType =
       qty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
