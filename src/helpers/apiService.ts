@@ -329,14 +329,14 @@ const doOrder = async ({
   transactionType,
   symboltoken,
   productType = 'CARRYFORWARD',
-  qty,
+  lotSize,
 }: doOrderType): Promise<doOrderResponse> => {
   const smartInstance = SmartSession.getInstance();
   await delay({ milliSeconds: DELAY });
   const smartApiData: ISmartApiData = smartInstance.getPostData();
   const jwtToken = get(smartApiData, 'jwtToken');
   const orderStoreData = OrderStore.getInstance().getPostData();
-  const quantity = Math.abs(qty * orderStoreData.QUANTITY);
+  const quantity = Math.abs(lotSize * orderStoreData.QUANTITY);
   let data = JSON.stringify({
     exchange: 'NFO',
     tradingsymbol,
@@ -405,7 +405,7 @@ const doOrderByStrike = async (
       tradingsymbol: get(token, '0.symbol', ''),
       symboltoken: get(token, '0.token', ''),
       transactionType: transactionType,
-      qty: parseInt(lotsize),
+      lotSize: parseInt(lotsize),
     });
     console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
     const lots = OrderStore.getInstance().getPostData().QUANTITY;
@@ -629,16 +629,17 @@ const getPositionsJson = async () => {
 const closeParticularTrade = async ({ trade }: { trade: Position }) => {
   try {
     await delay({ milliSeconds: DELAY });
-    const qty = parseInt(trade.netqty);
+    const netQty = parseInt(trade.netqty);
     const tradingsymbol = trade.tradingsymbol;
     const transactionType =
-      qty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
+      netQty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
     const symboltoken = trade.symboltoken;
+    const lotSize = parseInt(trade.lotsize);
     const transactionStatus = await doOrder({
       tradingsymbol,
       transactionType,
       symboltoken,
-      qty,
+      lotSize,
     });
     console.log(`${ALGO}, closeParticularTrade: `, transactionStatus);
   } catch (error) {
