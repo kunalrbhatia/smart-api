@@ -29,7 +29,6 @@ import {
   HistoryInterface,
   ISmartApiData,
   LtpDataType,
-  MarginAPIResponseType,
   OptionType,
   OrderData,
   Position,
@@ -455,38 +454,6 @@ const shortStraddle = async () => {
     throw error;
   }
 };
-const getMarginDetails = async (): Promise<MarginAPIResponseType> => {
-  const smartInstance = SmartSession.getInstance();
-  await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = smartInstance.getPostData();
-  const jwtToken = get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-  const config = {
-    method: 'get',
-    url: GET_MARGIN,
-    headers: {
-      Authorization: `Bearer ${jwtToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': cred.APIKEY,
-    },
-  };
-  return axios(config)
-    .then((response: Response) => {
-      return get(response, 'data.data') as MarginAPIResponseType | undefined;
-    })
-    .catch(function (error: Response) {
-      const errorMessage = `${ALGO}: getMarginDetails failed error below`;
-      console.log(errorMessage);
-      console.log(error);
-      throw error;
-    });
-};
 const checkBoth_CE_PE_Present = (data: BothPresent) => {
   if (data.ce && data.pe) return CheckOptionType.BOTH_CE_PE_PRESENT;
   else if (!data.ce && !data.pe) return CheckOptionType.BOTH_CE_PE_NOT_PRESENT;
@@ -761,13 +728,15 @@ const getMtm = async () => {
   const tradedExpiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   const tradedIndex = OrderStore.getInstance().getPostData().INDEX;
   let mtm = 0;
-  for (const position of tradedPositions) {
-    const isSameExpiryDate = position.expirydate === tradedExpiryDate;
-    const isSameIndex = position.symbolname === tradedIndex;
-    if (isSameExpiryDate && isSameIndex) {
-      const unrealised = parseFloat(position.unrealised);
-      const realised = parseFloat(position.realised);
-      mtm += unrealised + realised;
+  if (tradedPositions !== null) {
+    for (const position of tradedPositions) {
+      const isSameExpiryDate = position.expirydate === tradedExpiryDate;
+      const isSameIndex = position.symbolname === tradedIndex;
+      if (isSameExpiryDate && isSameIndex) {
+        const unrealised = parseFloat(position.unrealised);
+        const realised = parseFloat(position.realised);
+        mtm += unrealised + realised;
+      }
     }
   }
   return mtm;

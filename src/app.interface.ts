@@ -241,22 +241,7 @@ export type checkBothLegsType = {
   cepe_present: CheckOptionType;
   atmStrike: number;
 };
-export type MarginAPIResponseType = {
-  net: string | null;
-  availablecash: string | null;
-  availableintradaypayin: string | null;
-  availablelimitmargin: string | null;
-  collateral: string | null;
-  m2munrealized: string | null;
-  m2mrealized: string | null;
-  utiliseddebits: string | null;
-  utilisedspan: string | null;
-  utilisedoptionpremium: string | null;
-  utilisedholdingsales: string | null;
-  utilisedexposure: string | null;
-  utilisedturnover: string | null;
-  utilisedpayout: string | null;
-};
+
 export type GetNearestStrike = {
   algoTrades: Position[];
   atmStrike: number;
