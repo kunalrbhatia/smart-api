@@ -503,7 +503,7 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     const idx = OrderStore.getInstance().getPostData().INDEX;
     let strikeDiff = getStrikeDifference(idx);
     console.log(`${ALGO}: strikeDiff: ${strikeDiff}`);
-    console.log(`${ALGO}: difference: ${difference}`);
+    console.log(`${ALGO}: difference: ${Math.abs(difference)}`);
     const positions = await getPositionsJson();
     const isSameStrikeAlreadyTraded = checkStrike(
       positions,
@@ -511,7 +511,7 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     );
     console.log(
       `${ALGO}: checking conditions\n\t1. if the difference is more or equal to strikeDiff (${strikeDiff}): ${
-        difference >= strikeDiff
+        Math.abs(difference) >= strikeDiff
       }\n\t2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`
     );
     const result = areBothOptionTypesPresentForStrike(
@@ -521,7 +521,7 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
     const cepe_present = checkBoth_CE_PE_Present(result);
     if (
-      difference >= Math.abs(strikeDiff) &&
+      Math.abs(difference) >= strikeDiff &&
       isSameStrikeAlreadyTraded === false
     ) {
       console.log(`${ALGO}: executing trade repeat ...`);
