@@ -520,7 +520,10 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     );
     console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
     const cepe_present = checkBoth_CE_PE_Present(result);
-    if (difference >= strikeDiff && isSameStrikeAlreadyTraded === false) {
+    if (
+      difference >= Math.abs(strikeDiff) &&
+      isSameStrikeAlreadyTraded === false
+    ) {
       console.log(`${ALGO}: executing trade repeat ...`);
       checkBothLegs({ cepe_present, atmStrike });
     }
