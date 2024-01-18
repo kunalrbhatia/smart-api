@@ -758,9 +758,11 @@ const executeTrade = async () => {
   let mtmData = await getMtm();
   console.log(`${ALGO}: MTM: ${mtmData} -----`);
   let isStoplossExceeded = false;
-  if (mtmData < 0) {
+  /*
+if (mtmData < 0) {
     isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
   }
+*/
   console.log(`${ALGO}: isStoplossExceeded: ${isStoplossExceeded}`);
   // const isPastClosingTime = false; //HARDCODED FOR TESTING
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
