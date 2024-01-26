@@ -67,7 +67,6 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     const lossPerLot: number = req.body.loss_per_lot;
     // console.log(`${ALGO}: lots: ${lots}`);
     const response = await checkMarketConditionsAndExecuteTrade(
-      Strategy.SHORTSTRADDLE,
       lots,
       lossPerLot
     );

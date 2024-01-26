@@ -154,6 +154,10 @@ export type doOrderType = {
   transactionType: string | undefined;
   productType?: 'DELIVERY' | 'CARRYFORWARD' | 'MARGIN' | 'INTRADAY' | 'BO';
   lotSize: number;
+  variety: 'NORMAL' | 'STOPLOSS';
+  ordertype: 'MARKET' | 'LIMIT' | 'STOPLOSS_LIMIT' | 'STOPLOSS_MARKET';
+  triggerprice?: number;
+  price?: number;
 };
 export type doOrderResponse = {
   status: boolean;

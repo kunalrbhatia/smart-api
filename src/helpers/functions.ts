@@ -17,8 +17,8 @@ import moment from 'moment-timezone';
 import { ALGO } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
-import SmartSession from '../store/smartSession';
 import OrderStore from '../store/orderStore';
+import { isCurrentTimeGreater, setCredentials } from 'krb-smart-api-module';
 export const setCred = (req: Request | reqType) => {
   const creds: Credentails = {
     APIKEY: req.body.api_key,
@@ -26,6 +26,7 @@ export const setCred = (req: Request | reqType) => {
     CLIENT_PIN: req.body.client_pin,
     CLIENT_TOTP_PIN: req.body.client_totp_pin,
   };
+  setCredentials(creds);
   DataStore.getInstance().setPostData(creds);
 };
 export const getCurrentTimeAndPastTime = (): GetCurrentTimeAndPastTimeType => {
@@ -42,14 +43,6 @@ export const getCurrentTimeAndPastTime = (): GetCurrentTimeAndPastTimeType => {
     currentTime: currentTime.format('YYYY-MM-DD HH:mm'),
     pastTime: currentTime.subtract(40, 'day').format('YYYY-MM-DD HH:mm'),
   };
-};
-export const setSmartSession = (data: ISmartApiData) => {
-  const smartData: ISmartApiData = {
-    feedToken: data.feedToken,
-    jwtToken: data.jwtToken,
-    refreshToken: data.refreshToken,
-  };
-  SmartSession.getInstance().setPostData(smartData);
 };
 export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
   if (mtm % trailSl === 0) {
@@ -147,35 +140,7 @@ export const getAtmStrikePrice = async () => {
     throw error; // This will immediately stop further execution
   }
 };
-export const delay = ({ milliSeconds }: delayType) => {
-  const FIVE_MINUTES = 5 * 60 * 1000;
-  let delayInMilliseconds = 0;
-  if (milliSeconds && typeof milliSeconds === 'number')
-    delayInMilliseconds = milliSeconds;
-  else if (milliSeconds && typeof milliSeconds === 'string')
-    delayInMilliseconds = parseInt(milliSeconds);
-  else delayInMilliseconds = FIVE_MINUTES;
-  return new Promise((resolve) => {
-    setTimeout(resolve, delayInMilliseconds);
-  });
-};
-export const isCurrentTimeGreater = ({
-  hours,
-  minutes,
-}: TimeComparisonType): boolean => {
-  const currentTime = moment().tz('Asia/Kolkata');
-  const targetTime = moment()
-    .tz('Asia/Kolkata')
-    .set({ hours, minutes, seconds: 0 });
-  return currentTime.isAfter(targetTime);
-};
-export const getCurrentDate = (): string => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}_${month}_${day}`;
-};
+
 export const checkStrike = (
   tradeDetails: Position[],
   strike: string

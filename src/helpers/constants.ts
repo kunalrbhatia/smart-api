@@ -18,15 +18,10 @@ export const GET_LTP_DATA_API =
   'https://apiconnect.angelbroking.com/order-service/rest/secure/angelbroking/order/v1/getLtpData';
 export const SCRIPMASTER =
   'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json';
-export const GET_POSITIONS =
-  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getPosition';
 export const VARIETY_NORMAL = 'NORMAL';
 export const VARIETY_STOPLOSS = 'STOPLOSS';
 export const VARIETY_AMO = 'AMO';
 export const VARIETY_ROBO = 'ROBO';
-export const DELAY = 1000;
-export const BIG_DELAY = 15000;
-export const SHORT_DELAY = 500;
 export const TRANSACTION_TYPE_BUY = 'BUY';
 export const TRANSACTION_TYPE_SELL = 'SELL';
 export const PORT = 8000;

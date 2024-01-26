@@ -1,25 +1,27 @@
 import { get, isArray, isEmpty } from 'lodash';
 const axios = require('axios');
 import {
+  DELAY,
+  delay,
   generateSmartSession,
+  getCredentials,
+  getPositions,
   getScripName,
+  getSmartSession,
   getTodayExpiry,
+  isCurrentTimeGreater,
   isTradingHoliday,
 } from 'krb-smart-api-module';
 import {
   areBothOptionTypesPresentForStrike,
   checkStrike,
-  delay,
   getAtmStrikePrice,
-  getLastThursdayOfCurrentMonth,
   getLastWednesdayOfMonth,
   getNearestStrike,
   getOpenPositions,
   getStrikeDifference,
   hedgeCalculation,
-  isCurrentTimeGreater,
   isMarketClosed,
-  setSmartSession,
 } from './functions';
 import { Response } from 'express';
 import {
@@ -48,10 +50,8 @@ import {
 import {
   ALGO,
   DATEFORMAT,
-  DELAY,
   GET_LTP_DATA_API,
   GET_MARGIN,
-  GET_POSITIONS,
   HISTORIC_API,
   LOSSPERLOT,
   LOTS,
@@ -63,19 +63,16 @@ import {
   TRANSACTION_TYPE_SELL,
 } from './constants';
 import DataStore from '../store/dataStore';
-import SmartSession from '../store/smartSession';
-import moment from 'moment-timezone';
 import { findTrade, makeNewTrade } from './dbService';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
+
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
   symboltoken,
 }: getLtpDataType): Promise<LtpDataType> => {
-  const smartInstance = SmartSession.getInstance();
-  await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = smartInstance.getPostData();
+  const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
   const cred = DataStore.getInstance().getPostData();
@@ -104,6 +101,7 @@ export const getLtpData = async ({
     throw error;
   }
 };
+
 const fetchData = async (): Promise<scripMasterResponse[]> => {
   const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
   if (data.length > 0) {
@@ -128,6 +126,7 @@ const fetchData = async (): Promise<scripMasterResponse[]> => {
       });
   }
 };
+
 /* export const getAllFut = async () => {
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
@@ -253,40 +252,7 @@ export const getIndexScrip = async ({
     throw errorMessage;
   }
 };
-const getPositions = async () => {
-  await delay({ milliSeconds: DELAY });
-  const smartInstance = SmartSession.getInstance();
-  await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = smartInstance.getPostData();
-  const jwtToken = get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-  let config = {
-    method: 'get',
-    url: GET_POSITIONS,
-    headers: {
-      Authorization: `Bearer ${jwtToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': cred.APIKEY,
-    },
-    data: '',
-  };
-  return axios(config)
-    .then(function (response: object) {
-      return get(response, 'data.data', []) as Position[];
-    })
-    .catch(function (error: object) {
-      const errorMessage = `${ALGO}: getPositions failed error below`;
-      console.log(errorMessage);
-      console.log(error);
-      throw error;
-    });
-};
+
 /* const getHistoricPrices = async (data: HistoryInterface) => {
   const smartInstance = SmartSession.getInstance();
   await delay({ milliSeconds: DELAY });
@@ -330,10 +296,12 @@ const doOrder = async ({
   symboltoken,
   productType = 'CARRYFORWARD',
   lotSize,
+  variety = 'NORMAL',
+  ordertype = 'MARKET',
+  price,
+  triggerprice,
 }: doOrderType): Promise<doOrderResponse> => {
-  const smartInstance = SmartSession.getInstance();
-  await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = smartInstance.getPostData();
+  const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = get(smartApiData, 'jwtToken');
   const orderStoreData = OrderStore.getInstance().getPostData();
   const quantity = Math.abs(lotSize * orderStoreData.QUANTITY);
@@ -344,10 +312,12 @@ const doOrder = async ({
     quantity: quantity,
     disclosedquantity: quantity,
     transactiontype: transactionType,
-    ordertype: 'MARKET',
-    variety: 'NORMAL',
+    ordertype,
+    variety,
     producttype: productType,
     duration: 'DAY',
+    price,
+    triggerprice,
   });
   console.log(`${ALGO} doOrder data `, data);
   const cred = DataStore.getInstance().getPostData();
@@ -406,6 +376,8 @@ const doOrderByStrike = async (
       symboltoken: get(token, '0.token', ''),
       transactionType: transactionType,
       lotSize: parseInt(lotsize),
+      variety: 'NORMAL',
+      ordertype: 'MARKET',
     });
     console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
     const lots = OrderStore.getInstance().getPostData().QUANTITY;
@@ -618,7 +590,10 @@ const checkPositionToClose = async ({
 };
 const getPositionsJson = async () => {
   try {
-    const positions: Position[] = await getPositions();
+    const smartSession = await getSmartSession();
+    const cred = getCredentials();
+    await delay({ milliSeconds: DELAY });
+    const positions: Position[] = await getPositions(smartSession, cred);
     const openPositions = getOpenPositions(positions);
     console.log(`${ALGO}: total open positions are ${openPositions.length}`);
     return openPositions;
@@ -643,6 +618,8 @@ const closeParticularTrade = async ({ trade }: { trade: Position }) => {
       transactionType,
       symboltoken,
       lotSize,
+      variety: 'NORMAL',
+      ordertype: 'MARKET',
     });
     console.log(`${ALGO}, closeParticularTrade: `, transactionStatus);
   } catch (error) {
@@ -728,7 +705,10 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
   }
 };
 const getMtm = async () => {
-  const tradedPositions: Position[] = await getPositions();
+  const smartSession = await getSmartSession();
+  const cred = getCredentials();
+  await delay({ milliSeconds: DELAY });
+  const tradedPositions: Position[] = await getPositions(smartSession, cred);
   const tradedExpiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   const tradedIndex = OrderStore.getInstance().getPostData().INDEX;
   let mtm = 0;
@@ -749,6 +729,7 @@ const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
+  // const isPastClosingTime = false; //HARDCODED FOR TESTING
   // const marginDetails = await getMarginDetails();
   // console.log(`${ALGO}: marginDetails: `, marginDetails);
   const quantity = OrderStore.getInstance().getPostData().QUANTITY;
@@ -762,7 +743,6 @@ const executeTrade = async () => {
     isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
   }
   console.log(`${ALGO}: isStoplossExceeded: ${isStoplossExceeded}`);
-  // const isPastClosingTime = false; //HARDCODED FOR TESTING
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   let data = await getPositionsJson();
   await checkPositionToClose({ openPositions: data });
@@ -773,6 +753,9 @@ const executeTrade = async () => {
 const isTradeAllowed = async () => {
   const isMarketOpen = !isMarketClosed();
   const isHoliday = isTradingHoliday();
+  let expiryDate = getTodayExpiry();
+  const isTodayLastWednesdayOfMonth =
+    expiryDate === getLastWednesdayOfMonth().format(DATEFORMAT).toUpperCase();
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,
@@ -783,9 +766,6 @@ const isTradeAllowed = async () => {
     const smartData = await generateSmartSession(creds);
     await delay({ milliSeconds: DELAY });
     isSmartAPIWorking = !isEmpty(smartData);
-    if (isSmartAPIWorking) {
-      setSmartSession(smartData);
-    }
   } catch (err) {
     console.log('Error occurred for generateSmartSession');
   }
@@ -796,16 +776,18 @@ const isTradeAllowed = async () => {
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
     isSmartAPIWorking &&
-    isHoliday === false
+    isHoliday === false &&
+    isTodayLastWednesdayOfMonth === false
   );
 };
 export const checkMarketConditionsAndExecuteTrade = async (
-  strategy: Strategy = Strategy.SHORTSTRADDLE,
   lots: number = LOTS,
   lossPerLot: number = LOSSPERLOT
 ) => {
   let expiryDate = getTodayExpiry();
   let indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
+  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: DELAY });
   let indiaVixLtp = await getLtpData({
     exchange: indiaVix[0].exch_seg,
     symboltoken: indiaVix[0].token,
@@ -813,18 +795,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
   });
   await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
-  const isTodayLastWednesdayOfMonth =
-    expiryDate === getLastWednesdayOfMonth().format(DATEFORMAT).toUpperCase();
-  if (isTodayLastWednesdayOfMonth) expiryDate = getLastThursdayOfCurrentMonth();
   console.log(`${ALGO}: expiry date is ${expiryDate}`);
-  const convertedDate = moment(expiryDate, 'DDMMMYYYY').toDate();
-  if (convertedDate.getDay() === 2) {
-    expiryDate = moment().add(1, 'days').format(DATEFORMAT).toUpperCase();
-    lots = lots - 1;
-  } else if (convertedDate.getDay() === 5) {
-    expiryDate = moment().add(3, 'days').format(DATEFORMAT).toUpperCase();
-    lots = lots - 1;
-  }
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
     EXPIRYDATE: expiryDate,
@@ -840,9 +811,8 @@ export const checkMarketConditionsAndExecuteTrade = async (
     // await isTradeAllowed(); //HARDCODED FOR TESTING
     // return await executeTrade(); //HARDCODED FOR TESTING
     const isAllowed = await isTradeAllowed();
-    if (!isAllowed) return MESSAGE_NOT_TAKE_TRADE;
-    if (strategy === Strategy.SHORTSTRADDLE) return await executeTrade();
-    else return MESSAGE_NOT_TAKE_TRADE;
+    if (isAllowed === false) return MESSAGE_NOT_TAKE_TRADE;
+    else return await executeTrade();
   } catch (err) {
     return err;
   }
