@@ -66,6 +66,7 @@ import DataStore from '../store/dataStore';
 import { findTrade, makeNewTrade } from './dbService';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
+import moment from 'moment-timezone';
 
 export const getLtpData = async ({
   exchange,
@@ -752,6 +753,7 @@ const executeTrade = async () => {
 };
 const isTradeAllowed = async () => {
   const isMarketOpen = !isMarketClosed();
+  const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isHoliday = isTradingHoliday();
   let expiryDate = getTodayExpiry();
   const isTodayLastWednesdayOfMonth =
@@ -770,9 +772,10 @@ const isTradeAllowed = async () => {
     console.log('Error occurred for generateSmartSession');
   }
   console.log(
-    `${ALGO}: checking conditions, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`
   );
   return (
+    isWeekend === false &&
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
     isSmartAPIWorking &&
