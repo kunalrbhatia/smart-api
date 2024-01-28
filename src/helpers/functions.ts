@@ -1,4 +1,4 @@
-import { getIndexScrip, getLtpData, getScrip } from './apiService';
+import { getIndexScrip, getLtpData, getScrip } from "./apiService";
 import {
   BothPresent,
   Credentails,
@@ -12,13 +12,13 @@ import {
   reqType,
   scripMasterResponse,
   updateMaxSlType,
-} from '../app.interface';
-import moment from 'moment-timezone';
-import { ALGO } from './constants';
-import { Request } from 'express';
-import DataStore from '../store/dataStore';
-import OrderStore from '../store/orderStore';
-import { isCurrentTimeGreater, setCredentials } from 'krb-smart-api-module';
+} from "../app.interface";
+import moment from "moment-timezone";
+import { ALGO } from "./constants";
+import { Request } from "express";
+import DataStore from "../store/dataStore";
+import OrderStore from "../store/orderStore";
+import { getLastThursdayOfCurrentMonth, isCurrentTimeGreater, setCredentials } from "krb-smart-api-module";
 export const setCred = (req: Request | reqType) => {
   const creds: Credentails = {
     APIKEY: req.body.api_key,
@@ -31,17 +31,17 @@ export const setCred = (req: Request | reqType) => {
 };
 export const getCurrentTimeAndPastTime = (): GetCurrentTimeAndPastTimeType => {
   let currentTime = moment();
-  const endOfDay = moment('15:30', 'HH:mm');
-  const startOfDay = moment('09:15', 'HH:mm');
+  const endOfDay = moment("15:30", "HH:mm");
+  const startOfDay = moment("09:15", "HH:mm");
   if (currentTime.isAfter(endOfDay)) {
     currentTime = endOfDay;
   } else if (currentTime.isBefore(startOfDay)) {
     currentTime = startOfDay;
-    currentTime = currentTime.subtract(1, 'day');
+    currentTime = currentTime.subtract(1, "day");
   }
   return {
-    currentTime: currentTime.format('YYYY-MM-DD HH:mm'),
-    pastTime: currentTime.subtract(40, 'day').format('YYYY-MM-DD HH:mm'),
+    currentTime: currentTime.format("YYYY-MM-DD HH:mm"),
+    pastTime: currentTime.subtract(40, "day").format("YYYY-MM-DD HH:mm"),
   };
 };
 export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
@@ -53,9 +53,9 @@ export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
 };
 export const getLastWednesdayOfMonth = () => {
   const today = moment();
-  const lastDayOfMonth = today.endOf('month');
+  const lastDayOfMonth = today.endOf("month");
   while (lastDayOfMonth.day() !== 3) {
-    lastDayOfMonth.subtract(1, 'days');
+    lastDayOfMonth.subtract(1, "days");
   }
   return lastDayOfMonth;
 };
@@ -64,35 +64,27 @@ export const getNextExpiry = () => {
   const currentDay = today.day();
   const isWednesday = currentDay === 3;
   const isLastWednesday =
-    getLastWednesdayOfMonth().format('DDMMMYYYY').toUpperCase() ===
-    today.format('DDMMMYYYY').toUpperCase();
-  const isLastThursday =
-    getLastThursdayOfCurrentMonth() === today.format('DDMMMYYYY').toUpperCase();
-  const secondLastWednesday = getLastWednesdayOfMonth().subtract(7, 'days');
+    getLastWednesdayOfMonth().format("DDMMMYYYY").toUpperCase() === today.format("DDMMMYYYY").toUpperCase();
+  const isLastThursday = getLastThursdayOfCurrentMonth() === today.format("DDMMMYYYY").toUpperCase();
+  const secondLastWednesday = getLastWednesdayOfMonth().subtract(7, "days");
   let daysToNextWednesday = 3 - currentDay;
   if (daysToNextWednesday < 0) {
     daysToNextWednesday += 7;
   }
   if (isLastThursday) {
-    return today.format('DDMMMYYYY').toUpperCase();
+    return today.format("DDMMMYYYY").toUpperCase();
   } else if (isLastWednesday) {
-    return today.add(1, 'days').format('DDMMMYYYY').toUpperCase();
+    return today.add(1, "days").format("DDMMMYYYY").toUpperCase();
   } else if (isWednesday) {
-    return today.format('DDMMMYYYY').toUpperCase();
-  } else if (
-    today.isBefore(getLastWednesdayOfMonth()) &&
-    today.isAfter(secondLastWednesday)
-  ) {
+    return today.format("DDMMMYYYY").toUpperCase();
+  } else if (today.isBefore(getLastWednesdayOfMonth()) && today.isAfter(secondLastWednesday)) {
     return getLastThursdayOfCurrentMonth();
   } else {
-    const nextWednesday = today.add(daysToNextWednesday, 'days');
-    return nextWednesday.format('DDMMMYYYY').toUpperCase();
+    const nextWednesday = today.add(daysToNextWednesday, "days");
+    return nextWednesday.format("DDMMMYYYY").toUpperCase();
   }
 };
-export const findNearestStrike = (
-  options: scripMasterResponse[],
-  target: number
-) => {
+export const findNearestStrike = (options: scripMasterResponse[], target: number) => {
   let nearestStrike = Infinity;
   let nearestDiff = Infinity;
   for (const option of options) {
@@ -127,12 +119,10 @@ export const getAtmStrikePrice = async () => {
     const ltpPrice = ltp.ltp;
     console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
     // throw new Error(`ltpPrice is not a valid number!`);
-    if (typeof ltpPrice === 'number' && !isNaN(ltpPrice)) {
+    if (typeof ltpPrice === "number" && !isNaN(ltpPrice)) {
       return findNearestStrike(optionChain, ltpPrice);
     } else {
-      console.log(
-        `${ALGO}: Oops, 'ltpPrice' is not a valid number! Cannot execute further.`
-      );
+      console.log(`${ALGO}: Oops, 'ltpPrice' is not a valid number! Cannot execute further.`);
       throw new Error(`ltpPrice is not a valid number!`);
     }
   } catch (error) {
@@ -141,25 +131,16 @@ export const getAtmStrikePrice = async () => {
   }
 };
 
-export const checkStrike = (
-  tradeDetails: Position[],
-  strike: string
-): boolean => {
+export const checkStrike = (tradeDetails: Position[], strike: string): boolean => {
   const expiry = OrderStore.getInstance().getPostData().EXPIRYDATE;
   for (const trade of tradeDetails) {
-    if (
-      parseInt(trade.strikeprice) === parseInt(strike) &&
-      trade.expirydate === expiry
-    ) {
+    if (parseInt(trade.strikeprice) === parseInt(strike) && trade.expirydate === expiry) {
       return true;
     }
   }
   return false;
 };
-export const areBothOptionTypesPresentForStrike = (
-  tradeDetails: Position[],
-  strike: string
-): BothPresent => {
+export const areBothOptionTypesPresentForStrike = (tradeDetails: Position[], strike: string): BothPresent => {
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   let cePresent = false;
   let pePresent = false;
@@ -169,9 +150,9 @@ export const areBothOptionTypesPresentForStrike = (
       const tradedStrike = parseInt(trade.strikeprice);
       const compareStrike = parseInt(strike);
       if (tradedStrike === compareStrike) {
-        if (trade.optiontype === 'CE') {
+        if (trade.optiontype === "CE") {
           cePresent = true;
-        } else if (trade.optiontype === 'PE') {
+        } else if (trade.optiontype === "PE") {
           pePresent = true;
         }
       }
@@ -187,11 +168,7 @@ export const getOpenPositions = (positions: Position[]): Position[] => {
       const netqty = parseInt(position.netqty);
       const positionExpiryDate = position.expirydate;
       const symbolname = position.symbolname;
-      if (
-        netqty !== 0 &&
-        expiryDate === positionExpiryDate &&
-        symbolname === indexName
-      ) {
+      if (netqty !== 0 && expiryDate === positionExpiryDate && symbolname === indexName) {
         openPositions.push(position);
       }
     }
@@ -199,54 +176,11 @@ export const getOpenPositions = (positions: Position[]): Position[] => {
   return openPositions;
 };
 export const isMarketClosed = () => {
-  if (
-    isCurrentTimeGreater({ hours: 9, minutes: 15 }) &&
-    !isCurrentTimeGreater({ hours: 15, minutes: 30 })
-  ) {
+  if (isCurrentTimeGreater({ hours: 9, minutes: 15 }) && !isCurrentTimeGreater({ hours: 15, minutes: 30 })) {
     return false;
   } else {
     return true;
   }
-};
-export const getNearestStrike = ({
-  algoTrades,
-  atmStrike,
-}: GetNearestStrike): number => {
-  let nearestStrike: number = Infinity;
-  let minDifference = Number.MAX_SAFE_INTEGER;
-  const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
-  algoTrades
-    .filter((trade) => trade.expirydate === expirationDate)
-    .forEach((trade) => {
-      const strikeNumber = parseInt(trade.strikeprice, 10);
-      const difference = Math.abs(strikeNumber - atmStrike);
-      if (difference < minDifference) {
-        nearestStrike = strikeNumber;
-        minDifference = difference;
-      }
-    });
-  console.log(`${ALGO}: nearestStrike: ${nearestStrike}`);
-  return nearestStrike;
-};
-export const getLastThursdayOfCurrentMonth = () => {
-  const today = moment();
-  let lastDayOfMonth = moment().endOf('month');
-  // Loop backward from the last day until we find a Thursday
-  while (lastDayOfMonth.day() !== 4) {
-    lastDayOfMonth.subtract(1, 'days');
-  }
-  if (lastDayOfMonth.isBefore(today)) {
-    lastDayOfMonth = moment().endOf('month');
-    lastDayOfMonth.add(1, 'month');
-    // Loop backward from the last day until we find a Thursday
-    while (lastDayOfMonth.day() !== 4) {
-      lastDayOfMonth.subtract(1, 'days');
-    }
-  }
-  return lastDayOfMonth.format('DDMMMYYYY').toUpperCase();
-};
-export const roundToNearestHundred = (input: number): number => {
-  return Math.ceil(input / 100) * 100;
 };
 export const getStrikeDifference = (index: string) => {
   const indiaVix = OrderStore.getInstance().getPostData().INDIAVIX;

@@ -5,6 +5,7 @@ import {
   delay,
   generateSmartSession,
   getCredentials,
+  getNearestStrike,
   getPositions,
   getScripName,
   getSmartSession,
@@ -17,7 +18,6 @@ import {
   checkStrike,
   getAtmStrikePrice,
   getLastWednesdayOfMonth,
-  getNearestStrike,
   getOpenPositions,
   getStrikeDifference,
   hedgeCalculation,
@@ -62,7 +62,6 @@ import { findTrade, makeNewTrade } from "./dbService";
 import OrderStore from "../store/orderStore";
 import ScripMasterStore from "../store/scripMasterStore";
 import moment from "moment-timezone";
-
 export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLtpDataType): Promise<LtpDataType> => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = get(smartApiData, "jwtToken");
@@ -93,7 +92,6 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
     throw error;
   }
 };
-
 const fetchData = async (): Promise<scripMasterResponse[]> => {
   const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
   if (data.length > 0) {
@@ -533,6 +531,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
     let previousTradeStrikePrice: string | number = getNearestStrike({
       algoTrades: data,
       atmStrike: atmStrike,
+      expirationDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
     });
     console.log(
       `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
