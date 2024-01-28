@@ -1,4 +1,4 @@
-import { get, isArray, isEmpty } from "lodash";
+import { get as _get, isArray, isEmpty } from "lodash";
 const axios = require("axios");
 import {
   DELAY,
@@ -6,6 +6,7 @@ import {
   generateSmartSession,
   getCredentials,
   getNearestStrike,
+  getOrderBook,
   getPositions,
   getScripName,
   getSmartSession,
@@ -31,6 +32,7 @@ import {
   ISmartApiData,
   LtpDataType,
   OptionType,
+  OrderBookResponseType,
   OrderData,
   Position,
   TimeComparisonType,
@@ -58,13 +60,13 @@ import {
   TRANSACTION_TYPE_SELL,
 } from "./constants";
 import DataStore from "../store/dataStore";
-import { findTrade, makeNewTrade } from "./dbService";
+import { makeNewTrade } from "./dbService";
 import OrderStore from "../store/orderStore";
 import ScripMasterStore from "../store/scripMasterStore";
 import moment from "moment-timezone";
 export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLtpDataType): Promise<LtpDataType> => {
   const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = get(smartApiData, "jwtToken");
+  const jwtToken = _get(smartApiData, "jwtToken");
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
   const cred = DataStore.getInstance().getPostData();
   const config = {
@@ -85,7 +87,7 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
   };
   try {
     const response = await axios(config);
-    return get(response, "data.data", {}) || {};
+    return _get(response, "data.data", {}) || {};
   } catch (error) {
     console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`);
     console.log(error);
@@ -100,7 +102,7 @@ const fetchData = async (): Promise<scripMasterResponse[]> => {
     return await axios
       .get(SCRIPMASTER)
       .then((response: object) => {
-        let acData: scripMasterResponse[] = get(response, "data", []) || [];
+        let acData: scripMasterResponse[] = _get(response, "data", []) || [];
         console.log(`${ALGO}: response if script master api loaded and its length is ${acData.length}`);
         ScripMasterStore.getInstance().setPostData({
           SCRIP_MASTER_JSON: acData,
@@ -129,30 +131,30 @@ export const getScrip = async ({
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
     console.log(`${ALGO}: all check cleared getScrip call`);
     let scrips = scripMaster.filter((scrip) => {
-      const _scripName: string = get(scrip, "name", "") || "";
-      const _symbol: string = get(scrip, "symbol", "") || "";
-      const _expiry: string = get(scrip, "expiry", "") || "";
+      const _scripName: string = _get(scrip, "name", "") || "";
+      const _symbol: string = _get(scrip, "symbol", "") || "";
+      const _expiry: string = _get(scrip, "expiry", "") || "";
       return (
         (_scripName.includes(scriptName) || _scripName === scriptName) &&
-        get(scrip, "exch_seg") === "NFO" &&
-        get(scrip, "instrumenttype") === "OPTIDX" &&
+        _get(scrip, "exch_seg") === "NFO" &&
+        _get(scrip, "instrumenttype") === "OPTIDX" &&
         (strikePrice === undefined || _symbol.includes(strikePrice)) &&
         (optionType === undefined || _symbol.includes(optionType)) &&
         _expiry === expiryDate
       );
     });
-    scrips.sort((curr: object, next: object) => get(curr, "token", 0) - get(next, "token", 0));
+    scrips.sort((curr: object, next: object) => _get(curr, "token", 0) - _get(next, "token", 0));
     scrips = scrips.map((element: object, index: number) => {
       return {
-        exch_seg: get(element, "exch_seg", "") || "",
-        expiry: get(element, "expiry", "") || "",
-        instrumenttype: get(element, "instrumenttype", "") || "",
-        lotsize: get(element, "lotsize", "") || "",
-        name: get(element, "name", "") || "",
-        strike: get(element, "strike", "") || "",
-        symbol: get(element, "symbol", "") || "",
-        tick_size: get(element, "tick_size", "") || "",
-        token: get(element, "token", "") || "",
+        exch_seg: _get(element, "exch_seg", "") || "",
+        expiry: _get(element, "expiry", "") || "",
+        instrumenttype: _get(element, "instrumenttype", "") || "",
+        lotsize: _get(element, "lotsize", "") || "",
+        name: _get(element, "name", "") || "",
+        strike: _get(element, "strike", "") || "",
+        symbol: _get(element, "symbol", "") || "",
+        tick_size: _get(element, "tick_size", "") || "",
+        token: _get(element, "token", "") || "",
       };
     });
     return scrips;
@@ -166,8 +168,10 @@ export const getIndexScrip = async ({ scriptName }: { scriptName: string }): Pro
   let scripMaster: scripMasterResponse[] = await fetchData();
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
     let scrips = scripMaster.filter((scrip) => {
-      const _scripName: string = get(scrip, "name", "") || "";
-      return _scripName === scriptName && get(scrip, "exch_seg") === "NSE" && get(scrip, "instrumenttype") === "AMXIDX";
+      const _scripName: string = _get(scrip, "name", "") || "";
+      return (
+        _scripName === scriptName && _get(scrip, "exch_seg") === "NSE" && _get(scrip, "instrumenttype") === "AMXIDX"
+      );
     });
     return scrips;
   } else {
@@ -188,7 +192,7 @@ const doOrder = async ({
   triggerprice,
 }: doOrderType): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = get(smartApiData, "jwtToken");
+  const jwtToken = _get(smartApiData, "jwtToken");
   const orderStoreData = OrderStore.getInstance().getPostData();
   const quantity = Math.abs(lotSize * orderStoreData.QUANTITY);
   let data = JSON.stringify({
@@ -226,7 +230,7 @@ const doOrder = async ({
   //console.log(`${ALGO}: doOrder config `, config);
   return axios(config)
     .then((response: Response) => {
-      const resData = get(response, "data");
+      const resData = _get(response, "data");
       //console.log(`${ALGO}: order response `, resData);
       return resData;
     })
@@ -254,10 +258,10 @@ const doOrderByStrike = async (
     });
     console.log(`${ALGO} {doOrderByStrike}: token: `, token);
     await delay({ milliSeconds: DELAY });
-    const lotsize = get(token, "0.lotsize", "0") || "0";
+    const lotsize = _get(token, "0.lotsize", "0") || "0";
     const orderData = await doOrder({
-      tradingsymbol: get(token, "0.symbol", ""),
-      symboltoken: get(token, "0.token", ""),
+      tradingsymbol: _get(token, "0.symbol", ""),
+      symboltoken: _get(token, "0.token", ""),
       transactionType: transactionType,
       lotSize: parseInt(lotsize),
       variety: "NORMAL",
@@ -271,9 +275,9 @@ const doOrderByStrike = async (
       stikePrice: strike.toString(),
       expiryDate: expiryDate,
       netQty: netQty.toString(),
-      token: get(token, "0.token", ""),
-      symbol: get(token, "0.symbol", ""),
-      exchange: get(token, "0.exch_seg", ""),
+      token: _get(token, "0.token", ""),
+      symbol: _get(token, "0.symbol", ""),
+      exchange: _get(token, "0.exch_seg", ""),
       status: orderData.status,
     };
   } catch (error) {
@@ -616,7 +620,11 @@ const isTradeAllowed = async () => {
     isTodayLastWednesdayOfMonth === false
   );
 };
+
 export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, lossPerLot: number = LOSSPERLOT) => {
+  // let expiryDate = "29JAN2024"; //HARDCODED FOR TESTING
+  const orderBook = await getOrderBook();
+  console.log(orderBook);
   let expiryDate = getTodayExpiry();
   let indiaVix = await getIndexScrip({ scriptName: "INDIA VIX" });
   await delay({ milliSeconds: DELAY });
@@ -626,6 +634,7 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
     symboltoken: indiaVix[0].token,
     tradingsymbol: indiaVix[0].symbol,
   });
+  await delay({ milliSeconds: DELAY });
   await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   console.log(`${ALGO}: expiry date is ${expiryDate}`);
