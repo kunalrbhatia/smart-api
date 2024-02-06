@@ -594,7 +594,10 @@ const isTradeAllowed = async () => {
   const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isHoliday = isTradingHoliday();
   let expiryDate = getTodayExpiry();
-  const isTodayLastWednesdayOfMonth = expiryDate === getLastWednesdayOfMonth().format(DATEFORMAT).toUpperCase();
+  const lastWednesday = getLastWednesdayOfMonth();
+  const isTodayLastWednesdayOfMonth =
+    lastWednesday !== null && expiryDate === lastWednesday.format(DATEFORMAT).toUpperCase();
+
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,

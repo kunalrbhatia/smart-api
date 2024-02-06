@@ -52,21 +52,35 @@ export const updateMaxSl = ({ mtm, maxSl, trailSl }: updateMaxSlType) => {
   return maxSl;
 };
 export const getLastWednesdayOfMonth = () => {
-  const today = moment();
-  const lastDayOfMonth = today.endOf("month");
+  let today = moment();
+  let lastDayOfMonth = today.endOf("month");
+  let lastThursday = null;
+  let lastWednesday = null;
+  while (lastDayOfMonth.day() !== 4) {
+    lastDayOfMonth.subtract(1, "days");
+  }
+  lastThursday = lastDayOfMonth.clone();
+  lastDayOfMonth = today.endOf("month");
   while (lastDayOfMonth.day() !== 3) {
     lastDayOfMonth.subtract(1, "days");
   }
-  return lastDayOfMonth;
+  lastWednesday = lastDayOfMonth.clone();
+  today = moment();
+  if (today.isAfter(lastThursday) || today.isAfter(lastWednesday)) return null;
+  else return lastWednesday;
 };
+
 export const getNextExpiry = () => {
   const today = moment();
   const currentDay = today.day();
   const isWednesday = currentDay === 3;
-  const isLastWednesday =
-    getLastWednesdayOfMonth().format("DDMMMYYYY").toUpperCase() === today.format("DDMMMYYYY").toUpperCase();
+  const lastWednesday = getLastWednesdayOfMonth();
+  const isLastWednesday = lastWednesday
+    ? lastWednesday.format("DDMMMYYYY").toUpperCase() === today.format("DDMMMYYYY").toUpperCase()
+    : false;
   const isLastThursday = getLastThursdayOfCurrentMonth() === today.format("DDMMMYYYY").toUpperCase();
-  const secondLastWednesday = getLastWednesdayOfMonth().subtract(7, "days");
+
+  const secondLastWednesday = lastWednesday ? lastWednesday.subtract(7, "days") : null;
   let daysToNextWednesday = 3 - currentDay;
   if (daysToNextWednesday < 0) {
     daysToNextWednesday += 7;
@@ -77,7 +91,7 @@ export const getNextExpiry = () => {
     return today.add(1, "days").format("DDMMMYYYY").toUpperCase();
   } else if (isWednesday) {
     return today.format("DDMMMYYYY").toUpperCase();
-  } else if (today.isBefore(getLastWednesdayOfMonth()) && today.isAfter(secondLastWednesday)) {
+  } else if (today.isBefore(lastWednesday) && today.isAfter(secondLastWednesday)) {
     return getLastThursdayOfCurrentMonth();
   } else {
     const nextWednesday = today.add(daysToNextWednesday, "days");
