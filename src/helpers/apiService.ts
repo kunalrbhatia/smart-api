@@ -631,8 +631,8 @@ const isTradeAllowed = async () => {
 
 export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, lossPerLot: number = LOSSPERLOT) => {
   // let expiryDate = "29JAN2024"; //HARDCODED FOR TESTING
-  const orderBook = await getOrderBook();
-  console.log(orderBook);
+  //const orderBook = await getOrderBook();
+  //console.log(orderBook);
   let expiryDate = getTodayExpiry();
   let indiaVix = await getIndexScrip({ scriptName: "INDIA VIX" });
   await delay({ milliSeconds: DELAY });
