@@ -66,7 +66,7 @@ export const getLastWednesdayOfMonth = () => {
   }
   lastWednesday = lastDayOfMonth.clone();
   today = moment();
-  if (today.isAfter(lastThursday) || today.isAfter(lastWednesday)) return null;
+  if (today.isAfter(lastThursday)) return null;
   else return lastWednesday;
 };
 
