@@ -14,7 +14,7 @@ const firebaseConfig = {
 };
 const firebase_app = initializeApp(firebaseConfig);
 const db = getDatabase(firebase_app);
-export const makeNewTrade = async (json: DataRecord) => {
+export const recordNewTrade = async (json: DataRecord) => {
   const tradeKey = push(child(ref(db), `trades/`)).key;
   const updates: { [key: string]: DataRecord } = {};
   updates[`trades/` + tradeKey] = json;

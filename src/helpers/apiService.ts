@@ -60,7 +60,7 @@ import {
   TRANSACTION_TYPE_SELL,
 } from "./constants";
 import DataStore from "../store/dataStore";
-import { makeNewTrade } from "./dbService";
+import { recordNewTrade } from "./dbService";
 import OrderStore from "../store/orderStore";
 import ScripMasterStore from "../store/scripMasterStore";
 import moment from "moment-timezone";
@@ -244,7 +244,8 @@ const doOrder = async ({
 const doOrderByStrike = async (
   strike: number,
   optionType: OptionType,
-  transactionType: "BUY" | "SELL"
+  transactionType: "BUY" | "SELL",
+  isHedge = false
 ): Promise<OrderData> => {
   try {
     const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
@@ -269,7 +270,9 @@ const doOrderByStrike = async (
     });
     console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
     const lots = OrderStore.getInstance().getPostData().QUANTITY;
-    const qty = parseInt(lotsize) * lots;
+    const hedgeQuantity = lots * 5;
+    const lotsCalc = isHedge ? hedgeQuantity : lots;
+    const qty = parseInt(lotsize) * lotsCalc;
     const netQty = transactionType === "SELL" ? qty * -1 : qty;
     return {
       stikePrice: strike.toString(),
@@ -287,7 +290,7 @@ const doOrderByStrike = async (
     throw error;
   }
 };
-const shortStraddle = async () => {
+const shortStraddle = async (isBuyHedge = false) => {
   try {
     //GET ATM STIKE PRICE
     const atmStrike = await getAtmStrikePrice();
@@ -295,9 +298,12 @@ const shortStraddle = async () => {
     const hedgeVariance = hedgeCalculation(index);
     let strikeDiff = getStrikeDifference(index);
     console.log(`${ALGO}: STRIKEDIFF: ${strikeDiff}`);
-    let order = await doOrderByStrike(atmStrike + hedgeVariance, OptionType.CE, "BUY");
+    let order;
+    if (isBuyHedge) {
+      order = await doOrderByStrike(atmStrike + hedgeVariance, OptionType.CE, "BUY", true);
+      order = await doOrderByStrike(atmStrike - hedgeVariance, OptionType.PE, "BUY", true);
+    }
     order = await doOrderByStrike(atmStrike, OptionType.CE, "SELL");
-    order = await doOrderByStrike(atmStrike - hedgeVariance, OptionType.PE, "BUY");
     order = await doOrderByStrike(atmStrike, OptionType.PE, "SELL");
   } catch (error) {
     const errorMessage = `${ALGO}: shortStraddle failed error below`;
@@ -356,11 +362,10 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     if (Math.abs(difference) >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    }
-    /* else if (difference === 0 && isSameStrikeAlreadyTraded) {
+    } else if (difference === 0 && isSameStrikeAlreadyTraded) {
       console.log(`${ALGO}: same strike already traded checking both legs ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    } */
+    }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
     console.log(errorMessage);
@@ -394,15 +399,7 @@ const shouldCloseTrade = async ({ ltp, avg, trade }: shouldCloseTradeType) => {
   if (isPriceDoubled || isLtpBelowOne) {
     console.log(`${ALGO}: Yes, close this particular trade with strike price ${trade.strikeprice}`);
     try {
-      const index = OrderStore.getInstance().getPostData().INDEX;
       await closeParticularTrade({ trade });
-      let buyStrike;
-      if (trade.optiontype === "CE") buyStrike = parseInt(trade.strikeprice) + hedgeCalculation(index);
-      else buyStrike = parseInt(trade.strikeprice) - hedgeCalculation(index);
-      const buyTrade = await findTradeByStrike(buyStrike);
-      if (buyTrade) {
-        await closeParticularTrade({ trade: buyTrade });
-      }
     } catch (error) {
       console.log(`${ALGO}: closeParticularTrade could not be called`);
       throw error;
@@ -501,6 +498,14 @@ const closeTrade = async () => {
     await closeAllTrades();
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
+  const mtm = await getMtm();
+  await recordNewTrade({
+    indices: OrderStore.getInstance().getPostData().INDEX,
+    brokerageWithTax: 0,
+    mtm: mtm,
+    ordersExecuted: 0,
+    tradeDate: moment().format("DDMMMYYYY").toUpperCase(),
+  });
 };
 const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrikePrice: number) => {
   console.log(`${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`);
@@ -526,7 +531,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
   const isTradeAlreadyTaken = Array.isArray(data) && data.length > 0;
   if (isTradeAlreadyTaken === false) {
     console.log(`${ALGO}: executing trade`);
-    await shortStraddle();
+    await shortStraddle(true);
   } else {
     console.log(`${ALGO}: trade executed already checking conditions to repeat the trade`);
     await delay({ milliSeconds: DELAY });
