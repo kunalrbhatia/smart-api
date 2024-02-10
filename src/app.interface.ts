@@ -5,7 +5,7 @@ export interface ISmartApiData {
 }
 export interface TradeDetails {
   netQty: string;
-  optionType: 'CE' | 'PE';
+  optionType: "CE" | "PE";
   strike: string;
   token: string;
   symbol: string;
@@ -27,18 +27,18 @@ export interface HistoryInterface {
   todate: string;
 }
 export enum HistoryInterval {
-  ONE_MINUTE = 'ONE_MINUTE',
-  THREE_MINUTE = 'THREE_MINUTE',
-  FIVE_MINUTE = 'FIVE_MINUTE',
-  TEN_MINUTE = 'TEN_MINUTE',
-  FIFTEEN_MINUTE = 'FIFTEEN_MINUTE',
-  THIRTY_MINUTE = 'THIRTY_MINUTE',
-  ONE_HOUR = 'ONE_HOUR',
-  ONE_DAY = 'ONE_DAY',
+  ONE_MINUTE = "ONE_MINUTE",
+  THREE_MINUTE = "THREE_MINUTE",
+  FIVE_MINUTE = "FIVE_MINUTE",
+  TEN_MINUTE = "TEN_MINUTE",
+  FIFTEEN_MINUTE = "FIFTEEN_MINUTE",
+  THIRTY_MINUTE = "THIRTY_MINUTE",
+  ONE_HOUR = "ONE_HOUR",
+  ONE_DAY = "ONE_DAY",
 }
 export enum Strategy {
-  RSI = 'rsi',
-  SHORTSTRADDLE = 'shortStraddle',
+  RSI = "rsi",
+  SHORTSTRADDLE = "shortStraddle",
 }
 export interface JsonFileStructure {
   isTradeExecuted: boolean;
@@ -66,7 +66,7 @@ export type Position = {
   tradingsymbol: string;
   symbolgroup: string;
   strikeprice: string;
-  optiontype: 'CE' | 'PE';
+  optiontype: "CE" | "PE";
   expirydate: string;
   lotsize: string;
   cfbuyqty: string;
@@ -133,7 +133,7 @@ export type getScripFutType = {
 export type getScripType = {
   scriptName: string;
   strikePrice?: string;
-  optionType?: 'CE' | 'PE';
+  optionType?: "CE" | "PE";
   expiryDate: string;
 };
 export type scripMasterResponse = {
@@ -152,8 +152,12 @@ export type doOrderType = {
   tradingsymbol: string;
   symboltoken: string;
   transactionType: string | undefined;
-  productType?: 'DELIVERY' | 'CARRYFORWARD' | 'MARGIN' | 'INTRADAY' | 'BO';
+  productType?: "DELIVERY" | "CARRYFORWARD" | "MARGIN" | "INTRADAY" | "BO";
   lotSize: number;
+  variety: "NORMAL" | "STOPLOSS";
+  ordertype: "MARKET" | "LIMIT" | "STOPLOSS_LIMIT" | "STOPLOSS_MARKET";
+  triggerprice?: number;
+  price?: number;
 };
 export type doOrderResponse = {
   status: boolean;
@@ -210,32 +214,32 @@ export type OrderData = {
   exchange: string;
 };
 export enum OptionType {
-  CE = 'CE',
-  PE = 'PE',
+  CE = "CE",
+  PE = "PE",
 }
 export type checkPositionToCloseType = {
   openPositions: Position[];
 };
 export enum CheckOptionType {
-  BOTH_CE_PE_PRESENT = 'both_present',
-  ONLY_CE_PRESENT = 'ce_present',
-  ONLY_PE_PRESENT = 'pe_present',
-  BOTH_CE_PE_NOT_PRESENT = 'ce_pe_not_present',
+  BOTH_CE_PE_PRESENT = "both_present",
+  ONLY_CE_PRESENT = "ce_present",
+  ONLY_PE_PRESENT = "pe_present",
+  BOTH_CE_PE_NOT_PRESENT = "ce_pe_not_present",
 }
 export type runOrbType = {
   scriptName: string;
   price: number;
   maxSl: number;
-  tradeDirection: 'up' | 'down';
+  tradeDirection: "up" | "down";
   trailSl: number;
 };
 export type updateMaxSlType = { mtm: number; maxSl: number; trailSl: number };
 export enum INDICES {
-  NIFTY = 'NIFTY',
-  MIDCPNIFTY = 'MIDCPNIFTY',
-  FINNIFTY = 'FINNIFTY',
-  BANKNIFTY = 'BANKNIFTY',
-  SENSEX = 'SENSEX',
+  NIFTY = "NIFTY",
+  MIDCPNIFTY = "MIDCPNIFTY",
+  FINNIFTY = "FINNIFTY",
+  BANKNIFTY = "BANKNIFTY",
+  SENSEX = "SENSEX",
 }
 export type checkBothLegsType = {
   cepe_present: CheckOptionType;
@@ -249,4 +253,48 @@ export type GetNearestStrike = {
 export type GetCurrentTimeAndPastTimeType = {
   currentTime: string;
   pastTime: string;
+};
+export interface DataRecord {
+  mtm: number;
+  tradeDate: string;
+  ordersExecuted: number;
+  brokerageWithTax: number;
+  indices: string;
+}
+export type OrderBookResponseType = {
+  variety: string;
+  ordertype: string;
+  producttype: string;
+  duration: string;
+  price: string;
+  triggerprice: string;
+  quantity: string;
+  disclosedquantity: string;
+  squareoff: string;
+  stoploss: string;
+  trailingstoploss: string;
+  tradingsymbol: string;
+  transactiontype: string;
+  exchange: string;
+  symboltoken: string;
+  instrumenttype: string;
+  strikeprice: string;
+  optiontype: string;
+  expirydate: string;
+  lotsize: string;
+  cancelsize: string;
+  averageprice: string;
+  filledshares: string;
+  unfilledshares: string;
+  orderid: number;
+  text: string;
+  status: string;
+  orderstatus: string;
+  updatetime: string;
+  exchtime: string;
+  exchorderupdatetime: string;
+  fillid: string;
+  filltime: string;
+  parentorderid: string;
+  uniqueorderid: string;
 };
