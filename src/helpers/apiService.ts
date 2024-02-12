@@ -272,6 +272,9 @@ const doOrderByStrike = async (
     const lots = OrderStore.getInstance().getPostData().QUANTITY;
     const hedgeQuantity = lots * 5;
     const lotsCalc = isHedge ? hedgeQuantity : lots;
+    console.log(
+      `${ALGO} {doOrderByStrike}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`
+    );
     const qty = parseInt(lotsize) * lotsCalc;
     const netQty = transactionType === "SELL" ? qty * -1 : qty;
     return {
@@ -299,6 +302,7 @@ const shortStraddle = async (isBuyHedge = false) => {
     let strikeDiff = getStrikeDifference(index);
     console.log(`${ALGO}: STRIKEDIFF: ${strikeDiff}`);
     let order;
+    console.log(`${ALGO}: shortStraddle: atmStrike: ${atmStrike}, isBuyHedge: ${isBuyHedge}`);
     if (isBuyHedge) {
       order = await doOrderByStrike(atmStrike + hedgeVariance, OptionType.CE, "BUY", true);
       order = await doOrderByStrike(atmStrike - hedgeVariance, OptionType.PE, "BUY", true);

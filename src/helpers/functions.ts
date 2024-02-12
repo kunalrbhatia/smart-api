@@ -217,9 +217,7 @@ export const hedgeCalculation = (index: string) => {
     case INDICES.FINNIFTY:
       return 400;
     case INDICES.MIDCPNIFTY:
-      let date = new Date();
-      if (date.getDay() === 5) return 150;
-      else return 100;
+      return 200;
     case INDICES.SENSEX:
     case INDICES.BANKNIFTY:
       return 1000;
