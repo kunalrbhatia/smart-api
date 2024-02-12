@@ -213,14 +213,14 @@ export const getStrikeDifference = (index: string) => {
 export const hedgeCalculation = (index: string) => {
   switch (index) {
     case INDICES.NIFTY:
-      return 400;
+      return 500;
     case INDICES.FINNIFTY:
-      return 400;
+      return 500;
     case INDICES.MIDCPNIFTY:
       return 200;
     case INDICES.SENSEX:
     case INDICES.BANKNIFTY:
-      return 1000;
+      return 1500;
     default:
       return 1000;
   }

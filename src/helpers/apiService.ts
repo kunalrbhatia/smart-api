@@ -485,7 +485,7 @@ const closeAllTrades = async () => {
     const positions = await getPositionsJson();
     if (Array.isArray(positions)) {
       for (const position of positions) {
-        await closeParticularTrade({ trade: position });
+        if (parseInt(position.netqty) < 0) await closeParticularTrade({ trade: position });
       }
     }
   } catch (error) {
