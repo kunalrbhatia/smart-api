@@ -362,10 +362,11 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     if (Math.abs(difference) >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    } /* else if (difference === 0 && isSameStrikeAlreadyTraded) {
+    } else if (difference === 0 && isSameStrikeAlreadyTraded) {
+      //Code to re-enter  in the same strike
       console.log(`${ALGO}: same strike already traded checking both legs ...`);
       checkBothLegs({ cepe_present, atmStrike });
-    } */
+    }
   } catch (error) {
     const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
     console.log(errorMessage);
