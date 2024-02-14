@@ -190,11 +190,15 @@ const doOrder = async ({
   ordertype = "MARKET",
   price,
   triggerprice,
+  isHedge,
 }: doOrderType): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, "jwtToken");
-  const orderStoreData = OrderStore.getInstance().getPostData();
-  const quantity = Math.abs(lotSize * orderStoreData.QUANTITY);
+  const lots = OrderStore.getInstance().getPostData().QUANTITY;
+  const hedgeQuantity = lots * 5;
+  const lotsCalc = isHedge ? hedgeQuantity : lots;
+  console.log(`${ALGO} {doOrderByStrike}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
+  const quantity = Math.abs(lotSize * lotsCalc);
   let data = JSON.stringify({
     exchange: "NFO",
     tradingsymbol,
@@ -267,20 +271,12 @@ const doOrderByStrike = async (
       lotSize: parseInt(lotsize),
       variety: "NORMAL",
       ordertype: "MARKET",
+      isHedge,
     });
     console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
-    const lots = OrderStore.getInstance().getPostData().QUANTITY;
-    const hedgeQuantity = lots * 5;
-    const lotsCalc = isHedge ? hedgeQuantity : lots;
-    console.log(
-      `${ALGO} {doOrderByStrike}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`
-    );
-    const qty = parseInt(lotsize) * lotsCalc;
-    const netQty = transactionType === "SELL" ? qty * -1 : qty;
     return {
       stikePrice: strike.toString(),
       expiryDate: expiryDate,
-      netQty: netQty.toString(),
       token: _get(token, "0.token", ""),
       symbol: _get(token, "0.symbol", ""),
       exchange: _get(token, "0.exch_seg", ""),

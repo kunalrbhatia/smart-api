@@ -158,6 +158,7 @@ export type doOrderType = {
   ordertype: "MARKET" | "LIMIT" | "STOPLOSS_LIMIT" | "STOPLOSS_MARKET";
   triggerprice?: number;
   price?: number;
+  isHedge?: boolean;
 };
 export type doOrderResponse = {
   status: boolean;
@@ -207,7 +208,6 @@ export type BothPresent = { ce: boolean; pe: boolean; stike: string };
 export type OrderData = {
   stikePrice: string;
   expiryDate: string;
-  netQty: string;
   token: string;
   symbol: string;
   status: boolean;
