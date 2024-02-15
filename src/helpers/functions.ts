@@ -173,7 +173,7 @@ export const areBothOptionTypesPresentForStrike = (tradeDetails: Position[], str
     });
   return { ce: cePresent, pe: pePresent, stike: strike };
 };
-export const getOpenPositions = (positions: Position[]): Position[] => {
+export const getOpenSellPositions = (positions: Position[]): Position[] => {
   const openPositions = [];
   const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   const indexName = OrderStore.getInstance().getPostData().INDEX;
@@ -182,7 +182,7 @@ export const getOpenPositions = (positions: Position[]): Position[] => {
       const netqty = parseInt(position.netqty);
       const positionExpiryDate = position.expirydate;
       const symbolname = position.symbolname;
-      if (netqty !== 0 && expiryDate === positionExpiryDate && symbolname === indexName) {
+      if (netqty < 0 && expiryDate === positionExpiryDate && symbolname === indexName) {
         openPositions.push(position);
       }
     }

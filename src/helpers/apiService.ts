@@ -19,7 +19,7 @@ import {
   checkStrike,
   getAtmStrikePrice,
   getLastWednesdayOfMonth,
-  getOpenPositions,
+  getOpenSellPositions,
   getStrikeDifference,
   hedgeCalculation,
   isMarketClosed,
@@ -442,7 +442,7 @@ const getPositionsJson = async () => {
     const cred = getCredentials();
     await delay({ milliSeconds: DELAY });
     const positions: Position[] = await getPositions(smartSession, cred);
-    const openPositions = getOpenPositions(positions);
+    const openPositions = getOpenSellPositions(positions);
     console.log(`${ALGO}: total open positions are ${openPositions.length}`);
     return openPositions;
   } catch (error) {
@@ -579,20 +579,19 @@ const executeTrade = async () => {
   // console.log(`${ALGO}: marginDetails: `, marginDetails);
   const quantity = OrderStore.getInstance().getPostData().QUANTITY;
   const lossPerLot = OrderStore.getInstance().getPostData().LOSSPERLOT;
-  const calculatedFixStopLoss = quantity * lossPerLot;
+  const calculatedFixStopLoss = 12000;
   console.log(`${ALGO}: calculatedFixStopLoss: ${calculatedFixStopLoss}`);
   let mtmData = await getMtm();
   console.log(`${ALGO}: MTM: ${mtmData} -----`);
-  let isStoplossExceeded = false;
-  if (mtmData < 0) {
-    isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
-  }
+  let isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
   console.log(`${ALGO}: isStoplossExceeded: ${isStoplossExceeded}`);
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   let data = await getPositionsJson();
   await checkPositionToClose({ openPositions: data });
-  if (isPastClosingTime === false) await coreTradeExecution({ data });
-  if (isPastClosingTime || isStoplossExceeded) await closeTrade();
+  if (isPastClosingTime === false || isStoplossExceeded === false) {
+    await coreTradeExecution({ data });
+    resp = mtmData;
+  } else if (isPastClosingTime || (isStoplossExceeded && getOpenSellPositions(data).length > 0)) await closeTrade();
   return resp;
 };
 const isTradeAllowed = async () => {
