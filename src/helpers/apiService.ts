@@ -319,20 +319,48 @@ const checkBoth_CE_PE_Present = (data: BothPresent) => {
   else return CheckOptionType.ONLY_CE_PRESENT;
 };
 const checkBothLegs = async ({ cepe_present, atmStrike }: checkBothLegsType) => {
-  const idx = OrderStore.getInstance().getPostData().INDEX;
-  const hedge = hedgeCalculation(idx);
   try {
     if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
       console.log(`${ALGO}: Both legs not present, selling both!`);
       await shortStraddle();
     } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
       console.log(`${ALGO}: only calls present, selling puts`);
-      let orderData = await doOrderByStrike(atmStrike, OptionType.PE, "SELL");
-      orderData = await doOrderByStrike(atmStrike - hedge, OptionType.PE, "BUY");
+      const token = await getScrip({
+        scriptName: OrderStore.getInstance().getPostData().INDEX,
+        expiryDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
+        optionType: OptionType.PE,
+        strikePrice: atmStrike.toString(),
+      });
+      console.log(`${ALGO}: token: `, token);
+      const ltpData = await getLtpData({
+        exchange: _get(token, "0.exch_seg", ""),
+        symboltoken: _get(token, "0.token", ""),
+        tradingsymbol: _get(token, "0.symbol", ""),
+      });
+      console.log(`${ALGO}: ltpData: `, ltpData.ltp);
+      if (ltpData.ltp > 5) {
+        console.log(`${ALGO}: As ltp is greater then 5, selling puts again`);
+        await doOrderByStrike(atmStrike, OptionType.PE, "SELL");
+      }
     } else if (cepe_present === CheckOptionType.ONLY_PE_PRESENT) {
       console.log(`${ALGO}: only puts present, selling calls`);
-      let orderData = await doOrderByStrike(atmStrike, OptionType.CE, "SELL");
-      orderData = await doOrderByStrike(atmStrike + hedge, OptionType.CE, "BUY");
+      const token = await getScrip({
+        scriptName: OrderStore.getInstance().getPostData().INDEX,
+        expiryDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
+        optionType: OptionType.CE,
+        strikePrice: atmStrike.toString(),
+      });
+      console.log(`${ALGO}: token: `, token);
+      const ltpData = await getLtpData({
+        exchange: _get(token, "0.exch_seg", ""),
+        symboltoken: _get(token, "0.token", ""),
+        tradingsymbol: _get(token, "0.symbol", ""),
+      });
+      console.log(`${ALGO}: ltpData: `, ltpData.ltp);
+      if (ltpData.ltp > 5) {
+        console.log(`${ALGO}: As ltp is greater then 5, selling calls again`);
+        await doOrderByStrike(atmStrike, OptionType.CE, "SELL");
+      }
     } else {
       console.log(`${ALGO}: Both legs of the atm strike present, no need to worry!`);
     }
