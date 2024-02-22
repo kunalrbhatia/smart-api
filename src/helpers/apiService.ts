@@ -616,7 +616,7 @@ const executeTrade = async () => {
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   let data = await getPositionsJson();
   await checkPositionToClose({ openPositions: data });
-  if (isPastClosingTime === false) {
+  if (isPastClosingTime === false && isStoplossExceeded === false) {
     await coreTradeExecution({ data });
     resp = mtmData;
   }
