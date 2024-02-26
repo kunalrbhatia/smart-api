@@ -17,6 +17,7 @@ import {
 import {
   areBothOptionTypesPresentForStrike,
   checkStrike,
+  getAllOpenPositions,
   getAtmStrikePrice,
   getLastWednesdayOfMonth,
   getOpenSellPositions,
@@ -464,13 +465,13 @@ const checkPositionToClose = async ({ openPositions }: checkPositionToCloseType)
     throw error;
   }
 };
-const getPositionsJson = async () => {
+const getPositionsJson = async (isAbrupt = false) => {
   try {
     const smartSession = await getSmartSession();
     const cred = getCredentials();
     await delay({ milliSeconds: DELAY });
     const positions: Position[] = await getPositions(smartSession, cred);
-    const openPositions = getOpenSellPositions(positions);
+    const openPositions = isAbrupt ? getAllOpenPositions(positions) : getOpenSellPositions(positions);
     console.log(`${ALGO}: total open positions are ${openPositions.length}`);
     return openPositions;
   } catch (error) {
@@ -504,13 +505,17 @@ const closeParticularTrade = async ({ trade }: { trade: Position }) => {
     throw error;
   }
 };
-const closeAllTrades = async () => {
+const closeAllTrades = async (isAbrupt = false) => {
   try {
     await delay({ milliSeconds: DELAY });
-    const positions = await getPositionsJson();
+    const positions = await getPositionsJson(isAbrupt);
     if (Array.isArray(positions)) {
       for (const position of positions) {
-        if (parseInt(position.netqty) < 0) await closeParticularTrade({ trade: position });
+        if (isAbrupt) {
+          if (parseInt(position.netqty) != 0) await closeParticularTrade({ trade: position });
+        } else {
+          if (parseInt(position.netqty) < 0) await closeParticularTrade({ trade: position });
+        }
       }
     }
   } catch (error) {
@@ -520,11 +525,11 @@ const closeAllTrades = async () => {
     throw error;
   }
 };
-const closeTrade = async () => {
+const closeTrade = async (isAbrupt = false) => {
   console.log(`${ME}: check if all the trades are closed.`);
-  while ((await getPositionsJson()).length > 0) {
+  while ((await getPositionsJson(isAbrupt)).length > 0) {
     console.log(`${ALGO}: all trades are not closed, closing trades...`);
-    await closeAllTrades();
+    await closeAllTrades(isAbrupt);
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
   const mtm = await getMtm();
@@ -620,7 +625,8 @@ const executeTrade = async () => {
     await coreTradeExecution({ data });
     resp = mtmData;
   }
-  if (isPastClosingTime || (isStoplossExceeded && getOpenSellPositions(data).length > 0)) await closeTrade();
+  if (isStoplossExceeded && getAllOpenPositions(data).length > 0) await closeTrade(true);
+  if (isPastClosingTime && getOpenSellPositions(data).length > 0) await closeTrade(false);
   return resp;
 };
 const isTradeAllowed = async () => {
