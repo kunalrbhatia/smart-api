@@ -420,13 +420,13 @@ const findTradeByStrike = async (tradeStrike: number) => {
   return null;
 };
 const shouldCloseTrade = async ({ ltp, avg, trade }: shouldCloseTradeType) => {
-  const doubledPrice = avg * 2;
-  const isPriceDoubled = parseInt(trade.netqty) < 0 && ltp >= doubledPrice;
+  const thresholdPrice = avg * 3;
+  const hasPriceCrossedThreshold = parseInt(trade.netqty) < 0 && ltp >= thresholdPrice;
   const isLtpBelowOne = parseInt(trade.netqty) < 0 && ltp < 1;
   console.log(
-    `${ALGO}: checking shouldCloseTrade, trade strike: ${trade.strikeprice}, trade option type: ${trade.optiontype}, ltp: ${ltp}, doubledPrice: ${doubledPrice}`
+    `${ALGO}: checking shouldCloseTrade, trade strike: ${trade.strikeprice}, trade option type: ${trade.optiontype}, ltp: ${ltp}, thresholdPrice: ${thresholdPrice}`
   );
-  if (isPriceDoubled || isLtpBelowOne) {
+  if (hasPriceCrossedThreshold || isLtpBelowOne) {
     console.log(`${ALGO}: Yes, close this particular trade with strike price ${trade.strikeprice}`);
     try {
       await closeParticularTrade({ trade });
