@@ -616,16 +616,17 @@ const executeTrade = async () => {
   console.log(`${ALGO}: calculatedFixStopLoss: ${calculatedFixStopLoss}`);
   let mtmData = await getMtm();
   console.log(`${ALGO}: MTM: ${mtmData} -----`);
-  let isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
+  // let isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
+  let isStoplossExceeded = false;
   console.log(`${ALGO}: isStoplossExceeded: ${isStoplossExceeded}`);
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   let data = await getPositionsJson();
-  await checkPositionToClose({ openPositions: data });
+  //await checkPositionToClose({ openPositions: data });
   if (isPastClosingTime === false && isStoplossExceeded === false) {
     await coreTradeExecution({ data });
     resp = mtmData;
   }
-  if (isStoplossExceeded && getAllOpenPositions(data).length > 0) await closeTrade(true);
+  // if (isStoplossExceeded && getAllOpenPositions(data).length > 0) await closeTrade(true);
   if (isPastClosingTime && getOpenSellPositions(data).length > 0) await closeTrade(false);
   return resp;
 };
