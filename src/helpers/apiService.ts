@@ -514,7 +514,16 @@ const closeAllTrades = async (isAbrupt = false) => {
         if (isAbrupt) {
           if (parseInt(position.netqty) != 0) await closeParticularTrade({ trade: position });
         } else {
-          if (parseInt(position.netqty) < 0) await closeParticularTrade({ trade: position });
+          const ltpData = await getLtpData({
+            exchange: position.exchange,
+            tradingsymbol: position.tradingsymbol,
+            symboltoken: position.symboltoken,
+          });
+          if (ltpData && ltpData.ltp > 5 && parseInt(position.netqty) < 0) {
+            await closeParticularTrade({ trade: position });
+          } else if (parseInt(position.netqty) < 0) {
+            await closeParticularTrade({ trade: position });
+          }
         }
       }
     }
