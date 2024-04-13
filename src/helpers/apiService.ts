@@ -519,6 +519,8 @@ const closeAllTrades = async (isAbrupt = false) => {
             tradingsymbol: position.tradingsymbol,
             symboltoken: position.symboltoken,
           });
+          console.log(`${ALGO}: position: `, position);
+          console.log(`${ALGO}: ltpData: `, ltpData);
           if (ltpData && ltpData.ltp > 5 && parseInt(position.netqty) < 0) {
             await closeParticularTrade({ trade: position });
           } else if (parseInt(position.netqty) < 0) {

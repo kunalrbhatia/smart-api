@@ -41,6 +41,12 @@
     "start": "ts-node ./src/app.ts",
     "build": "babel src --extensions .ts -d dist",
     "watch": "npm run build -- --watch",
-    "test": "jest"
+    "test": "jest",
+    "commit": "git add . && cz"
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
   }
 }
