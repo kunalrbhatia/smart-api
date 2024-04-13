@@ -30,11 +30,11 @@ process.on('uncaughtException', function (err) {
   console.log(err);
 });
 let connections: Socket[] = [];
-server.on('connection', (connection) => {
+server.on('connection', connection => {
   connections.push(connection);
   connection.on(
     'close',
-    () => (connections = connections.filter((curr) => curr !== connection))
+    () => (connections = connections.filter(curr => curr !== connection)),
   );
 });
 app.get('/kill', (req, res) => {
@@ -46,12 +46,12 @@ app.get('/kill', (req, res) => {
     });
     setTimeout(() => {
       console.error(
-        'Could not close connections in time, forcefully shutting down'
+        'Could not close connections in time, forcefully shutting down',
       );
       process.exit(1);
     }, 10000);
-    connections.forEach((curr) => curr.end());
-    setTimeout(() => connections.forEach((curr) => curr.destroy()), 5000);
+    connections.forEach(curr => curr.end());
+    setTimeout(() => connections.forEach(curr => curr.destroy()), 5000);
   }, 1000);
   res.send("Execution of the 'Kill Algo' command has been initiated.");
 });
@@ -68,7 +68,7 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     // console.log(`${ALGO}: lots: ${lots}`);
     const response = await checkMarketConditionsAndExecuteTrade(
       lots,
-      lossPerLot
+      lossPerLot,
     );
     //console.log(`${ALGO} response: ${response}`);
     res.send({ response: response });
