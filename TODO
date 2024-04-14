@@ -1,10 +1,8 @@
 --- Have Todo
 
-1. Optimize to not do things which are not needed 
-i. Place hedge order once and don't sq-off hedge as it beceomes otm by EOD
-ii. Identify otm and don't sq-off those trades 
+1. Optimize to not do things which are not needed ii. Identify otm and don't sq-off those trades
 2. Find a way to backtest Record trade data to firebase database for future ref
 
 --- Have Done
 
-Remove json file logic
+i. Place hedge order once and don't sq-off hedge as it beceomes otm by EOD ii. Remove json file logic
