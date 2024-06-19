@@ -37,3 +37,5 @@ export const HISTORIC_API =
 export const DATEFORMAT = 'DDMMMYYYY';
 export const LOSSPERLOT = 3500;
 export const LOTS = 1;
+export const SEARCHSCRIPAPI =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/searchScrip';

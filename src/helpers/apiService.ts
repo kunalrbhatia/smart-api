@@ -30,6 +30,7 @@ import {
   BothPresent,
   CheckOptionType,
   CheckPosition,
+  INDICES,
   ISmartApiData,
   LtpDataType,
   OptionType,
@@ -56,6 +57,7 @@ import {
   MESSAGE_NOT_TAKE_TRADE,
   ORDER_API,
   SCRIPMASTER,
+  SEARCHSCRIPAPI,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
 } from './constants';
@@ -97,6 +99,30 @@ export const getLtpData = async ({
     console.log(error);
     throw error;
   }
+};
+export const searchScrip = async (scripName: string) => {
+  const smartApiData: ISmartApiData = await getSmartSession();
+  const jwtToken = _get(smartApiData, 'jwtToken');
+  const cred = DataStore.getInstance().getPostData();
+  const config = {
+    method: 'post',
+    url: SEARCHSCRIPAPI,
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': cred.APIKEY,
+    },
+    data: { exchange: 'NFO', searchscrip: scripName },
+  };
+  return await axios(config).then((response: object) => {
+    return _get(response, 'data.data', '');
+  });
 };
 const fetchData = async (): Promise<scripMasterResponse[]> => {
   const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
@@ -266,22 +292,39 @@ const doOrderByStrike = async (
   optionType: OptionType,
   transactionType: 'BUY' | 'SELL',
   isHedge = false,
-): Promise<OrderData> => {
+): Promise<OrderData | boolean> => {
   try {
     const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
     console.log(
       `${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`,
     );
     await delay({ milliSeconds: DELAY });
+    const scripName = `${OrderStore.getInstance().getPostData().INDEX}${moment('2024-05-30').format('DDMMMYY').toUpperCase()}${strike.toString()}${OptionType.PE}`;
+    console.log(`${ALGO}: scripName: `, scripName);
+    const searchedScrip = await searchScrip(scripName);
+    console.log(`${ALGO}: searchedScrip: `, searchedScrip);
     const token = await getScrip({
       scriptName: OrderStore.getInstance().getPostData().INDEX,
       expiryDate: expiryDate,
       optionType: optionType,
       strikePrice: strike.toString(),
     });
+    const ltpData = await getLtpData({
+      exchange: _get(token, '0.exch_seg', ''),
+      symboltoken: _get(token, '0.token', ''),
+      tradingsymbol: _get(token, '0.symbol', ''),
+    });
+    console.log(`${ALGO}: ltpData: `, ltpData.ltp);
     console.log(`${ALGO} {doOrderByStrike}: token: `, token);
     await delay({ milliSeconds: DELAY });
     const lotsize = _get(token, '0.lotsize', '0') || '0';
+    // IF IS HEDGE WRITE LOGIC TO CHECK IF LTP IS LESS THAN 3 PREMIUM THEN ONLY GO AHEAD
+    if (isHedge && ltpData.ltp > 3) {
+      console.log(
+        `${ALGO} {doOrderByStrike}: exit as ltp of hedge is more than 3`,
+      );
+      return false;
+    }
     const orderData = await doOrder({
       tradingsymbol: _get(token, '0.symbol', ''),
       symboltoken: _get(token, '0.token', ''),
@@ -319,18 +362,46 @@ const shortStraddle = async (isBuyHedge = false) => {
       `${ALGO}: shortStraddle: atmStrike: ${atmStrike}, isBuyHedge: ${isBuyHedge}`,
     );
     if (isBuyHedge) {
-      await doOrderByStrike(
+      let strikeVariance = 0;
+      let strikeIncrement = 0;
+      if (index === INDICES.NIFTY || index === INDICES.FINNIFTY) {
+        strikeVariance = 50;
+      } else if (index === INDICES.BANKNIFTY || index === INDICES.SENSEX) {
+        strikeVariance = 100;
+      } else if (index === INDICES.MIDCPNIFTY) {
+        strikeVariance = 25;
+      }
+      strikeIncrement = strikeVariance;
+      let ceHedge = await doOrderByStrike(
         atmStrike + hedgeVariance,
         OptionType.CE,
         'BUY',
         true,
       );
-      await doOrderByStrike(
+      while (typeof ceHedge === 'boolean' && ceHedge === false) {
+        ceHedge = await doOrderByStrike(
+          atmStrike + hedgeVariance + strikeIncrement,
+          OptionType.CE,
+          'BUY',
+          true,
+        );
+        strikeIncrement += strikeVariance;
+      }
+      let peHedge = await doOrderByStrike(
         atmStrike - hedgeVariance,
         OptionType.PE,
         'BUY',
         true,
       );
+      while (typeof peHedge === 'boolean' && peHedge === false) {
+        peHedge = await doOrderByStrike(
+          atmStrike - hedgeVariance - strikeIncrement,
+          OptionType.PE,
+          'BUY',
+          true,
+        );
+        strikeIncrement -= strikeVariance;
+      }
     }
     await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
     await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
@@ -677,7 +748,7 @@ const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
-  // const isPastClosingTime = false; //HARDCODED FOR TESTING
+  //const isPastClosingTime = false; //HARDCODED FOR TESTING
   // const marginDetails = await getMarginDetails();
   // console.log(`${ALGO}: marginDetails: `, marginDetails);
   // const quantity = OrderStore.getInstance().getPostData().QUANTITY;
@@ -741,7 +812,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
   lots: number = LOTS,
   lossPerLot: number = LOSSPERLOT,
 ) => {
-  // let expiryDate = "29JAN2024"; //HARDCODED FOR TESTING
+  //let expiryDate = '30MAY2024'; //HARDCODED FOR TESTING
   //const orderBook = await getOrderBook();
   //console.log(orderBook);
   const expiryDate = getTodayExpiry();

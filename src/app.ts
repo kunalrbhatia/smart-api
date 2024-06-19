@@ -13,7 +13,7 @@ import { checkMarketConditionsAndExecuteTrade } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
 import { setCred } from './helpers/functions';
 import dotenv from 'dotenv';
-import { Strategy } from './app.interface';
+//import { Strategy } from './app.interface';
 import { Socket } from 'net';
 const app: Application = express();
 app.use(bodyParser.json());
@@ -65,12 +65,12 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
     setCred(req);
     const lots: number = req.body.lots;
     const lossPerLot: number = req.body.loss_per_lot;
-    // console.log(`${ALGO}: lots: ${lots}`);
+    console.log(`${ALGO}: lots: ${lots}`);
     const response = await checkMarketConditionsAndExecuteTrade(
       lots,
       lossPerLot,
     );
-    //console.log(`${ALGO} response: ${response}`);
+    console.log(`${ALGO} response: ${response}`);
     res.send({ response: response });
   } catch (err) {
     console.log(err);
@@ -81,7 +81,7 @@ app.post('/run-short-straddle-algo', async (req: Request, res: Response) => {
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());
 });
-const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+const errorHandler: ErrorRequestHandler = (err, req, res) => {
   res.status(err.status || 500);
   res.send({ status: err.status || 500, message: err.message });
 };

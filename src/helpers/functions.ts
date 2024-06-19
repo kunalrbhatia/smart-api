@@ -3,12 +3,12 @@ import {
   BothPresent,
   Credentails,
   GetCurrentTimeAndPastTimeType,
-  GetNearestStrike,
+  //GetNearestStrike,
   INDICES,
-  ISmartApiData,
+  //ISmartApiData,
   Position,
-  TimeComparisonType,
-  delayType,
+  //TimeComparisonType,
+  //delayType,
   reqType,
   scripMasterResponse,
   updateMaxSlType,
@@ -126,7 +126,7 @@ export const findNearestStrike = (
   return nearestStrike;
 };
 export const getAtmStrikePrice = async () => {
-  let expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
+  const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
   try {
     const optionChain = await getScrip({
@@ -183,7 +183,7 @@ export const areBothOptionTypesPresentForStrike = (
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   let cePresent = false;
   let pePresent = false;
-  const filteredTrades = tradeDetails
+  tradeDetails
     .filter(trade => trade.expirydate === expirationDate)
     .forEach(trade => {
       const tradedStrike = parseInt(trade.strikeprice);
@@ -275,5 +275,16 @@ export const hedgeCalculation = (index: string) => {
       return 1500;
     default:
       return 1000;
+  }
+};
+export const getStrikeVariance = (index: string) => {
+  switch (index) {
+    case INDICES.NIFTY:
+    case INDICES.FINNIFTY:
+      return 50;
+    case INDICES.BANKNIFTY:
+      return 100;
+    default:
+      return 0;
   }
 };
