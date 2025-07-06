@@ -51,8 +51,8 @@
     "watch": "npm run build -- --watch",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "commit": "git add . && cz",
-    "precommit": "git add . && lint-staged"
+    "commit": "cz",
+    "precommit": "lint-staged"
   },
   "husky": {
     "hooks": {
