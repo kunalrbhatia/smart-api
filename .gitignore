@@ -6,3 +6,5 @@ package-lock.json
 *.json
 *.log
 coverage
+pnpm-lock.yaml
+pnpm-workspace.yaml

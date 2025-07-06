@@ -772,7 +772,7 @@ const executeTrade = async () => {
     await closeTrade(false);
   return resp;
 };
-const isTradeAllowed = async () => {
+const isTradeAllowed = async (indiaVix: number) => {
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isHoliday = isTradingHoliday();
@@ -796,10 +796,11 @@ const isTradeAllowed = async () => {
     console.log('Error occurred for generateSmartSession');
   }
   console.log(
-    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`,
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, is indiaVix > 15: ${indiaVix}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`,
   );
   return (
     isWeekend === false &&
+    indiaVix > 15 &&
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
     isSmartAPIWorking &&
@@ -842,7 +843,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
   try {
     // await isTradeAllowed(); //HARDCODED FOR TESTING
     // return await executeTrade(); //HARDCODED FOR TESTING
-    const isAllowed = await isTradeAllowed();
+    const isAllowed = await isTradeAllowed(indiaVixLtp.ltp);
     if (isAllowed === false) return MESSAGE_NOT_TAKE_TRADE;
     else return await executeTrade();
   } catch (err) {
