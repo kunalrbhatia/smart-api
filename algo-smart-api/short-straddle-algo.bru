@@ -1,0 +1,22 @@
+meta {
+  name: short-straddle-algo
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:3000/algo/run-short-straddle
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "api_key": "YK4WsJ6X",
+    "client_code": "K94372",
+    "client_pin": "5143",
+    "client_totp_pin": "2RGK7VSYECJVZTPUN3Q5BGTD44",
+    "lots": 1,
+    "loss_per_lot": 4000
+  }
+}
