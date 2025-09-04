@@ -45,8 +45,8 @@
     "typescript-eslint": "^7.6.0"
   },
   "scripts": {
-    "dev": "nodemon ./src/app.ts",
-    "start": "ts-node ./src/app.ts",
+    "dev": "nodemon ./src/server.ts",
+    "start": "ts-node ./src/server.ts",
     "build": "babel src --extensions .ts -d dist",
     "watch": "npm run build -- --watch",
     "test": "jest",
