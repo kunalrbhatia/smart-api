@@ -2,7 +2,21 @@ import { Router, Request, Response } from 'express';
 import { getIndexScrip, getLtpData } from '../helpers/apiService';
 import { setCred } from '../helpers/functions';
 import { ALGO } from '../helpers/constants';
-import { INDICES } from 'krb-smart-api-module';
+import { delay, INDICES } from 'krb-smart-api-module';
+interface IndexData {
+  exchange: string;
+  tradingsymbol: string;
+  symboltoken: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  ltp: number;
+}
+
+interface IndexResponse {
+  [key: string]: IndexData | { error: string };
+}
 
 const router = Router();
 
@@ -13,9 +27,7 @@ router.post('/getAllIndices', async (req: Request, res: Response) => {
       timeZone: 'Asia/Kolkata',
     });
     console.log(`${ALGO}: time, ${istTz}`);
-
     setCred(req);
-
     const indexMap: Record<string, string> = {
       VIX: 'INDIA VIX',
       NIFTY: INDICES.NIFTY,
@@ -31,13 +43,13 @@ router.post('/getAllIndices', async (req: Request, res: Response) => {
           if (!data || data.length === 0) {
             return { index: key, error: 'No data found' };
           }
-
+          await delay({ milliSeconds: 1000 });
           const ltpData = await getLtpData({
             exchange: data[0].exch_seg,
             symboltoken: data[0].token,
             tradingsymbol: data[0].symbol,
           });
-
+          await delay({ milliSeconds: 1000 });
           return { index: key, data: ltpData };
         } catch (err) {
           console.error(`${ALGO}: error fetching ${key}`, err);
@@ -50,7 +62,7 @@ router.post('/getAllIndices', async (req: Request, res: Response) => {
     const responseData = results.reduce((acc, curr) => {
       acc[curr.index] = curr.data || { error: curr.error };
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as IndexResponse);
 
     res.status(200).json({ data: responseData });
   } catch (err) {
@@ -59,6 +71,5 @@ router.post('/getAllIndices', async (req: Request, res: Response) => {
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
-
 
 export default router;
