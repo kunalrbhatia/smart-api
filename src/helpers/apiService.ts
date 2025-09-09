@@ -66,11 +66,7 @@ import { recordNewTrade } from './dbService';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
 import moment from 'moment-timezone';
-export const getLtpData = async ({
-  exchange,
-  tradingsymbol,
-  symboltoken,
-}: getLtpDataType): Promise<LtpDataType> => {
+export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLtpDataType): Promise<LtpDataType> => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
   const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
@@ -133,9 +129,7 @@ const fetchData = async (): Promise<scripMasterResponse[]> => {
       .get(SCRIPMASTER)
       .then((response: object) => {
         const acData: scripMasterResponse[] = _get(response, 'data', []) || [];
-        console.log(
-          `${ALGO}: response if script master api loaded and its length is ${acData.length}`,
-        );
+        console.log(`${ALGO}: response if script master api loaded and its length is ${acData.length}`);
         ScripMasterStore.getInstance().setPostData({
           SCRIP_MASTER_JSON: acData,
         });
@@ -158,7 +152,7 @@ export const getScrip = async ({
   console.log(
     `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(scripMaster)}, its length is: ${
       scripMaster.length
-    }`,
+    }`
   );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
     console.log(`${ALGO}: all check cleared getScrip call`);
@@ -175,10 +169,7 @@ export const getScrip = async ({
         _expiry === expiryDate
       );
     });
-    scrips.sort(
-      (curr: object, next: object) =>
-        _get(curr, 'token', 0) - _get(next, 'token', 0),
-    );
+    scrips.sort((curr: object, next: object) => _get(curr, 'token', 0) - _get(next, 'token', 0));
     scrips = scrips.map((element: object) => {
       return {
         exch_seg: _get(element, 'exch_seg', '') || '',
@@ -199,20 +190,12 @@ export const getScrip = async ({
     throw errorMessage;
   }
 };
-export const getIndexScrip = async ({
-  scriptName,
-}: {
-  scriptName: string;
-}): Promise<scripMasterResponse[]> => {
+export const getIndexScrip = async ({ scriptName }: { scriptName: string }): Promise<scripMasterResponse[]> => {
   const scripMaster: scripMasterResponse[] = await fetchData();
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
     const scrips = scripMaster.filter(scrip => {
       const _scripName: string = _get(scrip, 'name', '') || '';
-      return (
-        _scripName === scriptName &&
-        _get(scrip, 'exch_seg') === 'NSE' &&
-        _get(scrip, 'instrumenttype') === 'AMXIDX'
-      );
+      return _scripName === scriptName && _get(scrip, 'instrumenttype') === 'AMXIDX';
     });
     return scrips;
   } else {
@@ -238,9 +221,7 @@ const doOrder = async ({
   const lots = OrderStore.getInstance().getPostData().QUANTITY;
   const hedgeQuantity = lots * 5;
   const lotsCalc = isHedge ? hedgeQuantity : lots;
-  console.log(
-    `${ALGO} {doOrderByStrike}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`,
-  );
+  console.log(`${ALGO} {doOrderByStrike}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
   const quantity = Math.abs(lotSize * lotsCalc);
   const data = JSON.stringify({
     exchange: 'NFO',
@@ -291,13 +272,11 @@ const doOrderByStrike = async (
   strike: number,
   optionType: OptionType,
   transactionType: 'BUY' | 'SELL',
-  isHedge = false,
+  isHedge = false
 ): Promise<OrderData | boolean> => {
   try {
     const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
-    console.log(
-      `${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`,
-    );
+    console.log(`${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`);
     await delay({ milliSeconds: DELAY });
     const scripName = `${OrderStore.getInstance().getPostData().INDEX}${moment('2024-05-30').format('DDMMMYY').toUpperCase()}${strike.toString()}${OptionType.PE}`;
     console.log(`${ALGO}: scripName: `, scripName);
@@ -320,9 +299,7 @@ const doOrderByStrike = async (
     const lotsize = _get(token, '0.lotsize', '0') || '0';
     // IF IS HEDGE WRITE LOGIC TO CHECK IF LTP IS LESS THAN 3 PREMIUM THEN ONLY GO AHEAD
     if (isHedge && ltpData.ltp > 3) {
-      console.log(
-        `${ALGO} {doOrderByStrike}: exit as ltp of hedge is more than 3`,
-      );
+      console.log(`${ALGO} {doOrderByStrike}: exit as ltp of hedge is more than 3`);
       return false;
     }
     const orderData = await doOrder({
@@ -358,9 +335,7 @@ const shortStraddle = async (isBuyHedge = false) => {
     const hedgeVariance = hedgeCalculation(index);
     const strikeDiff = getStrikeDifference(index);
     console.log(`${ALGO}: STRIKEDIFF: ${strikeDiff}`);
-    console.log(
-      `${ALGO}: shortStraddle: atmStrike: ${atmStrike}, isBuyHedge: ${isBuyHedge}`,
-    );
+    console.log(`${ALGO}: shortStraddle: atmStrike: ${atmStrike}, isBuyHedge: ${isBuyHedge}`);
     if (isBuyHedge) {
       let strikeVariance = 0;
       let strikeIncrement = 0;
@@ -372,34 +347,14 @@ const shortStraddle = async (isBuyHedge = false) => {
         strikeVariance = 25;
       }
       strikeIncrement = strikeVariance;
-      let ceHedge = await doOrderByStrike(
-        atmStrike + hedgeVariance,
-        OptionType.CE,
-        'BUY',
-        true,
-      );
+      let ceHedge = await doOrderByStrike(atmStrike + hedgeVariance, OptionType.CE, 'BUY', true);
       while (typeof ceHedge === 'boolean' && ceHedge === false) {
-        ceHedge = await doOrderByStrike(
-          atmStrike + hedgeVariance + strikeIncrement,
-          OptionType.CE,
-          'BUY',
-          true,
-        );
+        ceHedge = await doOrderByStrike(atmStrike + hedgeVariance + strikeIncrement, OptionType.CE, 'BUY', true);
         strikeIncrement += strikeVariance;
       }
-      let peHedge = await doOrderByStrike(
-        atmStrike - hedgeVariance,
-        OptionType.PE,
-        'BUY',
-        true,
-      );
+      let peHedge = await doOrderByStrike(atmStrike - hedgeVariance, OptionType.PE, 'BUY', true);
       while (typeof peHedge === 'boolean' && peHedge === false) {
-        peHedge = await doOrderByStrike(
-          atmStrike - hedgeVariance - strikeIncrement,
-          OptionType.PE,
-          'BUY',
-          true,
-        );
+        peHedge = await doOrderByStrike(atmStrike - hedgeVariance - strikeIncrement, OptionType.PE, 'BUY', true);
         strikeIncrement -= strikeVariance;
       }
     }
@@ -418,10 +373,7 @@ const checkBoth_CE_PE_Present = (data: BothPresent) => {
   else if (!data.ce && data.pe) return CheckOptionType.ONLY_PE_PRESENT;
   else return CheckOptionType.ONLY_CE_PRESENT;
 };
-const checkBothLegs = async ({
-  cepe_present,
-  atmStrike,
-}: checkBothLegsType) => {
+const checkBothLegs = async ({ cepe_present, atmStrike }: checkBothLegsType) => {
   try {
     if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
       console.log(`${ALGO}: Both legs not present, selling both!`);
@@ -465,9 +417,7 @@ const checkBothLegs = async ({
         await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
       }
     } else {
-      console.log(
-        `${ALGO}: Both legs of the atm strike present, no need to worry!`,
-      );
+      console.log(`${ALGO}: Both legs of the atm strike present, no need to worry!`);
     }
   } catch (error) {
     const errorMessage = `${ALGO}: checkBothLegs failed ...`;
@@ -483,25 +433,16 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     console.log(`${ALGO}: strikeDiff: ${strikeDiff}`);
     console.log(`${ALGO}: difference: ${Math.abs(difference)}`);
     const positions = await getPositionsJson();
-    const isSameStrikeAlreadyTraded = checkStrike(
-      positions,
-      atmStrike.toString(),
-    );
+    const isSameStrikeAlreadyTraded = checkStrike(positions, atmStrike.toString());
     console.log(
       `${ALGO}: checking conditions\n\t1. if the difference is more or equal to strikeDiff (${strikeDiff}): ${
         Math.abs(difference) >= strikeDiff
-      }\n\t2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`,
+      }\n\t2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`
     );
-    const result = areBothOptionTypesPresentForStrike(
-      positions,
-      atmStrike.toString(),
-    );
+    const result = areBothOptionTypesPresentForStrike(positions, atmStrike.toString());
     console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
     const cepe_present = checkBoth_CE_PE_Present(result);
-    if (
-      Math.abs(difference) >= strikeDiff &&
-      isSameStrikeAlreadyTraded === false
-    ) {
+    if (Math.abs(difference) >= strikeDiff && isSameStrikeAlreadyTraded === false) {
       console.log(`${ALGO}: executing trade repeat ...`);
       checkBothLegs({ cepe_present, atmStrike });
     } else if (difference === 0 && isSameStrikeAlreadyTraded) {
@@ -584,9 +525,7 @@ const getPositionsJson = async (isAbrupt = false) => {
     const cred = getCredentials();
     await delay({ milliSeconds: DELAY });
     const positions: Position[] = await getPositions(smartSession, cred);
-    const openPositions = isAbrupt
-      ? getAllOpenPositions(positions)
-      : getOpenSellPositions(positions);
+    const openPositions = isAbrupt ? getAllOpenPositions(positions) : getOpenSellPositions(positions);
     console.log(`${ALGO}: total open positions are ${openPositions.length}`);
     return openPositions;
   } catch (error) {
@@ -601,8 +540,7 @@ const closeParticularTrade = async ({ trade }: { trade: Position }) => {
     await delay({ milliSeconds: DELAY });
     const netQty = parseInt(trade.netqty);
     const tradingsymbol = trade.tradingsymbol;
-    const transactionType =
-      netQty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
+    const transactionType = netQty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
     const symboltoken = trade.symboltoken;
     const lotSize = parseInt(trade.lotsize);
     const transactionStatus = await doOrder({
@@ -671,29 +609,20 @@ const closeTrade = async (isAbrupt = false) => {
     tradeDate: moment().format('DDMMMYYYY').toUpperCase(),
   });
 };
-const checkToRepeatShortStraddle = async (
-  atmStrike: number,
-  previousTradeStrikePrice: number,
-) => {
-  console.log(
-    `${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`,
-  );
+const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrikePrice: number) => {
+  console.log(`${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`);
   if (isFinite(atmStrike)) {
     const difference = atmStrike - previousTradeStrikePrice;
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
     if (atmStrike > previousTradeStrikePrice) {
       console.log(
-        `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`,
+        `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`
       );
     } else if (atmStrike < previousTradeStrikePrice) {
-      console.log(
-        `${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`,
-      );
+      console.log(`${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`);
     } else {
-      console.log(
-        `${ALGO}: atm strike is equal to previously traded strike price. The difference is ${difference}`,
-      );
+      console.log(`${ALGO}: atm strike is equal to previously traded strike price. The difference is ${difference}`);
     }
   } else {
     console.log(`${ALGO}: Oops, 'atmStrike' is infinity! Stopping operations.`);
@@ -706,9 +635,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
     console.log(`${ALGO}: executing trade`);
     await shortStraddle(true);
   } else {
-    console.log(
-      `${ALGO}: trade executed already checking conditions to repeat the trade`,
-    );
+    console.log(`${ALGO}: trade executed already checking conditions to repeat the trade`);
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.length;
@@ -718,7 +645,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
       expirationDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
     });
     console.log(
-      `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`,
+      `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
     );
     await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
@@ -768,8 +695,7 @@ const executeTrade = async () => {
     resp = mtmData;
   }
   // if (isStoplossExceeded && getAllOpenPositions(data).length > 0) await closeTrade(true);
-  if (isPastClosingTime && getOpenSellPositions(data).length > 0)
-    await closeTrade(false);
+  if (isPastClosingTime && getOpenSellPositions(data).length > 0) await closeTrade(false);
   return resp;
 };
 const isTradeAllowed = async (indiaVix: number) => {
@@ -779,8 +705,7 @@ const isTradeAllowed = async (indiaVix: number) => {
   const expiryDate = getTodayExpiry();
   const lastWednesday = getLastWednesdayOfMonth();
   const isTodayLastWednesdayOfMonth =
-    lastWednesday !== null &&
-    expiryDate === lastWednesday.format(DATEFORMAT).toUpperCase();
+    lastWednesday !== null && expiryDate === lastWednesday.format(DATEFORMAT).toUpperCase();
 
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
@@ -796,7 +721,7 @@ const isTradeAllowed = async (indiaVix: number) => {
     console.log('Error occurred for generateSmartSession');
   }
   console.log(
-    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, is indiaVix > 15: ${indiaVix}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`,
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, is indiaVix > 15: ${indiaVix}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`
   );
   return (
     isWeekend === false &&
@@ -809,10 +734,7 @@ const isTradeAllowed = async (indiaVix: number) => {
   );
 };
 
-export const checkMarketConditionsAndExecuteTrade = async (
-  lots: number = LOTS,
-  lossPerLot: number = LOSSPERLOT,
-) => {
+export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, lossPerLot: number = LOSSPERLOT) => {
   //let expiryDate = '30MAY2024'; //HARDCODED FOR TESTING
   //const orderBook = await getOrderBook();
   //console.log(orderBook);
@@ -836,10 +758,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
     LOSSPERLOT: lossPerLot,
     INDIAVIX: indiaVixLtp.ltp,
   });
-  console.log(
-    `${ALGO}: OrderStore data: `,
-    OrderStore.getInstance().getPostData(),
-  );
+  console.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
   try {
     // await isTradeAllowed(); //HARDCODED FOR TESTING
     // return await executeTrade(); //HARDCODED FOR TESTING
@@ -850,15 +769,9 @@ export const checkMarketConditionsAndExecuteTrade = async (
     return err;
   }
 };
-export const checkPositionAlreadyExists = async ({
-  position,
-  trades,
-}: CheckPosition) => {
+export const checkPositionAlreadyExists = async ({ position, trades }: CheckPosition) => {
   for (const trade of trades) {
-    if (
-      parseInt(trade.strike) === parseInt(position.strikeprice) &&
-      trade.optionType === position.optiontype
-    )
+    if (parseInt(trade.strike) === parseInt(position.strikeprice) && trade.optionType === position.optiontype)
       return true;
   }
   return false;
