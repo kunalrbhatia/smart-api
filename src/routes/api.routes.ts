@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getIndexScrip, getLtpData } from '../helpers/apiService';
+import { fetchData, getIndexScrip, getLtpData } from '../helpers/apiService';
 import { setCred } from '../helpers/functions';
 import { ALGO } from '../helpers/constants';
 import { delay, INDICES } from 'krb-smart-api-module';
@@ -19,6 +19,23 @@ interface IndexResponse {
 }
 
 const router = Router();
+
+router.post('/warmup', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+    await fetchData();
+    res.json({ response: 'success' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ response: err });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
 
 router.post('/getAllIndices', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);

@@ -120,7 +120,7 @@ export const searchScrip = async (scripName: string) => {
     return _get(response, 'data.data', '');
   });
 };
-const fetchData = async (): Promise<scripMasterResponse[]> => {
+export const fetchData = async (): Promise<scripMasterResponse[]> => {
   const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
   if (data.length > 0) {
     return data as scripMasterResponse[];
