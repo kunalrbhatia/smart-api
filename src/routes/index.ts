@@ -3,6 +3,11 @@ import algoRoutes from './algo.routes';
 import apiRouter from './api.routes';
 const router = Router();
 
+/**
+ * @route   GET /
+ * @desc    Health check route
+ * @access  Public
+ */
 router.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok', lastUpdated: '2023-08-18, 00:33:00' });
 });

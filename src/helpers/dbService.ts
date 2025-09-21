@@ -14,6 +14,11 @@ const firebaseConfig = {
 };
 const firebase_app = initializeApp(firebaseConfig);
 const db = getDatabase(firebase_app);
+/**
+ * Records a new trade in the Firebase database.
+ * @param {DataRecord} json - The trade data to record.
+ * @returns {Promise<void>}
+ */
 export const recordNewTrade = async (json: DataRecord) => {
   const tradeKey = push(child(ref(db), `trades/`)).key;
   const updates: { [key: string]: DataRecord } = {};

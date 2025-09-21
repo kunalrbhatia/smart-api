@@ -4,6 +4,10 @@ import app from './app';
 import { config } from './config/env';
 import { ALGO } from './helpers/constants';
 
+/**
+ * The HTTP server.
+ * @type {Server}
+ */
 const server: Server = createServer(app);
 
 let connections: Socket[] = [];
@@ -19,7 +23,9 @@ server.on('connection', connection => {
   });
 });
 
-// Graceful shutdown handler
+/**
+ * Gracefully shuts down the server.
+ */
 const shutdown = () => {
   console.log('Received kill signal, shutting down gracefully');
   server.close(() => {

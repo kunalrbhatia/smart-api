@@ -5,6 +5,10 @@ import createHttpError from 'http-errors';
 import routes from './routes';
 import { errorHandler } from './middlewares/errorHandler';
 
+/**
+ * The express application.
+ * @type {Application}
+ */
 const app: Application = express();
 
 app.use(bodyParser.json());

@@ -1,8 +1,14 @@
+/**
+ * Interface for Smart API data.
+ */
 export interface ISmartApiData {
   jwtToken: string;
   refreshToken: string;
   feedToken: string;
 }
+/**
+ * Interface for trade details.
+ */
 export interface TradeDetails {
   netQty: string;
   optionType: 'CE' | 'PE';
@@ -15,10 +21,16 @@ export interface TradeDetails {
   tradingSymbol: string;
   exchange: string;
 }
+/**
+ * Interface for MTM (Mark to Market) value.
+ */
 export interface MtmValue {
   time: string;
   value: string;
 }
+/**
+ * Interface for historical data request.
+ */
 export interface HistoryInterface {
   exchange: string;
   symboltoken: string;
@@ -26,6 +38,9 @@ export interface HistoryInterface {
   fromdate: string;
   todate: string;
 }
+/**
+ * Enum for history interval.
+ */
 export enum HistoryInterval {
   ONE_MINUTE = 'ONE_MINUTE',
   THREE_MINUTE = 'THREE_MINUTE',
@@ -36,10 +51,16 @@ export enum HistoryInterval {
   ONE_HOUR = 'ONE_HOUR',
   ONE_DAY = 'ONE_DAY',
 }
+/**
+ * Enum for trading strategy.
+ */
 export enum Strategy {
   RSI = 'rsi',
   SHORTSTRADDLE = 'shortStraddle',
 }
+/**
+ * Interface for the structure of the JSON file.
+ */
 export interface JsonFileStructure {
   isTradeExecuted: boolean;
   tradeDate?: string;
@@ -50,6 +71,9 @@ export interface JsonFileStructure {
   isTradeClosed: boolean;
   mtm: MtmValue[];
 }
+/**
+ * Type for position details.
+ */
 export type Position = {
   symboltoken: string;
   symbolname: string;
@@ -95,12 +119,18 @@ export type Position = {
   ltp: string;
   close: string;
 };
+/**
+ * Type for user credentials.
+ */
 export type Credentails = {
   APIKEY: string;
   CLIENT_CODE: string;
   CLIENT_PIN: string;
   CLIENT_TOTP_PIN: string;
 };
+/**
+ * Type for order store data.
+ */
 export type OrderStoreDataType = {
   QUANTITY: number;
   EXPIRYDATE: string;
@@ -108,15 +138,27 @@ export type OrderStoreDataType = {
   LOSSPERLOT: number;
   INDIAVIX: number;
 };
+/**
+ * Type for scrip master store data.
+ */
 export type ScripMasterStoreDataType = {
   SCRIP_MASTER_JSON: object[];
 };
+/**
+ * Type for checking if a position exists.
+ */
 export type CheckPosition = { position: Position; trades: TradeDetails[] };
+/**
+ * Type for getting LTP data.
+ */
 export type getLtpDataType = {
   exchange: string;
   tradingsymbol: string;
   symboltoken: string;
 };
+/**
+ * Type for LTP data.
+ */
 export type LtpDataType = {
   exchange: string;
   tradingsymbol: string;
@@ -127,15 +169,24 @@ export type LtpDataType = {
   close: number;
   ltp: number;
 };
+/**
+ * Type for getting future scrip data.
+ */
 export type getScripFutType = {
   scriptName: string;
 };
+/**
+ * Type for getting scrip data.
+ */
 export type getScripType = {
   scriptName: string;
   strikePrice?: string;
   optionType?: 'CE' | 'PE';
   expiryDate: string;
 };
+/**
+ * Type for scrip master response.
+ */
 export type scripMasterResponse = {
   token: string;
   symbol: string;
@@ -147,7 +198,9 @@ export type scripMasterResponse = {
   exch_seg: string;
   tick_size: string;
 };
-
+/**
+ * Type for placing an order.
+ */
 export type doOrderType = {
   tradingsymbol: string;
   symboltoken: string;
@@ -160,6 +213,9 @@ export type doOrderType = {
   price?: number;
   isHedge?: boolean;
 };
+/**
+ * Type for order response.
+ */
 export type doOrderResponse = {
   status: boolean;
   message: string;
@@ -169,26 +225,47 @@ export type doOrderResponse = {
     orderid: string;
   };
 };
+/**
+ * Type for getting position by token.
+ */
 export type getPositionByTokenType = {
   positions: Position[];
   token: string;
 };
+/**
+ * Type for deciding whether to close a trade.
+ */
 export type shouldCloseTradeType = {
   ltp: number;
   avg: number;
   trade: Position;
 };
+/**
+ * Type for delay.
+ */
 export type delayType = {
   milliSeconds: number | undefined | string;
 };
+/**
+ * Type for time comparison.
+ */
 export type TimeComparisonType = { hours: number; minutes: number };
+/**
+ * Type for request body.
+ */
 export type bodyType = {
   api_key: string;
   client_code: string;
   client_pin: string;
   client_totp_pin: string;
 };
+/**
+ * Type for request.
+ */
 export type reqType = { body: bodyType };
+/**
+ * Type for short straddle data.
+ */
 export type ShortStraddleData = {
   stikePrice: string;
   expiryDate: string;
@@ -200,11 +277,20 @@ export type ShortStraddleData = {
   ceOrderStatus: boolean;
   peOrderStatus: boolean;
 };
+/**
+ * Type for adding short straddle data.
+ */
 export type AddShortStraddleData = {
   data: JsonFileStructure;
   shortStraddleData: ShortStraddleData;
 };
+/**
+ * Type for checking if both CE and PE are present.
+ */
 export type BothPresent = { ce: boolean; pe: boolean; stike: string };
+/**
+ * Type for order data.
+ */
 export type OrderData = {
   stikePrice: string;
   expiryDate: string;
@@ -213,19 +299,31 @@ export type OrderData = {
   status: boolean;
   exchange: string;
 };
+/**
+ * Enum for option type.
+ */
 export enum OptionType {
   CE = 'CE',
   PE = 'PE',
 }
+/**
+ * Type for checking which position to close.
+ */
 export type checkPositionToCloseType = {
   openPositions: Position[];
 };
+/**
+ * Enum for checking option type.
+ */
 export enum CheckOptionType {
   BOTH_CE_PE_PRESENT = 'both_present',
   ONLY_CE_PRESENT = 'ce_present',
   ONLY_PE_PRESENT = 'pe_present',
   BOTH_CE_PE_NOT_PRESENT = 'ce_pe_not_present',
 }
+/**
+ * Type for running ORB strategy.
+ */
 export type runOrbType = {
   scriptName: string;
   price: number;
@@ -233,7 +331,13 @@ export type runOrbType = {
   tradeDirection: 'up' | 'down';
   trailSl: number;
 };
+/**
+ * Type for updating max stop loss.
+ */
 export type updateMaxSlType = { mtm: number; maxSl: number; trailSl: number };
+/**
+ * Enum for indices.
+ */
 export enum INDICES {
   NIFTY = 'NIFTY',
   MIDCPNIFTY = 'MIDCPNIFTY',
@@ -241,19 +345,30 @@ export enum INDICES {
   BANKNIFTY = 'BANKNIFTY',
   SENSEX = 'SENSEX',
 }
+/**
+ * Type for checking both legs of a trade.
+ */
 export type checkBothLegsType = {
   cepe_present: CheckOptionType;
   atmStrike: number;
 };
-
+/**
+ * Type for getting the nearest strike.
+ */
 export type GetNearestStrike = {
   algoTrades: Position[];
   atmStrike: number;
 };
+/**
+ * Type for getting current time and past time.
+ */
 export type GetCurrentTimeAndPastTimeType = {
   currentTime: string;
-  pastTime: string;
+  pastTime:string;
 };
+/**
+ * Interface for data record.
+ */
 export interface DataRecord {
   mtm: number;
   tradeDate: string;
@@ -261,6 +376,9 @@ export interface DataRecord {
   brokerageWithTax: number;
   indices: string;
 }
+/**
+ * Type for order book response.
+ */
 export type OrderBookResponseType = {
   variety: string;
   ordertype: string;
