@@ -66,6 +66,37 @@ import { recordNewTrade } from './dbService';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
 import moment from 'moment-timezone';
+
+export const getLtpWithRetry = async ({
+  exchange,
+  symboltoken,
+  tradingsymbol,
+  maxRetries = 5,
+  delayMs = 1000,
+}: {
+  exchange: string;
+  symboltoken: string;
+  tradingsymbol: string;
+  maxRetries?: number;
+  delayMs?: number;
+}): Promise<LtpDataType> => {
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    const ltpData: LtpDataType = await getLtpData({ exchange, symboltoken, tradingsymbol });
+
+    if (ltpData && ltpData.ltp && ltpData.ltp > 0) {
+      return ltpData;
+    }
+
+    attempt++;
+    console.warn(`Retrying getLtpData for ${tradingsymbol}, attempt ${attempt}/${maxRetries}`);
+    await delay({ milliSeconds: delayMs });
+  }
+
+  throw new Error(`No valid LTP data received for ${tradingsymbol} after ${maxRetries} retries`);
+};
+
 /**
  * Fetches the Last Traded Price (LTP) for a given scrip.
  * @param {getLtpDataType} params - The parameters for fetching LTP data.
