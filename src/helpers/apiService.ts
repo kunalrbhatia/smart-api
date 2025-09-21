@@ -66,6 +66,11 @@ import { recordNewTrade } from './dbService';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
 import moment from 'moment-timezone';
+/**
+ * Fetches the Last Traded Price (LTP) for a given scrip.
+ * @param {getLtpDataType} params - The parameters for fetching LTP data.
+ * @returns {Promise<LtpDataType>} A promise that resolves with the LTP data.
+ */
 export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLtpDataType): Promise<LtpDataType> => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
@@ -96,6 +101,11 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
     throw error;
   }
 };
+/**
+ * Searches for a scrip by its name.
+ * @param {string} scripName - The name of the scrip to search for.
+ * @returns {Promise<any>} A promise that resolves with the search results.
+ */
 export const searchScrip = async (scripName: string) => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
@@ -120,6 +130,11 @@ export const searchScrip = async (scripName: string) => {
     return _get(response, 'data.data', '');
   });
 };
+/**
+ * Fetches the scrip master data.
+ * It first checks if the data is available in the store, if not, it fetches from the API.
+ * @returns {Promise<scripMasterResponse[]>} A promise that resolves with the scrip master data.
+ */
 export const fetchData = async (): Promise<scripMasterResponse[]> => {
   const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
   if (data.length > 0) {
@@ -142,6 +157,11 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
       });
   }
 };
+/**
+ * Retrieves a scrip from the scrip master data based on the provided criteria.
+ * @param {getScripType} params - The criteria to filter the scrip.
+ * @returns {Promise<scripMasterResponse[]>} A promise that resolves with the filtered scrips.
+ */
 export const getScrip = async ({
   scriptName,
   strikePrice,
@@ -190,6 +210,11 @@ export const getScrip = async ({
     throw errorMessage;
   }
 };
+/**
+ * Retrieves an index scrip from the scrip master data.
+ * @param {{ scriptName: string }} params - The name of the index scrip.
+ * @returns {Promise<scripMasterResponse[]>} A promise that resolves with the index scrip.
+ */
 export const getIndexScrip = async ({ scriptName }: { scriptName: string }): Promise<scripMasterResponse[]> => {
   const scripMaster: scripMasterResponse[] = await fetchData();
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
@@ -204,6 +229,11 @@ export const getIndexScrip = async ({ scriptName }: { scriptName: string }): Pro
     throw errorMessage;
   }
 };
+/**
+ * Places an order.
+ * @param {doOrderType} params - The order parameters.
+ * @returns {Promise<doOrderResponse>} A promise that resolves with the order response.
+ */
 const doOrder = async ({
   tradingsymbol,
   transactionType,
@@ -268,6 +298,14 @@ const doOrder = async ({
       throw error;
     });
 };
+/**
+ * Places an order by strike price.
+ * @param {number} strike - The strike price.
+ * @param {OptionType} optionType - The option type (CE or PE).
+ * @param {'BUY' | 'SELL'} transactionType - The transaction type.
+ * @param {boolean} [isHedge=false] - Whether the order is a hedge order.
+ * @returns {Promise<OrderData | boolean>} A promise that resolves with the order data or a boolean indicating failure.
+ */
 const doOrderByStrike = async (
   strike: number,
   optionType: OptionType,
@@ -327,6 +365,11 @@ const doOrderByStrike = async (
     throw error;
   }
 };
+/**
+ * Creates a short straddle position.
+ * @param {boolean} [isBuyHedge=false] - Whether to buy a hedge.
+ * @returns {Promise<void>}
+ */
 const shortStraddle = async (isBuyHedge = false) => {
   try {
     //GET ATM STIKE PRICE
@@ -367,12 +410,22 @@ const shortStraddle = async (isBuyHedge = false) => {
     throw error;
   }
 };
+/**
+ * Checks if both CE and PE options are present for a strike.
+ * @param {BothPresent} data - An object indicating the presence of CE and PE options.
+ * @returns {CheckOptionType} The result of the check.
+ */
 const checkBoth_CE_PE_Present = (data: BothPresent) => {
   if (data.ce && data.pe) return CheckOptionType.BOTH_CE_PE_PRESENT;
   else if (!data.ce && !data.pe) return CheckOptionType.BOTH_CE_PE_NOT_PRESENT;
   else if (!data.ce && data.pe) return CheckOptionType.ONLY_PE_PRESENT;
   else return CheckOptionType.ONLY_CE_PRESENT;
 };
+/**
+ * Checks and manages both legs of a straddle.
+ * @param {checkBothLegsType} params - The parameters for checking the legs.
+ * @returns {Promise<void>}
+ */
 const checkBothLegs = async ({ cepe_present, atmStrike }: checkBothLegsType) => {
   try {
     if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
@@ -426,6 +479,12 @@ const checkBothLegs = async ({ cepe_present, atmStrike }: checkBothLegsType) => 
     throw error;
   }
 };
+/**
+ * Repeats the short straddle strategy if conditions are met.
+ * @param {number} difference - The difference between the current ATM strike and the traded strike.
+ * @param {number} atmStrike - The current ATM strike price.
+ * @returns {Promise<void>}
+ */
 const repeatShortStraddle = async (difference: number, atmStrike: number) => {
   try {
     const idx = OrderStore.getInstance().getPostData().INDEX;
@@ -519,6 +578,11 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
 //     throw error;
 //   }
 // };
+/**
+ * Fetches the open positions.
+ * @param {boolean} [isAbrupt=false] - Whether to fetch all open positions or only sell positions.
+ * @returns {Promise<Position[]>} A promise that resolves with the open positions.
+ */
 const getPositionsJson = async (isAbrupt = false) => {
   try {
     const smartSession = await getSmartSession();
@@ -535,6 +599,11 @@ const getPositionsJson = async (isAbrupt = false) => {
     throw error;
   }
 };
+/**
+ * Closes a particular trade.
+ * @param {{ trade: Position }} params - The trade to close.
+ * @returns {Promise<void>}
+ */
 const closeParticularTrade = async ({ trade }: { trade: Position }) => {
   try {
     await delay({ milliSeconds: DELAY });
@@ -559,6 +628,11 @@ const closeParticularTrade = async ({ trade }: { trade: Position }) => {
     throw error;
   }
 };
+/**
+ * Closes all open trades.
+ * @param {boolean} [isAbrupt=false] - Whether to close all trades abruptly or only sell trades with LTP > 5.
+ * @returns {Promise<void>}
+ */
 const closeAllTrades = async (isAbrupt = false) => {
   try {
     await delay({ milliSeconds: DELAY });
@@ -593,6 +667,11 @@ const closeAllTrades = async (isAbrupt = false) => {
     throw error;
   }
 };
+/**
+ * Ensures all trades are closed and records the trade.
+ * @param {boolean} [isAbrupt=false] - Whether to close trades abruptly.
+ * @returns {Promise<void>}
+ */
 const closeTrade = async (isAbrupt = false) => {
   console.log(`${ME}: check if all the trades are closed.`);
   while ((await getPositionsJson(isAbrupt)).length > 0) {
@@ -609,6 +688,12 @@ const closeTrade = async (isAbrupt = false) => {
     tradeDate: moment().format('DDMMMYYYY').toUpperCase(),
   });
 };
+/**
+ * Checks if the short straddle strategy should be repeated.
+ * @param {number} atmStrike - The current ATM strike price.
+ * @param {number} previousTradeStrikePrice - The previously traded strike price.
+ * @returns {Promise<void>}
+ */
 const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrikePrice: number) => {
   console.log(`${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`);
   if (isFinite(atmStrike)) {
@@ -629,6 +714,11 @@ const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrike
     throw new Error(`Oops, atmStrike is infinity! Stopping operations.`);
   }
 };
+/**
+ * Executes the core trading logic.
+ * @param {{ data: Position[] }} params - The open positions.
+ * @returns {Promise<void>}
+ */
 const coreTradeExecution = async ({ data }: { data: Position[] }) => {
   const isTradeAlreadyTaken = Array.isArray(data) && data.length > 0;
   if (isTradeAlreadyTaken === false) {
@@ -650,6 +740,10 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
     await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
 };
+/**
+ * Calculates the Mark-to-Market (MTM) for the traded positions.
+ * @returns {Promise<number>} A promise that resolves with the MTM value.
+ */
 const getMtm = async () => {
   const smartSession = await getSmartSession();
   const cred = getCredentials();
@@ -671,6 +765,10 @@ const getMtm = async () => {
   }
   return mtm;
 };
+/**
+ * Executes the main trading logic for the day.
+ * @returns {Promise<number | string>} A promise that resolves with the MTM value or a message.
+ */
 const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
@@ -698,6 +796,11 @@ const executeTrade = async () => {
   if (isPastClosingTime && getOpenSellPositions(data).length > 0) await closeTrade(false);
   return resp;
 };
+/**
+ * Checks if trading is allowed based on market conditions.
+ * @param {number} indiaVix - The current India VIX value.
+ * @returns {Promise<boolean>} A promise that resolves with a boolean indicating if trading is allowed.
+ */
 const isTradeAllowed = async (indiaVix: number) => {
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
@@ -733,7 +836,12 @@ const isTradeAllowed = async (indiaVix: number) => {
     isTodayLastWednesdayOfMonth === false
   );
 };
-
+/**
+ * Checks market conditions and executes the trade if allowed.
+ * @param {number} [lots=LOTS] - The number of lots to trade.
+ * @param {number} [lossPerLot=LOSSPERLOT] - The loss per lot.
+ * @returns {Promise<any>} A promise that resolves with the result of the trade execution.
+ */
 export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, lossPerLot: number = LOSSPERLOT) => {
   //let expiryDate = '30MAY2024'; //HARDCODED FOR TESTING
   //const orderBook = await getOrderBook();
@@ -769,6 +877,11 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
     return err;
   }
 };
+/**
+ * Checks if a position with the same strike and option type already exists.
+ * @param {CheckPosition} params - The position and trades to check against.
+ * @returns {Promise<boolean>} A promise that resolves with a boolean indicating if the position exists.
+ */
 export const checkPositionAlreadyExists = async ({ position, trades }: CheckPosition) => {
   for (const trade of trades) {
     if (parseInt(trade.strike) === parseInt(position.strikeprice) && trade.optionType === position.optiontype)

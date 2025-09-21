@@ -5,6 +5,11 @@ import { ALGO } from '../helpers/constants';
 
 const router = Router();
 
+/**
+ * @route   POST /api/algo/run-short-straddle
+ * @desc    Run the short straddle algorithm
+ * @access  Public
+ */
 router.post('/run-short-straddle', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {

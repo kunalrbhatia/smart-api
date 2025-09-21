@@ -20,6 +20,11 @@ interface IndexResponse {
 
 const router = Router();
 
+/**
+ * @route   POST /api/api/warmup
+ * @desc    Warm up the application by fetching scrip master data
+ * @access  Public
+ */
 router.post('/warmup', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
@@ -37,6 +42,11 @@ router.post('/warmup', async (req: Request, res: Response) => {
   console.log(`${ALGO}: -----------------------------------`);
 });
 
+/**
+ * @route   POST /api/api/getAllIndices
+ * @desc    Get LTP data for all major indices
+ * @access  Public
+ */
 router.post('/getAllIndices', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
