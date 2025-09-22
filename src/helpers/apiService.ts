@@ -62,7 +62,7 @@ import {
   TRANSACTION_TYPE_SELL,
 } from './constants';
 import DataStore from '../store/dataStore';
-import { recordNewTrade } from './dbService';
+
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
 import moment from 'moment-timezone';
@@ -711,13 +711,7 @@ const closeTrade = async (isAbrupt = false) => {
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
   const mtm = await getMtm();
-  await recordNewTrade({
-    indices: OrderStore.getInstance().getPostData().INDEX,
-    brokerageWithTax: 0,
-    mtm: mtm,
-    ordersExecuted: 0,
-    tradeDate: moment().format('DDMMMYYYY').toUpperCase(),
-  });
+  console.log(`${ALGO}: mtm is ${mtm}`);
 };
 /**
  * Checks if the short straddle strategy should be repeated.
