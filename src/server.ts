@@ -26,7 +26,7 @@ server.on('connection', connection => {
 /**
  * Gracefully shuts down the server.
  */
-const shutdown = () => {
+export const shutdown = () => {
   console.log('Received kill signal, shutting down gracefully');
   server.close(() => {
     console.log('Closed out remaining connections');
