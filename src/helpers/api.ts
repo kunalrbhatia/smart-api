@@ -1,4 +1,3 @@
-import { get as _get } from 'lodash';
 import { ALGO } from './constants';
 
 const handleResponse = async (response: Response) => {

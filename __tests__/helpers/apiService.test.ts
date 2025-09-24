@@ -1,6 +1,6 @@
 import { getLtpData, searchScrip, fetchData } from '../../src/helpers/apiService';
 import * as api from '../../src/helpers/api';
-import * as krb from 'krb-smart-api-module';
+import { getSmartSession } from 'krb-smart-api-module';
 import DataStore from '../../src/store/dataStore';
 import ScripMasterStore from '../../src/store/scripMasterStore';
 import { GET_LTP_DATA_API, SEARCHSCRIPAPI, SCRIPMASTER } from '../../src/helpers/constants';
@@ -10,7 +10,9 @@ jest.mock('krb-smart-api-module');
 jest.mock('../../src/store/dataStore');
 jest.mock('../../src/store/orderStore');
 jest.mock('../../src/store/scripMasterStore');
-
+jest.mock('krb-smart-api-module', () => ({
+  getSmartSession: jest.fn(),   // 👈 ensure it’s a mock
+}));
 describe('apiService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -18,7 +20,7 @@ describe('apiService', () => {
 
   describe('getLtpData', () => {
     it('should fetch LTP data successfully', async () => {
-      (krb.getSmartSession as jest.Mock).mockResolvedValue({ jwtToken: 'test_token' });
+      (getSmartSession as jest.Mock).mockResolvedValue({ jwtToken: 'test_token' });
       const getPostDataMock = jest.fn().mockReturnValue({ APIKEY: 'test_api_key' });
       (DataStore.getInstance as jest.Mock).mockReturnValue({
         getPostData: getPostDataMock,
@@ -45,7 +47,7 @@ describe('apiService', () => {
 
   describe('searchScrip', () => {
     it('should search for a scrip successfully', async () => {
-      (krb.getSmartSession as jest.Mock).mockResolvedValue({ jwtToken: 'test_token' });
+      (getSmartSession as jest.Mock).mockResolvedValue({ jwtToken: 'test_token' });
       const getPostDataMock = jest.fn().mockReturnValue({ APIKEY: 'test_api_key' });
       (DataStore.getInstance as jest.Mock).mockReturnValue({
         getPostData: getPostDataMock,
