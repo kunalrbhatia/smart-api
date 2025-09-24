@@ -1,6 +1,4 @@
 import { get as _get, isArray, isEmpty } from 'lodash';
-// eslint-disable-next-line
-const axios = require('axios');
 import {
   DELAY,
   delay,
@@ -25,7 +23,6 @@ import {
   hedgeCalculation,
   isMarketClosed,
 } from './functions';
-import { Response } from 'express';
 import {
   BothPresent,
   CheckOptionType,
@@ -62,10 +59,10 @@ import {
   TRANSACTION_TYPE_SELL,
 } from './constants';
 import DataStore from '../store/dataStore';
-
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
 import moment from 'moment-timezone';
+import { get, post } from './api';
 
 export const getLtpWithRetry = async ({
   exchange,
@@ -85,7 +82,7 @@ export const getLtpWithRetry = async ({
   while (attempt < maxRetries) {
     const ltpData: LtpDataType = await getLtpData({ exchange, symboltoken, tradingsymbol });
 
-    if (ltpData && ltpData.ltp && ltpData.ltp > 0) {
+    if (ltpData?.ltp > 0) {
       return ltpData;
     }
 
@@ -105,27 +102,22 @@ export const getLtpWithRetry = async ({
 export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLtpDataType): Promise<LtpDataType> => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
-  const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
+  const data = { exchange, tradingsymbol, symboltoken };
   const cred = DataStore.getInstance().getPostData();
-  const config = {
-    method: 'post',
-    url: GET_LTP_DATA_API,
-    headers: {
-      Authorization: `Bearer ${jwtToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': cred.APIKEY,
-    },
-    data: data,
+  const headers = {
+    Authorization: `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+    'X-MACAddress': 'MAC_ADDRESS',
+    'X-PrivateKey': cred.APIKEY,
   };
   try {
-    const response = await axios(config);
-    return _get(response, 'data.data', {}) || {};
+    const response = await post(GET_LTP_DATA_API, data, headers);
+    return _get(response, 'data', {}) || {};
   } catch (error) {
     console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`);
     console.log(error);
@@ -141,25 +133,20 @@ export const searchScrip = async (scripName: string) => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
   const cred = DataStore.getInstance().getPostData();
-  const config = {
-    method: 'post',
-    url: SEARCHSCRIPAPI,
-    headers: {
-      Authorization: `Bearer ${jwtToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': cred.APIKEY,
-    },
-    data: { exchange: 'NFO', searchscrip: scripName },
+  const headers = {
+    Authorization: `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+    'X-MACAddress': 'MAC_ADDRESS',
+    'X-PrivateKey': cred.APIKEY,
   };
-  return await axios(config).then((response: object) => {
-    return _get(response, 'data.data', '');
-  });
+  const data = { exchange: 'NFO', searchscrip: scripName };
+  const response = await post(SEARCHSCRIPAPI, data, headers);
+  return _get(response, 'data', '');
 };
 /**
  * Fetches the scrip master data.
@@ -171,21 +158,19 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
   if (data.length > 0) {
     return data as scripMasterResponse[];
   } else {
-    return await axios
-      .get(SCRIPMASTER)
-      .then((response: object) => {
-        const acData: scripMasterResponse[] = _get(response, 'data', []) || [];
-        console.log(`${ALGO}: response if script master api loaded and its length is ${acData.length}`);
-        ScripMasterStore.getInstance().setPostData({
-          SCRIP_MASTER_JSON: acData,
-        });
-        return acData;
-      })
-      .catch((evt: object) => {
-        console.log(`${ALGO}: fetchData failed error below`);
-        console.log(evt);
-        throw evt;
+    try {
+      const response = (await get(SCRIPMASTER, {})) as scripMasterResponse[];
+      const acData: scripMasterResponse[] = response;
+      console.log(`${ALGO}: response if script master api loaded and its length is ${acData.length}`);
+      ScripMasterStore.getInstance().setPostData({
+        SCRIP_MASTER_JSON: acData,
       });
+      return acData;
+    } catch (evt) {
+      console.log(`${ALGO}: fetchData failed error below`);
+      console.log(evt);
+      throw evt;
+    }
   }
 };
 /**
@@ -284,7 +269,7 @@ const doOrder = async ({
   const lotsCalc = isHedge ? hedgeQuantity : lots;
   console.log(`${ALGO} {doOrderByStrike}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
   const quantity = Math.abs(lotSize * lotsCalc);
-  const data = JSON.stringify({
+  const data = {
     exchange: 'NFO',
     tradingsymbol,
     symboltoken,
@@ -297,37 +282,29 @@ const doOrder = async ({
     duration: 'DAY',
     price,
     triggerprice,
-  });
+  };
   console.log(`${ALGO} doOrder data `, data);
   const cred = DataStore.getInstance().getPostData();
-  const config = {
-    method: 'post',
-    url: ORDER_API,
-    headers: {
-      Authorization: `Bearer ${jwtToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': cred.APIKEY,
-    },
-    data: data,
+  const headers = {
+    Authorization: `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+    'X-MACAddress': 'MAC_ADDRESS',
+    'X-PrivateKey': cred.APIKEY,
   };
-  return axios(config)
-    .then((response: Response) => {
-      const resData = _get(response, 'data');
-      //console.log(`${ALGO}: order response `, resData);
-      return resData;
-    })
-    .catch(function (error: Response) {
-      const errorMessage = `${ALGO}: doOrder failed error below`;
-      console.log(errorMessage);
-      console.log(error);
-      throw error;
-    });
+  try {
+    const response = await post(ORDER_API, data, headers);
+    return response;
+  } catch (error) {
+    const errorMessage = `${ALGO}: doOrder failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    throw error;
+  }
 };
 /**
  * Places an order by strike price.
@@ -547,68 +524,7 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     throw error;
   }
 };
-// const getPositionByToken = ({ positions, token }: getPositionByTokenType) => {
-//   for (const position of positions) {
-//     if (position.symboltoken === token) {
-//       return position;
-//     }
-//   }
-//   return null;
-// };
-// const findTradeByStrike = async (tradeStrike: number) => {
-//   const positions = await getPositionsJson();
-//   for (const position of positions) {
-//     const strike = parseInt(position.strikeprice);
-//     if (strike === tradeStrike) return position;
-//   }
-//   return null;
-// };
-// const shouldCloseTrade = async ({ ltp, avg, trade }: shouldCloseTradeType) => {
-//   const thresholdPrice = avg * 3;
-//   const hasPriceCrossedThreshold = parseInt(trade.netqty) < 0 && ltp >= thresholdPrice;
-//   const isLtpBelowOne = parseInt(trade.netqty) < 0 && ltp < 1;
-//   console.log(
-//     `${ALGO}: checking shouldCloseTrade, trade strike: ${trade.strikeprice}, trade option type: ${trade.optiontype}, ltp: ${ltp}, thresholdPrice: ${thresholdPrice}`
-//   );
-//   if (hasPriceCrossedThreshold || isLtpBelowOne) {
-//     console.log(`${ALGO}: Yes, close this particular trade with strike price ${trade.strikeprice}`);
-//     try {
-//       await closeParticularTrade({ trade });
-//     } catch (error) {
-//       console.log(`${ALGO}: closeParticularTrade could not be called`);
-//       throw error;
-//     }
-//   }
-// };
-// const checkPositionToClose = async ({ openPositions }: checkPositionToCloseType) => {
-//   console.log(`${ALGO}: checkPositionToClose`);
-//   try {
-//     for (const position of openPositions) {
-//       if (
-//         position &&
-//         position.exchange === 'NFO' &&
-//         position.tradingsymbol &&
-//         position.sellavgprice &&
-//         parseInt(position.netqty) < 0
-//       ) {
-//         const currentLtpPrice = getPositionByToken({
-//           positions: openPositions,
-//           token: position.symboltoken,
-//         })?.ltp;
-//         await shouldCloseTrade({
-//           ltp: typeof currentLtpPrice === 'string' ? parseFloat(currentLtpPrice) : 0,
-//           avg: parseFloat(position.sellavgprice),
-//           trade: position,
-//         });
-//       }
-//     }
-//   } catch (error) {
-//     const errorMessage = `${ALGO}: checkPositionToClose failed error below`;
-//     console.log(errorMessage);
-//     console.log(error);
-//     throw error;
-//   }
-// };
+
 /**
  * Fetches the open positions.
  * @param {boolean} [isAbrupt=false] - Whether to fetch all open positions or only sell positions.
@@ -798,26 +714,18 @@ const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
-  //const isPastClosingTime = false; //HARDCODED FOR TESTING
-  // const marginDetails = await getMarginDetails();
-  // console.log(`${ALGO}: marginDetails: `, marginDetails);
-  // const quantity = OrderStore.getInstance().getPostData().QUANTITY;
-  // const lossPerLot = OrderStore.getInstance().getPostData().LOSSPERLOT;
   const calculatedFixStopLoss = 12000;
   console.log(`${ALGO}: calculatedFixStopLoss: ${calculatedFixStopLoss}`);
   const mtmData = await getMtm();
   console.log(`${ALGO}: MTM: ${mtmData} -----`);
-  // let isStoplossExceeded = Math.abs(mtmData) > calculatedFixStopLoss;
   const isStoplossExceeded = false;
   console.log(`${ALGO}: isStoplossExceeded: ${isStoplossExceeded}`);
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   const data = await getPositionsJson();
-  //await checkPositionToClose({ openPositions: data });
   if (isPastClosingTime === false && isStoplossExceeded === false) {
     await coreTradeExecution({ data });
     resp = mtmData;
   }
-  // if (isStoplossExceeded && getAllOpenPositions(data).length > 0) await closeTrade(true);
   if (isPastClosingTime && getOpenSellPositions(data).length > 0) await closeTrade(false);
   return resp;
 };
@@ -846,7 +754,7 @@ const isTradeAllowed = async (indiaVix: number) => {
     await delay({ milliSeconds: DELAY });
     isSmartAPIWorking = !isEmpty(smartData);
   } catch (err) {
-    console.log('Error occurred for generateSmartSession');
+    console.log('Error occurred for generateSmartSession:', err);
   }
   console.log(
     `${ALGO}: checking conditions, isWeekend: ${isWeekend}, is indiaVix > 15: ${indiaVix}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`
@@ -868,9 +776,6 @@ const isTradeAllowed = async (indiaVix: number) => {
  * @returns {Promise<any>} A promise that resolves with the result of the trade execution.
  */
 export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, lossPerLot: number = LOSSPERLOT) => {
-  //let expiryDate = '30MAY2024'; //HARDCODED FOR TESTING
-  //const orderBook = await getOrderBook();
-  //console.log(orderBook);
   const expiryDate = getTodayExpiry();
   const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
   await delay({ milliSeconds: DELAY });
@@ -893,8 +798,6 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
   });
   console.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
   try {
-    // await isTradeAllowed(); //HARDCODED FOR TESTING
-    // return await executeTrade(); //HARDCODED FOR TESTING
     const isAllowed = await isTradeAllowed(indiaVixLtp.ltp);
     if (isAllowed === false) return MESSAGE_NOT_TAKE_TRADE;
     else return await executeTrade();
