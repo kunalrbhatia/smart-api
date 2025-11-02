@@ -127,9 +127,10 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
 /**
  * Searches for a scrip by its name.
  * @param {string} scripName - The name of the scrip to search for.
+ * @param {string} exchange - The exchange to search in (NFO, NSE, BSE, etc.). Defaults to 'NFO'.
  * @returns {Promise<any>} A promise that resolves with the search results.
  */
-export const searchScrip = async (scripName: string) => {
+export const searchScrip = async (scripName: string, exchange: string = 'NFO') => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
   const cred = DataStore.getInstance().getPostData();
@@ -144,7 +145,7 @@ export const searchScrip = async (scripName: string) => {
     'X-MACAddress': 'MAC_ADDRESS',
     'X-PrivateKey': cred.APIKEY,
   };
-  const data = { exchange: 'NFO', searchscrip: scripName };
+  const data = { exchange, searchscrip: scripName };
   const response = await post(SEARCHSCRIPAPI, data, headers);
   return _get(response, 'data', '');
 };
@@ -250,7 +251,7 @@ export const getIndexScrip = async ({ scriptName }: { scriptName: string }): Pro
  * @param {doOrderType} params - The order parameters.
  * @returns {Promise<doOrderResponse>} A promise that resolves with the order response.
  */
-const doOrder = async ({
+export const doOrder = async ({
   tradingsymbol,
   transactionType,
   symboltoken,
@@ -261,16 +262,30 @@ const doOrder = async ({
   price,
   triggerprice,
   isHedge,
-}: doOrderType): Promise<doOrderResponse> => {
+  exchange = 'NFO',
+  quantity: providedQuantity,
+  lots,
+}: Omit<doOrderType, 'lotSize'> & { exchange?: string; quantity?: number; lots?: number; lotSize?: number }): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
-  const lots = OrderStore.getInstance().getPostData().QUANTITY;
-  const hedgeQuantity = lots * 5;
-  const lotsCalc = isHedge ? hedgeQuantity : lots;
-  console.log(`${ALGO} {doOrderByStrike}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
-  const quantity = Math.abs(lotSize * lotsCalc);
+  
+  // Calculate quantity - use provided quantity if given, otherwise calculate from lots/lotSize
+  let quantity: number;
+  if (providedQuantity !== undefined) {
+    quantity = Math.abs(providedQuantity);
+  } else {
+    if (!lotSize || lotSize <= 0) {
+      throw new Error('Either quantity or lotSize must be provided');
+    }
+    const storedLots = lots || OrderStore.getInstance().getPostData().QUANTITY || 1;
+    const hedgeQuantity = storedLots * 5;
+    const lotsCalc = isHedge ? hedgeQuantity : storedLots;
+    console.log(`${ALGO} {doOrder}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
+    quantity = Math.abs(lotSize * lotsCalc);
+  }
+  
   const data = {
-    exchange: 'NFO',
+    exchange,
     tradingsymbol,
     symboltoken,
     quantity: quantity,
