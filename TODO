@@ -1,7 +1,7 @@
 --- Have Todo
 
 1. Optimize to not do things which are not needed ii. Identify otm and don't sq-off those trades
-2. Find a way to backtest Record trade data to firebase database for future ref
+2. Find a way to backtest Record trade data for future ref
 
 --- Have Done
 
