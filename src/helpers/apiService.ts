@@ -776,7 +776,6 @@ const isTradeAllowed = async (indiaVix: number) => {
   );
   return (
     isWeekend === false &&
-    indiaVix > 15 &&
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
     isSmartAPIWorking &&
