@@ -1,21 +1,23 @@
-# Use an official Node.js runtime as the base image
 FROM node:20
 
-# Set the working directory inside the container
-WORKDIR ./
+# Use a specific directory name instead of ./
+WORKDIR /app
 
-# Copy package.json and package-lock.json to the container's working directory
+# Copy package files first to leverage Docker cache
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Clean npm cache and install
+RUN npm cache clean --force && npm install
 
-# Copy the rest of the application's source code to the container's working directory
+# Copy everything else
 COPY . .
 
-# Build your React app (replace 'build' with your actual build command)
+# Build the TypeScript code
 RUN npm run build
-# Expose the port your app runs on
+
+# Ensure Cloud Run port alignment
+ENV PORT=8000
 EXPOSE 8000
-# Start the application
-CMD ["npm", "start"]
+
+# Run the COMPILED code (avoids ts-node timeout)
+CMD ["node", "dist/server.js"]

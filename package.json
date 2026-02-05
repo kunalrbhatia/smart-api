@@ -42,9 +42,9 @@
     "typescript-eslint": "^7.6.0"
   },
   "scripts": {
-    "dev": "nodemon ./src/server.ts",
-    "start": "ts-node ./src/server.ts",
     "build": "babel src --extensions .ts -d dist",
+    "start": "node dist/server.js",
+    "dev": "ts-node ./src/server.ts",
     "watch": "npm run build -- --watch",
     "test": "jest",
     "test:coverage": "jest --coverage",
