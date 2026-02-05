@@ -17,5 +17,26 @@ spec:
           image: 'us-central1-docker.pkg.dev/smart-api-840b7/smart-api-docker-repo/smart-api-image:tag1'
           ports:
             - containerPort: 8080  # Adjust the port according to your app
+          env:
+            - name: PORT
+              value: '8080'
+            - name: NODE_ENV
+              value: 'production'
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
 
 
