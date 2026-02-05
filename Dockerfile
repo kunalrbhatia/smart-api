@@ -15,6 +15,7 @@ COPY . .
 
 # Build your React app (replace 'build' with your actual build command)
 RUN npm run build
-
-# Specify the command to run your app when the container starts
+# Expose the port your app runs on
+EXPOSE 8000
+# Start the application
 CMD ["npm", "start"]
