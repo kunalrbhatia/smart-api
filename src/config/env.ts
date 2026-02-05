@@ -10,7 +10,7 @@ export const config = {
    * The port the application will listen on.
    * @type {string | number}
    */
-  port: process.env.PORT || 3000,
+  port: process.env.PORT || 8080,
   /**
    * The application's environment.
    * @type {string}
