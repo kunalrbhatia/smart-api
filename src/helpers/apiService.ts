@@ -17,7 +17,6 @@ import {
   checkStrike,
   getAllOpenPositions,
   getAtmStrikePrice,
-  getLastWednesdayOfMonth,
   getOpenSellPositions,
   getStrikeDifference,
   hedgeCalculation,
@@ -46,7 +45,6 @@ import {
 } from '../app.interface';
 import {
   ALGO,
-  DATEFORMAT,
   GET_LTP_DATA_API,
   LOSSPERLOT,
   LOTS,
