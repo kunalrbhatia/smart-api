@@ -189,7 +189,7 @@ export const getScrip = async ({
   console.log(
     `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(scripMaster)}, its length is: ${
       scripMaster.length
-    }`
+    }`,
   );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
     console.log(`${ALGO}: all check cleared getScrip call`);
@@ -265,10 +265,15 @@ export const doOrder = async ({
   exchange = 'NFO',
   quantity: providedQuantity,
   lots,
-}: Omit<doOrderType, 'lotSize'> & { exchange?: string; quantity?: number; lots?: number; lotSize?: number }): Promise<doOrderResponse> => {
+}: Omit<doOrderType, 'lotSize'> & {
+  exchange?: string;
+  quantity?: number;
+  lots?: number;
+  lotSize?: number;
+}): Promise<doOrderResponse> => {
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
-  
+
   // Calculate quantity - use provided quantity if given, otherwise calculate from lots/lotSize
   let quantity: number;
   if (providedQuantity !== undefined) {
@@ -283,7 +288,7 @@ export const doOrder = async ({
     console.log(`${ALGO} {doOrder}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
     quantity = Math.abs(lotSize * lotsCalc);
   }
-  
+
   const data = {
     exchange,
     tradingsymbol,
@@ -333,7 +338,7 @@ const doOrderByStrike = async (
   strike: number,
   optionType: OptionType,
   transactionType: 'BUY' | 'SELL',
-  isHedge = false
+  isHedge = false,
 ): Promise<OrderData | boolean> => {
   try {
     const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
@@ -519,7 +524,7 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
     console.log(
       `${ALGO}: checking conditions\n\t1. if the difference is more or equal to strikeDiff (${strikeDiff}): ${
         Math.abs(difference) >= strikeDiff
-      }\n\t2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`
+      }\n\t2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`,
     );
     const result = areBothOptionTypesPresentForStrike(positions, atmStrike.toString());
     console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
@@ -658,7 +663,7 @@ const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrike
     await repeatShortStraddle(difference, atmStrike);
     if (atmStrike > previousTradeStrikePrice) {
       console.log(
-        `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`
+        `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`,
       );
     } else if (atmStrike < previousTradeStrikePrice) {
       console.log(`${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`);
@@ -691,7 +696,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
       expirationDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
     });
     console.log(
-      `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`
+      `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`,
     );
     await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
@@ -747,17 +752,13 @@ const executeTrade = async () => {
 /**
  * Checks if trading is allowed based on market conditions.
  * @param {number} indiaVix - The current India VIX value.
- * @returns {Promise<boolean>} A promise that resolves with a boolean indicating if trading is allowed.
+ * @returns {Promise<{isAllowed: boolean, reasons: string[]}>} A promise that resolves with a boolean and detailed reasons if not allowed.
  */
 const isTradeAllowed = async (indiaVix: number) => {
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isHoliday = isTradingHoliday();
-  const expiryDate = getTodayExpiry();
-  const lastWednesday = getLastWednesdayOfMonth();
-  const isTodayLastWednesdayOfMonth =
-    lastWednesday !== null && expiryDate === lastWednesday.format(DATEFORMAT).toUpperCase();
-
+  const isTuesday = moment().day() === 2; // Tuesday
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,
@@ -772,16 +773,25 @@ const isTradeAllowed = async (indiaVix: number) => {
     console.log('Error occurred for generateSmartSession:', err);
   }
   console.log(
-    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, is indiaVix > 15: ${indiaVix}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}`
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, is indiaVix > 15: ${indiaVix}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isTuesday: ${isTuesday}`,
   );
-  return (
+
+  const reasons: string[] = [];
+  if (!isTuesday) reasons.push('It is not Tuesday');
+  if (isWeekend) reasons.push('It is a weekend');
+  if (!isMarketOpen) reasons.push('Market is closed');
+  if (!hasTimePassedToTakeTrade) reasons.push('Time has not passed 09:15 AM');
+  if (!isSmartAPIWorking) reasons.push('Smart API is not working');
+  if (isHoliday) reasons.push('Today is a trading holiday');
+
+  const isAllowed =
+    isTuesday === true &&
     isWeekend === false &&
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
     isSmartAPIWorking &&
-    isHoliday === false &&
-    isTodayLastWednesdayOfMonth === false
-  );
+    isHoliday === false;
+  return { isAllowed, reasons };
 };
 /**
  * Checks market conditions and executes the trade if allowed.
@@ -812,9 +822,12 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
   });
   console.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
   try {
-    const isAllowed = await isTradeAllowed(indiaVixLtp.ltp);
-    if (isAllowed === false) return MESSAGE_NOT_TAKE_TRADE;
-    else return await executeTrade();
+    const { isAllowed, reasons } = await isTradeAllowed(indiaVixLtp.ltp);
+    if (isAllowed === false) {
+      const detailedMessage = `${MESSAGE_NOT_TAKE_TRADE}. Reason(s): ${reasons.join(', ')}`;
+      console.log(`${ALGO}: ${detailedMessage}`);
+      return detailedMessage;
+    } else return await executeTrade();
   } catch (err) {
     return err;
   }
