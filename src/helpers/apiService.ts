@@ -46,15 +46,18 @@ import {
 import {
   ALGO,
   GET_LTP_DATA_API,
+  GET_ORDER_BOOK_API,
   LOSSPERLOT,
   LOTS,
   ME,
   MESSAGE_NOT_TAKE_TRADE,
   ORDER_API,
+  PENDING_ORDER_STATUS,
   SCRIPMASTER,
   SEARCHSCRIPAPI,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
+  VARIETY_STOPLOSS,
 } from './constants';
 import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
@@ -727,16 +730,13 @@ const executeTrade = async () => {
   let resp: number | string = `${ALGO}: Trade Closed`;
   const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
-  const calculatedFixStopLoss = 12000;
-  console.log(`${ALGO}: calculatedFixStopLoss: ${calculatedFixStopLoss}`);
   const mtmData = await getMtm();
   console.log(`${ALGO}: MTM: ${mtmData} -----`);
-  const isStoplossExceeded = false;
-  console.log(`${ALGO}: isStoplossExceeded: ${isStoplossExceeded}`);
   console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   const data = await getPositionsJson();
-  if (isPastClosingTime === false && isStoplossExceeded === false) {
+  if (isPastClosingTime === false) {
     await coreTradeExecution({ data });
+    await placeStopLossOnAllTrades();
     resp = mtmData;
   }
   if (isPastClosingTime && getOpenSellPositions(data).length > 0) await closeTrade(false);
@@ -839,4 +839,153 @@ export const checkPositionAlreadyExists = async ({ position, trades }: CheckPosi
       return true;
   }
   return false;
+};
+
+/**
+ * Fetches the pending orders from the order book.
+ * @returns {Promise<Record<string, unknown>[]>} A promise that resolves with the list of pending orders.
+ */
+const getPendingOrders = async (): Promise<Record<string, unknown>[]> => {
+  try {
+    const smartApiData: ISmartApiData = await getSmartSession();
+    const jwtToken = _get(smartApiData, 'jwtToken');
+    const cred = DataStore.getInstance().getPostData();
+    const headers = {
+      Authorization: `Bearer ${jwtToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': cred.APIKEY,
+    };
+    const response = await get(GET_ORDER_BOOK_API, headers);
+    const orders = _get(response, 'data', []);
+    // Filter for pending stop loss orders
+    const pendingOrders = Array.isArray(orders)
+      ? orders.filter(
+          (order: Record<string, unknown>) =>
+            order.status === PENDING_ORDER_STATUS && order.variety === VARIETY_STOPLOSS,
+        )
+      : [];
+    return pendingOrders;
+  } catch (error) {
+    const errorMessage = `${ALGO}: getPendingOrders failed error below`;
+    console.log(errorMessage);
+    console.log(error);
+    return [];
+  }
+};
+
+/**
+ * Checks if a stop loss order already exists for a given position.
+ * @param {Position} position - The position to check.
+ * @param {Record<string, unknown>[]} pendingOrders - The list of pending orders.
+ * @returns {boolean} True if a stop loss order exists for the position, false otherwise.
+ */
+const hasStopLossOrderForPosition = (position: Position, pendingOrders: Record<string, unknown>[]): boolean => {
+  const tradingSymbol = position.tradingsymbol;
+  const optionType = position.optiontype;
+  const strikePrice = position.strikeprice;
+
+  return pendingOrders.some(
+    (order: Record<string, unknown>) =>
+      order.tradingsymbol === tradingSymbol && order.optiontype === optionType && order.strikeprice === strikePrice,
+  );
+};
+
+/**
+ * Places a stop loss order for a single position.
+ * @param {Position} position - The position to place a stop loss order for.
+ * @param {number} stoplossPercentage - The stop loss percentage (default: 125 for 125%).
+ * @returns {Promise<void>}
+ */
+const placeStopLossOrder = async (
+  position: Position,
+  stoplossPercentage: number = 125,
+): Promise<doOrderResponse | null> => {
+  try {
+    await delay({ milliSeconds: DELAY });
+    const netQty = Number.parseInt(position.netqty);
+    const tradingsymbol = position.tradingsymbol;
+    // If sold (netQty negative), we buy to close; if bought (netQty positive), we sell to close
+    const transactionType = netQty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
+    if (transactionType === TRANSACTION_TYPE_BUY) {
+      const symboltoken = position.symboltoken;
+      const lotSize = Number.parseInt(position.lotsize);
+
+      // Calculate stop loss price based on average price and percentage
+      const entryPrice = Math.abs(Number.parseFloat(position.netvalue) / netQty);
+      const stoplossPrice = entryPrice + entryPrice * (stoplossPercentage / 100);
+
+      console.log(
+        `${ALGO}: placeStopLossOrder for ${tradingsymbol} - entry price: ${entryPrice}, stoploss price: ${stoplossPrice}`,
+      );
+
+      const stoplossStatus = await doOrder({
+        tradingsymbol,
+        transactionType,
+        symboltoken,
+        lotSize,
+        variety: VARIETY_STOPLOSS,
+        ordertype: 'STOPLOSS_MARKET',
+        price: stoplossPrice,
+        triggerprice: stoplossPrice,
+      });
+      console.log(`${ALGO}: placeStopLossOrder status for ${tradingsymbol}:`, stoplossStatus);
+      return stoplossStatus;
+    }
+    return null;
+  } catch (error) {
+    const errorMessage = `${ALGO}: placeStopLossOrder failed for ${position.tradingsymbol}`;
+    console.log(errorMessage);
+    console.log(error);
+    return null;
+  }
+};
+
+/**
+ * Places stop loss orders on all open positions that don't already have one.
+ * First fetches pending orders, then places stop loss only for positions without existing orders.
+ * @param {number} stoplossPercentage - The stop loss percentage (default: 125 for 125%).
+ * @returns {Promise<void>}
+ */
+export const placeStopLossOnAllTrades = async (stoplossPercentage: number = 125): Promise<void> => {
+  try {
+    console.log(`${ALGO}: Starting placeStopLossOnAllTrades with ${stoplossPercentage}% stop loss`);
+
+    // Get existing pending orders
+    const pendingOrders = await getPendingOrders();
+    console.log(`${ALGO}: Found ${pendingOrders.length} existing pending stop loss orders`);
+
+    // Get open positions (only sell positions)
+    const positions = await getPositionsJson(false);
+    console.log(`${ALGO}: Found ${positions.length} open sell positions`);
+
+    if (!Array.isArray(positions) || positions.length === 0) {
+      console.log(`${ALGO}: No open positions found, nothing to place stop loss orders for`);
+      return;
+    }
+
+    // Filter positions that don't have a stop loss order yet
+    const positionsWithoutStopLoss = positions.filter(
+      (position: Position) => !hasStopLossOrderForPosition(position, pendingOrders),
+    );
+    console.log(
+      `${ALGO}: ${positionsWithoutStopLoss.length} positions need stop loss orders (${positions.length - positionsWithoutStopLoss.length} already have them)`,
+    );
+
+    // Place stop loss orders for positions without them
+    for (const position of positionsWithoutStopLoss) {
+      await placeStopLossOrder(position, stoplossPercentage);
+    }
+
+    console.log(`${ALGO}: Completed placeStopLossOnAllTrades`);
+  } catch (error) {
+    const errorMessage = `${ALGO}: placeStopLossOnAllTrades failed`;
+    console.log(errorMessage);
+    console.log(error);
+  }
 };

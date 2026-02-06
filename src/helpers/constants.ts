@@ -135,3 +135,8 @@ export const LOTS = 1;
  * @type {string}
  */
 export const SEARCHSCRIPAPI = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/searchScrip';
+/**
+ * The order status for pending orders.
+ * @type {string}
+ */
+export const PENDING_ORDER_STATUS = 'Pending';
