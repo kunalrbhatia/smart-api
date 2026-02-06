@@ -18,11 +18,7 @@ import { ALGO } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
-import {
-  getLastThursdayOfCurrentMonth,
-  isCurrentTimeGreater,
-  setCredentials,
-} from 'krb-smart-api-module';
+import { getLastThursdayOfCurrentMonth, isCurrentTimeGreater, setCredentials } from 'krb-smart-api-module';
 /**
  * Sets the credentials for the smart API.
  * @param {Request | reqType} req - The request object containing the credentials.
@@ -132,7 +128,7 @@ export const findNearestStrike = (options: scripMasterResponse[], target: number
   let nearestStrike = Infinity;
   let nearestDiff = Infinity;
   for (const option of options) {
-    const strike = parseInt(option.strike) / 100;
+    const strike = Number.parseInt(option.strike) / 100;
     const currentDiff = Math.abs(target - strike);
     if (currentDiff < nearestDiff) {
       nearestDiff = currentDiff;
@@ -153,9 +149,6 @@ export const getAtmStrikePrice = async () => {
       scriptName: OrderStore.getInstance().getPostData().INDEX,
       expiryDate: expiryDate,
     });
-    /* console.log(
-      `${ALGO}: fetched optionChain, it has ${optionChain.length} records`
-    ); */
     const bnfScrip = await getIndexScrip({
       scriptName: OrderStore.getInstance().getPostData().INDEX,
     });
@@ -166,8 +159,7 @@ export const getAtmStrikePrice = async () => {
     });
     const ltpPrice = ltp.ltp;
     console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
-    // throw new Error(`ltpPrice is not a valid number!`);
-    if (typeof ltpPrice === 'number' && !isNaN(ltpPrice)) {
+    if (typeof ltpPrice === 'number' && !Number.isNaN(ltpPrice)) {
       return findNearestStrike(optionChain, ltpPrice);
     } else {
       console.log(`${ALGO}: Oops, 'ltpPrice' is not a valid number! Cannot execute further.`);
@@ -187,7 +179,7 @@ export const getAtmStrikePrice = async () => {
 export const checkStrike = (tradeDetails: Position[], strike: string): boolean => {
   const expiry = OrderStore.getInstance().getPostData().EXPIRYDATE;
   for (const trade of tradeDetails) {
-    if (parseInt(trade.strikeprice) === parseInt(strike) && trade.expirydate === expiry) {
+    if (Number.parseInt(trade.strikeprice) === Number.parseInt(strike) && trade.expirydate === expiry) {
       return true;
     }
   }
@@ -206,8 +198,8 @@ export const areBothOptionTypesPresentForStrike = (tradeDetails: Position[], str
   tradeDetails
     .filter(trade => trade.expirydate === expirationDate)
     .forEach(trade => {
-      const tradedStrike = parseInt(trade.strikeprice);
-      const compareStrike = parseInt(strike);
+      const tradedStrike = Number.parseInt(trade.strikeprice);
+      const compareStrike = Number.parseInt(strike);
       if (tradedStrike === compareStrike) {
         if (trade.optiontype === 'CE') {
           cePresent = true;
@@ -229,7 +221,7 @@ export const getAllOpenPositions = (positions: Position[]): Position[] => {
   const indexName = OrderStore.getInstance().getPostData().INDEX;
   if (positions) {
     for (const position of positions) {
-      const netqty = parseInt(position.netqty);
+      const netqty = Number.parseInt(position.netqty);
       const positionExpiryDate = position.expirydate;
       const symbolname = position.symbolname;
       if (netqty != 0 && expiryDate === positionExpiryDate && symbolname === indexName) {
@@ -250,7 +242,7 @@ export const getOpenSellPositions = (positions: Position[]): Position[] => {
   const indexName = OrderStore.getInstance().getPostData().INDEX;
   if (positions) {
     for (const position of positions) {
-      const netqty = parseInt(position.netqty);
+      const netqty = Number.parseInt(position.netqty);
       const positionExpiryDate = position.expirydate;
       const symbolname = position.symbolname;
       if (netqty < 0 && expiryDate === positionExpiryDate && symbolname === indexName) {

@@ -165,10 +165,10 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
         SCRIP_MASTER_JSON: acData,
       });
       return acData;
-    } catch (evt) {
+    } catch (error) {
       console.log(`${ALGO}: fetchData failed error below`);
-      console.log(evt);
-      throw evt;
+      console.log(error);
+      throw error;
     }
   }
 };
@@ -274,9 +274,7 @@ export const doOrder = async ({
 
   // Calculate quantity - use provided quantity if given, otherwise calculate from lots/lotSize
   let quantity: number;
-  if (providedQuantity !== undefined) {
-    quantity = Math.abs(providedQuantity);
-  } else {
+  if (providedQuantity === undefined) {
     if (!lotSize || lotSize <= 0) {
       throw new Error('Either quantity or lotSize must be provided');
     }
@@ -285,8 +283,9 @@ export const doOrder = async ({
     const lotsCalc = isHedge ? hedgeQuantity : storedLots;
     console.log(`${ALGO} {doOrder}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
     quantity = Math.abs(lotSize * lotsCalc);
+  } else {
+    quantity = Math.abs(providedQuantity);
   }
-
   const data = {
     exchange,
     tradingsymbol,
@@ -370,7 +369,7 @@ const doOrderByStrike = async (
       tradingsymbol: _get(token, '0.symbol', ''),
       symboltoken: _get(token, '0.token', ''),
       transactionType: transactionType,
-      lotSize: parseInt(lotsize),
+      lotSize: Number.parseInt(lotsize),
       variety: 'NORMAL',
       ordertype: 'MARKET',
       isHedge,
@@ -408,12 +407,8 @@ const shortStraddle = async (isBuyHedge = false) => {
     if (isBuyHedge) {
       let strikeVariance = 0;
       let strikeIncrement = 0;
-      if (index === INDICES.NIFTY || index === INDICES.FINNIFTY) {
+      if (index === INDICES.NIFTY) {
         strikeVariance = 50;
-      } else if (index === INDICES.BANKNIFTY || index === INDICES.SENSEX) {
-        strikeVariance = 100;
-      } else if (index === INDICES.MIDCPNIFTY) {
-        strikeVariance = 25;
       }
       strikeIncrement = strikeVariance;
       let ceHedge = await doOrderByStrike(atmStrike + hedgeVariance, OptionType.CE, 'BUY', true);
@@ -572,11 +567,11 @@ const getPositionsJson = async (isAbrupt = false) => {
 const closeParticularTrade = async ({ trade }: { trade: Position }) => {
   try {
     await delay({ milliSeconds: DELAY });
-    const netQty = parseInt(trade.netqty);
+    const netQty = Number.parseInt(trade.netqty);
     const tradingsymbol = trade.tradingsymbol;
     const transactionType = netQty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
     const symboltoken = trade.symboltoken;
-    const lotSize = parseInt(trade.lotsize);
+    const lotSize = Number.parseInt(trade.lotsize);
     const transactionStatus = await doOrder({
       tradingsymbol,
       transactionType,
@@ -604,7 +599,7 @@ const closeAllTrades = async (isAbrupt = false) => {
     const positions = await getPositionsJson(isAbrupt);
     if (Array.isArray(positions)) {
       for (const position of positions) {
-        if (isAbrupt && parseInt(position.netqty) !== 0) {
+        if (isAbrupt && Number.parseInt(position.netqty) !== 0) {
           await closeParticularTrade({ trade: position });
         } else if (!isAbrupt) {
           const ltpData = await getLtpData({
@@ -616,7 +611,7 @@ const closeAllTrades = async (isAbrupt = false) => {
           console.log(`${ALGO}: position: `, position);
           console.log(`${ALGO}: ltpData: `, ltpData);
 
-          const isNetqtyNegative = parseInt(position.netqty) < 0;
+          const isNetqtyNegative = Number.parseInt(position.netqty) < 0;
           const isLtpGreaterThanFive = ltpData && ltpData.ltp > 5;
 
           if (isNetqtyNegative && isLtpGreaterThanFive) {
@@ -655,7 +650,7 @@ const closeTrade = async (isAbrupt = false) => {
  */
 const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrikePrice: number) => {
   console.log(`${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`);
-  if (isFinite(atmStrike)) {
+  if (Number.isFinite(atmStrike)) {
     const difference = atmStrike - previousTradeStrikePrice;
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
@@ -716,8 +711,8 @@ const getMtm = async () => {
       const isSameExpiryDate = position.expirydate === tradedExpiryDate;
       const isSameIndex = position.symbolname === tradedIndex;
       if (isSameExpiryDate && isSameIndex) {
-        const unrealised = parseFloat(position.unrealised);
-        const realised = parseFloat(position.realised);
+        const unrealised = Number.parseFloat(position.unrealised);
+        const realised = Number.parseFloat(position.realised);
         mtm += unrealised + realised;
       }
     }
@@ -837,7 +832,10 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
  */
 export const checkPositionAlreadyExists = async ({ position, trades }: CheckPosition) => {
   for (const trade of trades) {
-    if (parseInt(trade.strike) === parseInt(position.strikeprice) && trade.optionType === position.optiontype)
+    if (
+      Number.parseInt(trade.strike) === Number.parseInt(position.strikeprice) &&
+      trade.optionType === position.optiontype
+    )
       return true;
   }
   return false;
