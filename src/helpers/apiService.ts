@@ -892,7 +892,7 @@ const hasStopLossOrderForPosition = (position: Position, pendingOrders: Record<s
 
   return pendingOrders.some(
     (order: Record<string, unknown>) =>
-      order.tradingsymbol === tradingSymbol && order.optiontype === optionType && order.strikeprice === strikePrice,
+      order?.data?.tradingsymbol === tradingSymbol && order?.data?.optiontype === optionType && order?.data?.strikeprice === strikePrice,
   );
 };
 
