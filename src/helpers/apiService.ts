@@ -867,7 +867,7 @@ const getPendingOrders = async (): Promise<Record<string, unknown>[]> => {
     const pendingOrders = Array.isArray(orders)
       ? orders.filter(
           (order: Record<string, unknown>) =>
-            order.status === PENDING_ORDER_STATUS && order.variety === VARIETY_STOPLOSS,
+            order?.data?.status === PENDING_ORDER_STATUS && order?.data?.variety === VARIETY_STOPLOSS,
         )
       : [];
     return pendingOrders;
