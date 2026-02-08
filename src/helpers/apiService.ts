@@ -867,7 +867,7 @@ const getPendingOrders = async (): Promise<Record<string, unknown>[]> => {
     const pendingOrders = Array.isArray(orders)
       ? orders.filter(
           (order: Record<string, unknown>) =>
-            order?.data?.status === PENDING_ORDER_STATUS && order?.data?.variety === VARIETY_STOPLOSS,
+            _get(order,"data.status","") === PENDING_ORDER_STATUS && _get(order,"data.variety","") === VARIETY_STOPLOSS,
         )
       : [];
     return pendingOrders;
@@ -892,7 +892,7 @@ const hasStopLossOrderForPosition = (position: Position, pendingOrders: Record<s
 
   return pendingOrders.some(
     (order: Record<string, unknown>) =>
-      order?.data?.tradingsymbol === tradingSymbol && order?.data?.optiontype === optionType && order?.data?.strikeprice === strikePrice,
+     _get(order,"data.tradingsymbol","") === tradingSymbol && _get(order,"data.optiontype","") === optionType && _get(order,"data.optiontype","") === optionType && _get(order,"data.strikeprice","") === strikePrice,
   );
 };
 
