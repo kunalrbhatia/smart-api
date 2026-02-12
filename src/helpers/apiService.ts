@@ -826,6 +826,42 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
   }
 };
 /**
+ * Checks market conditions without executing the trade.
+ * @returns {Promise<any>} A promise that resolves with the market conditions check result.
+ */
+export const checkMarketConditions = async () => {
+  const expiryDate = getTodayExpiry();
+  const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
+  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: DELAY });
+  const indiaVixLtp = await getLtpData({
+    exchange: indiaVix[0].exch_seg,
+    symboltoken: indiaVix[0].token,
+    tradingsymbol: indiaVix[0].symbol,
+  });
+  await delay({ milliSeconds: DELAY });
+  await delay({ milliSeconds: DELAY });
+  console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
+  console.log(`${ALGO}: expiry date is ${expiryDate}`);
+  try {
+    const { isAllowed, reasons } = await isTradeAllowed(indiaVixLtp.ltp);
+    return {
+      conditions: {
+        isAllowed,
+        reasons,
+        indiaVixLtp: indiaVixLtp.ltp,
+        expiryDate,
+      },
+      message: isAllowed
+        ? 'Market conditions are favorable for trading'
+        : `${MESSAGE_NOT_TAKE_TRADE}. Reason(s): ${reasons.join(', ')}`,
+    };
+  } catch (err) {
+    return err;
+  }
+};
+
+/**
  * Checks if a position with the same strike and option type already exists.
  * @param {CheckPosition} params - The position and trades to check against.
  * @returns {Promise<boolean>} A promise that resolves with a boolean indicating if the position exists.
@@ -867,7 +903,8 @@ const getPendingOrders = async (): Promise<Record<string, unknown>[]> => {
     const pendingOrders = Array.isArray(orders)
       ? orders.filter(
           (order: Record<string, unknown>) =>
-            _get(order,"data.status","") === PENDING_ORDER_STATUS && _get(order,"data.variety","") === VARIETY_STOPLOSS,
+            _get(order, 'data.status', '') === PENDING_ORDER_STATUS &&
+            _get(order, 'data.variety', '') === VARIETY_STOPLOSS,
         )
       : [];
     return pendingOrders;
@@ -892,7 +929,10 @@ const hasStopLossOrderForPosition = (position: Position, pendingOrders: Record<s
 
   return pendingOrders.some(
     (order: Record<string, unknown>) =>
-     _get(order,"data.tradingsymbol","") === tradingSymbol && _get(order,"data.optiontype","") === optionType && _get(order,"data.optiontype","") === optionType && _get(order,"data.strikeprice","") === strikePrice,
+      _get(order, 'data.tradingsymbol', '') === tradingSymbol &&
+      _get(order, 'data.optiontype', '') === optionType &&
+      _get(order, 'data.optiontype', '') === optionType &&
+      _get(order, 'data.strikeprice', '') === strikePrice,
   );
 };
 
