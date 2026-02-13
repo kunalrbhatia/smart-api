@@ -744,10 +744,9 @@ const executeTrade = async () => {
 };
 /**
  * Checks if trading is allowed based on market conditions.
- * @param {number} indiaVix - The current India VIX value.
  * @returns {Promise<{isAllowed: boolean, reasons: string[]}>} A promise that resolves with a boolean and detailed reasons if not allowed.
  */
-const isTradeAllowed = async (indiaVix: number) => {
+const isTradeAllowed = async () => {
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isHoliday = isTradingHoliday();
@@ -766,7 +765,7 @@ const isTradeAllowed = async (indiaVix: number) => {
     console.log('Error occurred for generateSmartSession:', err);
   }
   console.log(
-    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, is indiaVix > 15: ${indiaVix}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isTuesday: ${isTuesday}`,
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isTuesday: ${isTuesday}`,
   );
 
   const reasons: string[] = [];
@@ -815,7 +814,7 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
   });
   console.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
   try {
-    const { isAllowed, reasons } = await isTradeAllowed(indiaVixLtp.ltp);
+    const { isAllowed, reasons } = await isTradeAllowed();
     if (isAllowed === false) {
       const detailedMessage = `${MESSAGE_NOT_TAKE_TRADE}. Reason(s): ${reasons.join(', ')}`;
       console.log(`${ALGO}: ${detailedMessage}`);
@@ -831,25 +830,13 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
  */
 export const checkMarketConditions = async () => {
   const expiryDate = getTodayExpiry();
-  const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
-  await delay({ milliSeconds: DELAY });
-  await delay({ milliSeconds: DELAY });
-  const indiaVixLtp = await getLtpData({
-    exchange: indiaVix[0].exch_seg,
-    symboltoken: indiaVix[0].token,
-    tradingsymbol: indiaVix[0].symbol,
-  });
-  await delay({ milliSeconds: DELAY });
-  await delay({ milliSeconds: DELAY });
-  console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   console.log(`${ALGO}: expiry date is ${expiryDate}`);
   try {
-    const { isAllowed, reasons } = await isTradeAllowed(indiaVixLtp.ltp);
+    const { isAllowed, reasons } = await isTradeAllowed();
     return {
       conditions: {
         isAllowed,
         reasons,
-        indiaVixLtp: indiaVixLtp.ltp,
         expiryDate,
       },
       message: isAllowed
