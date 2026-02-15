@@ -130,7 +130,9 @@ export const getLtpWithRetry = async ({
         return ltpData;
       }
 
-      console.warn(`${ALGO}: getLtpWithRetry — invalid LTP for ${tradingsymbol} on attempt ${attempt + 1}/${maxRetries}, got: ${ltpData?.ltp}`);
+      console.warn(
+        `${ALGO}: getLtpWithRetry — invalid LTP for ${tradingsymbol} on attempt ${attempt + 1}/${maxRetries}, got: ${ltpData?.ltp}`,
+      );
     } catch (error) {
       console.warn(`${ALGO}: getLtpWithRetry — error on attempt ${attempt + 1}/${maxRetries}:`, error);
 
@@ -140,7 +142,9 @@ export const getLtpWithRetry = async ({
 
     // ── Exponential backoff: 1s → 2s → 4s → 8s → 16s ──
     const backoffMs = delayMs * Math.pow(2, attempt);
-    console.warn(`${ALGO}: getLtpWithRetry — retrying ${tradingsymbol} in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+    console.warn(
+      `${ALGO}: getLtpWithRetry — retrying ${tradingsymbol} in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`,
+    );
     await delay({ milliSeconds: backoffMs });
 
     attempt++;
@@ -637,11 +641,15 @@ export const getPositions = async (
         const positions = _get(responseJson, 'data', []) as Position[];
 
         if (Array.isArray(positions)) {
-          console.log(`${ALGO}: getPositions — success on attempt ${attempt + 1}, total positions: ${positions.length}`);
+          console.log(
+            `${ALGO}: getPositions — success on attempt ${attempt + 1}, total positions: ${positions.length}`,
+          );
           return positions;
         }
 
-        console.warn(`${ALGO}: getPositions — invalid data shape on attempt ${attempt + 1}/${maxRetries}, got: ${JSON.stringify(positions)}`);
+        console.warn(
+          `${ALGO}: getPositions — invalid data shape on attempt ${attempt + 1}/${maxRetries}, got: ${JSON.stringify(positions)}`,
+        );
       } else {
         console.warn(`${ALGO}: getPositions — HTTP ${response.status} on attempt ${attempt + 1}/${maxRetries}`);
       }
@@ -699,8 +707,6 @@ export const fetchOpenPositionsByExpiry = async (
   await delay({ milliSeconds: DELAY });
 
   const allPositions: Position[] = await getPositions(smartSession, cred);
-  console.log(`${ALGO}: fetchOpenPositionsByExpiry:`);
-  console.dir(allPositions);
   console.log(`${ALGO}: fetchOpenPositionsByExpiry — total raw positions: ${allPositions?.length ?? 0}`);
 
   if (!Array.isArray(allPositions) || allPositions.length === 0) return [];
