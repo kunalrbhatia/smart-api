@@ -123,18 +123,30 @@ export const getLtpWithRetry = async ({
   let attempt = 0;
 
   while (attempt < maxRetries) {
-    const ltpData: LtpDataType = await getLtpData({ exchange, symboltoken, tradingsymbol });
+    try {
+      const ltpData: LtpDataType = await getLtpData({ exchange, symboltoken, tradingsymbol });
 
-    if (ltpData?.ltp !== undefined && ltpData?.ltp !== null && ltpData.ltp > 0) {
-      return ltpData;
+      if (ltpData?.ltp !== undefined && ltpData?.ltp !== null && ltpData.ltp > 0) {
+        return ltpData;
+      }
+
+      console.warn(`${ALGO}: getLtpWithRetry — invalid LTP for ${tradingsymbol} on attempt ${attempt + 1}/${maxRetries}, got: ${ltpData?.ltp}`);
+    } catch (error) {
+      console.warn(`${ALGO}: getLtpWithRetry — error on attempt ${attempt + 1}/${maxRetries}:`, error);
+
+      // Rethrow immediately on last attempt
+      if (attempt + 1 >= maxRetries) throw error;
     }
 
+    // ── Exponential backoff: 1s → 2s → 4s → 8s → 16s ──
+    const backoffMs = delayMs * Math.pow(2, attempt);
+    console.warn(`${ALGO}: getLtpWithRetry — retrying ${tradingsymbol} in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+    await delay({ milliSeconds: backoffMs });
+
     attempt++;
-    console.warn(`Retrying getLtpData for ${tradingsymbol}, attempt ${attempt}/${maxRetries}`);
-    await delay({ milliSeconds: delayMs });
   }
 
-  throw new Error(`No valid LTP data received for ${tradingsymbol} after ${maxRetries} retries`);
+  throw new Error(`${ALGO}: getLtpWithRetry — no valid LTP for ${tradingsymbol} after ${maxRetries} attempts`);
 };
 
 /**
@@ -620,37 +632,30 @@ export const getPositions = async (
       });
       await delay({ milliSeconds: DELAY });
       const responseJson = await response.json();
-      // console.dir(responseJson);
 
       if (response.status >= 200 && response.status < 300) {
         const positions = _get(responseJson, 'data', []) as Position[];
 
-        // Empty array is valid — no positions open
         if (Array.isArray(positions)) {
-          console.log(
-            `${ALGO}: getPositions — success on attempt ${attempt + 1}, total positions: ${positions.length}`,
-          );
-          await delay({ milliSeconds: DELAY });
+          console.log(`${ALGO}: getPositions — success on attempt ${attempt + 1}, total positions: ${positions.length}`);
           return positions;
         }
 
-        console.warn(
-          `${ALGO}: getPositions — invalid data shape on attempt ${attempt + 1}/${maxRetries}, got: ${JSON.stringify(positions)}`,
-        );
+        console.warn(`${ALGO}: getPositions — invalid data shape on attempt ${attempt + 1}/${maxRetries}, got: ${JSON.stringify(positions)}`);
       } else {
         console.warn(`${ALGO}: getPositions — HTTP ${response.status} on attempt ${attempt + 1}/${maxRetries}`);
       }
     } catch (error) {
       console.warn(`${ALGO}: getPositions — error on attempt ${attempt + 1}/${maxRetries}:`, error);
-
-      // Rethrow immediately on last attempt
-      if (attempt + 1 >= maxRetries) {
-        throw error;
-      }
+      if (attempt + 1 >= maxRetries) throw error;
     }
 
+    // ── Exponential backoff: 1s → 2s → 4s → 8s → 16s ──
+    const backoffMs = delayMs * Math.pow(2, attempt);
+    console.log(`${ALGO}: getPositions — retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+    await delay({ milliSeconds: backoffMs });
+
     attempt++;
-    await delay({ milliSeconds: delayMs });
   }
 
   throw new Error(`${ALGO}: getPositions — failed to get valid positions after ${maxRetries} attempts`);
