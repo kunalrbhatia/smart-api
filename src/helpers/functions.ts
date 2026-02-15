@@ -51,6 +51,16 @@ export const getOpenPositionsByExpiry = (
 };
 
 /**
+ * Checks if there is an open position for a given ATM strike.
+ * @param {Position[]} positions - List of open positions
+ * @param {number} atmStrike - The ATM strike price to check
+ * @returns {boolean} True if an open position exists for the ATM strike
+ */
+export const hasOpenPositionForStrike = (positions: Position[], atmStrike: number): boolean => {
+  return positions.some(position => Number.parseInt(position.strikeprice) === atmStrike);
+};
+
+/**
  * Gets the ATM strike price for a given index and expiry — standalone, no OrderStore dependency.
  * @param {string} scriptName - The index name e.g. 'NIFTY', 'BANKNIFTY'
  * @param {string} expiryDate - Expiry in DDMMMYYYY format e.g. '20FEB2025'
@@ -79,8 +89,8 @@ export const getAtmStrikePriceForIndex = async (
     exchange: indexScrip[0].exch_seg,
     tradingsymbol: indexScrip[0].symbol,
     symboltoken: indexScrip[0].token,
-    delayMs: 500,
-    maxRetries: 3,
+    delayMs: 1000,
+    maxRetries: 5,
   });
 
   const ltp = ltpData.ltp;

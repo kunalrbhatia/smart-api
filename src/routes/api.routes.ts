@@ -10,7 +10,7 @@ import {
   getNearestWeeklyExpiry,
   fetchOpenPositionsByExpiry,
 } from '../helpers/apiService';
-import { getAtmStrikePriceForIndex, setCred } from '../helpers/functions';
+import { getAtmStrikePriceForIndex, hasOpenPositionForStrike, setCred } from '../helpers/functions';
 import { ALGO } from '../helpers/constants';
 import { delay, INDICES } from 'krb-smart-api-module';
 interface IndexData {
@@ -87,8 +87,8 @@ router.post('/getAllIndices', async (req: Request, res: Response) => {
             exchange: data[0].exch_seg,
             symboltoken: data[0].token,
             tradingsymbol: data[0].symbol,
-            maxRetries: 10,
-            delayMs: 500,
+            maxRetries: 5,
+            delayMs: 1000,
           });
 
           return { index: key, data: ltpData };
@@ -283,6 +283,69 @@ router.post('/getAtmStrike', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(`${ALGO}: /getAtmStrike error`, err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to get ATM strike price' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
+
+/**
+ * @route   POST /api/api/checkAtmPosition
+ * @desc    Check if an open position exists for the ATM strike
+ * @access  Public
+ */
+router.post('/checkAtmPosition', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+
+    const index: string = req.body.index || 'NIFTY';
+    const type = (req.body.type || 'ALL') as 'ALL' | 'SELL' | 'BUY';
+
+    // Require atmStrike explicitly — must come from /getAtmStrike response
+    const atmStrike: number = Number(req.body.atmStrike);
+    if (!atmStrike || Number.isNaN(atmStrike)) {
+      return res.status(400).json({
+        error: 'Missing or invalid required field: atmStrike',
+      });
+    }
+
+    // Auto-detect expiry if not provided
+    let expiry: string = req.body.expiry || '';
+    if (!expiry) {
+      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY');
+    }
+
+    const positions = await fetchOpenPositionsByExpiry(index, expiry, type);
+    const hasPosition = hasOpenPositionForStrike(positions, atmStrike);
+
+    console.log(
+      `${ALGO}: checkAtmPosition — index: ${index}, expiry: ${expiry}, atmStrike: ${atmStrike}, hasPosition: ${hasPosition}`,
+    );
+
+    res.status(200).json({
+      data: {
+        index,
+        expiry,
+        atmStrike,
+        hasOpenPosition: hasPosition,
+        // Also return the matching positions for visibility
+        matchingPositions: positions
+          .filter(p => Number.parseInt(p.strikeprice) === atmStrike)
+          .map(p => ({
+            tradingsymbol: p.tradingsymbol,
+            optiontype: p.optiontype,
+            strikeprice: p.strikeprice,
+            netqty: p.netqty,
+            ltp: p.ltp,
+            unrealised: p.unrealised,
+            realised: p.realised,
+          })),
+      },
+    });
+  } catch (err) {
+    console.error(`${ALGO}: /checkAtmPosition error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to check ATM position' });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
