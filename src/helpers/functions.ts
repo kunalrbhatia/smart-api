@@ -405,3 +405,23 @@ export const getStrikeVariance = (index: string) => {
       return 0;
   }
 };
+/**
+ * Counts unique ATM strikes already sold (each unique strike = 1 pair = CE+PE).
+ * A "pair" is counted as 1 even if both CE and PE are present for that strike.
+ * @param {Position[]} positions - Open positions filtered by expiry
+ * @returns {number} Number of unique sell strikes
+ */
+export const countSellPairs = (positions: Position[]): number => {
+  const sellPositions = positions.filter(p => Number.parseInt(p.netqty) < 0);
+  const uniqueStrikes = new Set(sellPositions.map(p => p.strikeprice));
+  return uniqueStrikes.size;
+};
+
+/**
+ * Checks if hedge (BUY) positions already exist for this expiry.
+ * @param {Position[]} positions - Open positions filtered by expiry
+ * @returns {boolean} True if hedge positions exist
+ */
+export const hasHedgePositions = (positions: Position[]): boolean => {
+  return positions.some(p => Number.parseInt(p.netqty) > 0);
+};

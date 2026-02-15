@@ -9,6 +9,7 @@ import {
   doOrder,
   getNearestWeeklyExpiry,
   fetchOpenPositionsByExpiry,
+  executeSellAtmBuyHedge,
 } from '../helpers/apiService';
 import { getAtmStrikePriceForIndex, hasOpenPositionForStrike, setCred } from '../helpers/functions';
 import { ALGO } from '../helpers/constants';
@@ -407,5 +408,51 @@ router.post('/getOpenPositions', async (req: Request, res: Response) => {
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
+/**
+ * @route   POST /api/api/executeTrade
+ * @desc    Sell ATM CE+PE and buy hedge CE+PE for NIFTY
+ * @access  Public
+ */
+router.post('/executeTrade', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
 
+    // Validate required fields
+    const atmStrike = Number(req.body.atmStrike);
+    if (!atmStrike || Number.isNaN(atmStrike)) {
+      return res.status(400).json({
+        error: 'Missing or invalid required field: atmStrike',
+      });
+    }
+
+    const index: string       = req.body.index         || 'NIFTY';
+    const sellLots: number    = Number(req.body.sellLots)    || 1;
+    const buyLots: number     = Number(req.body.buyLots)     || 3;
+    const hedgeDistance: number = Number(req.body.hedgeDistance) || 500;
+
+    // Auto-detect expiry if not provided
+    let expiry: string = req.body.expiry || '';
+    if (!expiry) {
+      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY');
+    }
+
+    const result = await executeSellAtmBuyHedge({
+      index,
+      expiry,
+      atmStrike,
+      sellLots,
+      buyLots,
+      hedgeDistance,
+    });
+
+    res.status(200).json({ data: result });
+  } catch (err) {
+    console.error(`${ALGO}: /executeTrade error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to execute trade' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
 export default router;
