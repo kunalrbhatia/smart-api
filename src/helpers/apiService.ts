@@ -1,14 +1,13 @@
 import { get as _get, isArray, isEmpty } from 'lodash';
 import {
+  CREDENTIALS,
   DELAY,
   delay,
   generateSmartSession,
   getCredentials,
   getNearestStrike,
-  getPositions,
   getScripName,
   getSmartSession,
-  getTodayExpiry,
   isCurrentTimeGreater,
   isTradingHoliday,
 } from 'krb-smart-api-module';
@@ -17,6 +16,7 @@ import {
   checkStrike,
   getAllOpenPositions,
   getAtmStrikePrice,
+  getOpenPositionsByExpiry,
   getOpenSellPositions,
   getStrikeDifference,
   hedgeCalculation,
@@ -47,6 +47,7 @@ import {
   ALGO,
   GET_LTP_DATA_API,
   GET_ORDER_BOOK_API,
+  GET_POSITIONS,
   LOSSPERLOT,
   LOTS,
   ME,
@@ -591,6 +592,70 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
   }
 };
 
+export const getPositions = async (
+  smartSession: ISmartApiData,
+  cred: CREDENTIALS,
+  maxRetries: number = 5,
+  delayMs: number = 1000,
+): Promise<Position[]> => {
+  const headers = {
+    Authorization: `Bearer ${smartSession.jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+    'X-MACAddress': 'MAC_ADDRESS',
+    'X-PrivateKey': cred.APIKEY,
+  };
+
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    try {
+      const response = await fetch(GET_POSITIONS, {
+        method: 'get',
+        headers,
+      });
+      await delay({ milliSeconds: DELAY });
+      const responseJson = await response.json();
+      // console.dir(responseJson);
+
+      if (response.status >= 200 && response.status < 300) {
+        const positions = _get(responseJson, 'data', []) as Position[];
+
+        // Empty array is valid — no positions open
+        if (Array.isArray(positions)) {
+          console.log(
+            `${ALGO}: getPositions — success on attempt ${attempt + 1}, total positions: ${positions.length}`,
+          );
+          await delay({ milliSeconds: DELAY });
+          return positions;
+        }
+
+        console.warn(
+          `${ALGO}: getPositions — invalid data shape on attempt ${attempt + 1}/${maxRetries}, got: ${JSON.stringify(positions)}`,
+        );
+      } else {
+        console.warn(`${ALGO}: getPositions — HTTP ${response.status} on attempt ${attempt + 1}/${maxRetries}`);
+      }
+    } catch (error) {
+      console.warn(`${ALGO}: getPositions — error on attempt ${attempt + 1}/${maxRetries}:`, error);
+
+      // Rethrow immediately on last attempt
+      if (attempt + 1 >= maxRetries) {
+        throw error;
+      }
+    }
+
+    attempt++;
+    await delay({ milliSeconds: delayMs });
+  }
+
+  throw new Error(`${ALGO}: getPositions — failed to get valid positions after ${maxRetries} attempts`);
+};
+
 /**
  * Fetches the open positions.
  * @param {boolean} [isAbrupt=false] - Whether to fetch all open positions or only sell positions.
@@ -612,6 +677,35 @@ const getPositionsJson = async (isAbrupt = false) => {
     throw error;
   }
 };
+
+/**
+ * Fetches open positions filtered by index and expiry — standalone, no OrderStore dependency.
+ * @param {string} index - e.g. 'NIFTY'
+ * @param {string} expiryDate - e.g. '17FEB2026'
+ * @param {'ALL' | 'SELL' | 'BUY'} type - Filter type (default: 'ALL')
+ */
+export const fetchOpenPositionsByExpiry = async (
+  index: string,
+  expiryDate: string,
+  type: 'ALL' | 'SELL' | 'BUY' = 'ALL',
+): Promise<Position[]> => {
+  const smartSession = await getSmartSession();
+  const cred = getCredentials();
+  await delay({ milliSeconds: DELAY });
+
+  const allPositions: Position[] = await getPositions(smartSession, cred);
+  console.log(`${ALGO}: fetchOpenPositionsByExpiry:`);
+  console.dir(allPositions);
+  console.log(`${ALGO}: fetchOpenPositionsByExpiry — total raw positions: ${allPositions?.length ?? 0}`);
+
+  if (!Array.isArray(allPositions) || allPositions.length === 0) return [];
+
+  const filtered = getOpenPositionsByExpiry(allPositions, index, expiryDate, type);
+  console.log(`${ALGO}: fetchOpenPositionsByExpiry — filtered (${index} ${expiryDate} ${type}): ${filtered.length}`);
+
+  return filtered;
+};
+
 /**
  * Closes a particular trade.
  * @param {{ trade: Position }} params - The trade to close.

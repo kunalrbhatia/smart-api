@@ -19,6 +19,37 @@ import { Request } from 'express';
 import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
 import { getLastThursdayOfCurrentMonth, isCurrentTimeGreater, setCredentials } from 'krb-smart-api-module';
+
+/**
+ * Gets all open positions filtered by index and expiry date — standalone, no OrderStore dependency.
+ * @param {Position[]} positions - Raw positions from SmartAPI
+ * @param {string} index - Index name e.g. 'NIFTY', 'BANKNIFTY'
+ * @param {string} expiryDate - Expiry in DDMMMYYYY format e.g. '17FEB2026'
+ * @param {'ALL' | 'SELL' | 'BUY'} type - Which positions to return (default: 'ALL')
+ * @returns {Position[]}
+ */
+export const getOpenPositionsByExpiry = (
+  positions: Position[],
+  index: string,
+  expiryDate: string,
+  type: 'ALL' | 'SELL' | 'BUY' = 'ALL',
+): Position[] => {
+  if (!Array.isArray(positions) || positions.length === 0) return [];
+
+  return positions.filter(position => {
+    const netqty = Number.parseInt(position.netqty);
+    const isSameExpiry = position.expirydate === expiryDate;
+    const isSameIndex = position.symbolname === index;
+    const isOpen = netqty !== 0;
+
+    if (!isSameExpiry || !isSameIndex || !isOpen) return false;
+
+    if (type === 'SELL') return netqty < 0;
+    if (type === 'BUY') return netqty > 0;
+    return true; // 'ALL'
+  });
+};
+
 /**
  * Gets the ATM strike price for a given index and expiry — standalone, no OrderStore dependency.
  * @param {string} scriptName - The index name e.g. 'NIFTY', 'BANKNIFTY'

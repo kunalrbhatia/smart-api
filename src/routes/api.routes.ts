@@ -1,7 +1,16 @@
 import { Router, Request, Response } from 'express';
 
-import { fetchData, getIndexScrip, getLtpWithRetry, getLtpData, searchScrip, doOrder } from '../helpers/apiService';
-import { setCred } from '../helpers/functions';
+import {
+  fetchData,
+  getIndexScrip,
+  getLtpWithRetry,
+  getLtpData,
+  searchScrip,
+  doOrder,
+  getNearestWeeklyExpiry,
+  fetchOpenPositionsByExpiry,
+} from '../helpers/apiService';
+import { getAtmStrikePriceForIndex, setCred } from '../helpers/functions';
 import { ALGO } from '../helpers/constants';
 import { delay, INDICES } from 'krb-smart-api-module';
 interface IndexData {
@@ -87,7 +96,7 @@ router.post('/getAllIndices', async (req: Request, res: Response) => {
           console.error(`${ALGO}: error fetching ${key}`, err);
           return { index: key, error: 'Failed to fetch data' };
         }
-      })
+      }),
     );
 
     // Convert to object for easier frontend usage
@@ -117,7 +126,7 @@ router.post('/placeOrder', async (req: Request, res: Response) => {
     });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
-    
+
     const {
       tradingsymbol,
       symboltoken,
@@ -184,7 +193,7 @@ router.post('/getLtp', async (req: Request, res: Response) => {
     });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
-    
+
     const { exchange, tradingsymbol, symboltoken } = req.body;
 
     // Validate required fields
@@ -221,7 +230,7 @@ router.post('/searchScrip', async (req: Request, res: Response) => {
     });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
-    
+
     const { scripName, exchange = 'NFO' } = req.body;
 
     // Validate required fields
@@ -237,6 +246,101 @@ router.post('/searchScrip', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to search scrip' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
+
+/**
+ * @route   POST /api/api/getAtmStrike
+ * @desc    Get ATM strike price for a given index and expiry
+ * @access  Public
+ */
+router.post('/getAtmStrike', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+
+    const index: string = req.body.index || 'NIFTY';
+
+    // Auto-detect nearest weekly expiry if not provided
+    let expiry: string = req.body.expiry || '';
+    if (!expiry) {
+      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY');
+    }
+
+    const result = await getAtmStrikePriceForIndex(index, expiry);
+
+    res.status(200).json({
+      data: {
+        index: result.index,
+        expiry: result.expiry,
+        ltp: result.ltp,
+        atmStrike: result.atmStrike,
+      },
+    });
+  } catch (err) {
+    console.error(`${ALGO}: /getAtmStrike error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to get ATM strike price' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
+
+/**
+ * @route   POST /api/api/getOpenPositions
+ * @desc    Get open positions filtered by index and expiry
+ * @access  Public
+ */
+router.post('/getOpenPositions', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+
+    const index: string = req.body.index || 'NIFTY';
+    const type = (req.body.type || 'ALL') as 'ALL' | 'SELL' | 'BUY';
+
+    // Validate type
+    if (!['ALL', 'SELL', 'BUY'].includes(type)) {
+      return res.status(400).json({
+        error: 'Invalid type. Must be one of: ALL, SELL, BUY',
+      });
+    }
+
+    // Auto-detect nearest weekly expiry if not provided
+    let expiry: string = req.body.expiry || '';
+    if (!expiry) {
+      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY');
+    }
+
+    const positions = await fetchOpenPositionsByExpiry(index, expiry, type);
+
+    res.status(200).json({
+      data: {
+        index,
+        expiry,
+        type,
+        count: positions.length,
+        positions: positions.map(p => ({
+          tradingsymbol: p.tradingsymbol,
+          symboltoken: p.symboltoken,
+          optiontype: p.optiontype,
+          strikeprice: p.strikeprice,
+          expirydate: p.expirydate,
+          netqty: p.netqty,
+          ltp: p.ltp,
+          unrealised: p.unrealised,
+          realised: p.realised,
+          exchange: p.exchange,
+          symbolname: p.symbolname,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error(`${ALGO}: /getOpenPositions error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch open positions' });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });

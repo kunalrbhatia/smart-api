@@ -140,3 +140,5 @@ export const SEARCHSCRIPAPI = 'https://apiconnect.angelbroking.com/rest/secure/a
  * @type {string}
  */
 export const PENDING_ORDER_STATUS = 'Pending';
+
+export const GET_POSITIONS = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getPosition';
