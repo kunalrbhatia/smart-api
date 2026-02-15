@@ -20,6 +20,50 @@ import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
 import { getLastThursdayOfCurrentMonth, isCurrentTimeGreater, setCredentials } from 'krb-smart-api-module';
 /**
+ * Gets the ATM strike price for a given index and expiry — standalone, no OrderStore dependency.
+ * @param {string} scriptName - The index name e.g. 'NIFTY', 'BANKNIFTY'
+ * @param {string} expiryDate - Expiry in DDMMMYYYY format e.g. '20FEB2025'
+ * @returns {Promise<{ atmStrike: number; ltp: number; expiry: string; index: string }>}
+ */
+export const getAtmStrikePriceForIndex = async (
+  scriptName: string,
+  expiryDate: string,
+): Promise<{ atmStrike: number; ltp: number; expiry: string; index: string }> => {
+  console.log(`${ALGO}: getAtmStrikePriceForIndex called — index: ${scriptName}, expiry: ${expiryDate}`);
+
+  // 1. Get all options for this index & expiry from scrip master
+  const optionChain = await getScrip({ scriptName, expiryDate });
+  if (!optionChain || optionChain.length === 0) {
+    throw new Error(`No option chain found for ${scriptName} expiry ${expiryDate}`);
+  }
+
+  // 2. Get the index scrip to fetch LTP (spot price)
+  const indexScrip = await getIndexScrip({ scriptName });
+  if (!indexScrip || indexScrip.length === 0) {
+    throw new Error(`Index scrip not found for ${scriptName}`);
+  }
+
+  // 3. Fetch live LTP of the index
+  const ltpData = await getLtpData({
+    exchange: indexScrip[0].exch_seg,
+    tradingsymbol: indexScrip[0].symbol,
+    symboltoken: indexScrip[0].token,
+  });
+
+  const ltp = ltpData.ltp;
+  console.log(`${ALGO}: ${scriptName} spot LTP = ${ltp}`);
+
+  if (typeof ltp !== 'number' || Number.isNaN(ltp) || ltp <= 0) {
+    throw new Error(`Invalid LTP received for ${scriptName}: ${ltp}`);
+  }
+
+  // 4. Find nearest strike (reuses your existing findNearestStrike)
+  const atmStrike = findNearestStrike(optionChain, ltp);
+  console.log(`${ALGO}: ATM Strike for ${scriptName} = ${atmStrike}`);
+
+  return { atmStrike, ltp, expiry: expiryDate, index: scriptName };
+};
+/**
  * Sets the credentials for the smart API.
  * @param {Request | reqType} req - The request object containing the credentials.
  */

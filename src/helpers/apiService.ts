@@ -65,6 +65,47 @@ import ScripMasterStore from '../store/scripMasterStore';
 import moment from 'moment-timezone';
 import { get, post } from './api';
 
+/**
+ * Gets the nearest weekly expiry date for a given index (NIFTY or BANKNIFTY).
+ * Returns the date in the scrip master format e.g. "20FEB2025"
+ */
+export const getNearestWeeklyExpiry = async (scriptName: 'NIFTY' | 'BANKNIFTY' = 'NIFTY'): Promise<string> => {
+  const scripMaster: scripMasterResponse[] = await fetchData();
+
+  const today = moment().startOf('day');
+
+  // Filter only OPTIDX options for the given index on NFO
+  const options = scripMaster.filter(scrip => {
+    const name: string = scrip.name || '';
+    return (
+      name === scriptName && scrip.exch_seg === 'NFO' && scrip.instrumenttype === 'OPTIDX' && scrip.expiry // must have expiry
+    );
+  });
+
+  if (!options.length) {
+    throw new Error(`No options found for ${scriptName} in scrip master`);
+  }
+
+  // Parse expiry strings like "20FEB2025" → moment date
+  const parsedExpiries = options
+    .map(scrip => ({
+      raw: scrip.expiry, // original string e.g. "20FEB2025"
+      date: moment(scrip.expiry, 'DDMMMYYYY'), // parse to moment
+    }))
+    .filter(e => e.date.isSameOrAfter(today)) // only today or future
+    .sort((a, b) => a.date.valueOf() - b.date.valueOf()); // sort ascending
+
+  if (!parsedExpiries.length) {
+    throw new Error(`No upcoming expiry dates found for ${scriptName}`);
+  }
+
+  // The first one is the nearest weekly expiry
+  const nearest = parsedExpiries[0];
+  console.log(`${ALGO}: Nearest weekly expiry for ${scriptName}: ${nearest.raw}`);
+
+  return nearest.raw; // returns e.g. "20FEB2025"
+};
+
 export const getLtpWithRetry = async ({
   exchange,
   symboltoken,
@@ -161,6 +202,7 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
     return data as scripMasterResponse[];
   } else {
     try {
+      console.log(`${ALGO}: 📥 Downloading Scrip Master...`);
       const response = (await get(SCRIPMASTER, {})) as scripMasterResponse[];
       const acData: scripMasterResponse[] = response;
       console.log(`${ALGO}: response if script master api loaded and its length is ${acData.length}`);
@@ -792,19 +834,14 @@ const isTradeAllowed = async () => {
  * @returns {Promise<any>} A promise that resolves with the result of the trade execution.
  */
 export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, lossPerLot: number = LOSSPERLOT) => {
-  const expiryDate = getTodayExpiry();
+  const expiryDate = await getNearestWeeklyExpiry('NIFTY');
   const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
-  await delay({ milliSeconds: DELAY });
-  await delay({ milliSeconds: DELAY });
   const indiaVixLtp = await getLtpData({
     exchange: indiaVix[0].exch_seg,
     symboltoken: indiaVix[0].token,
     tradingsymbol: indiaVix[0].symbol,
   });
-  await delay({ milliSeconds: DELAY });
-  await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
-  console.log(`${ALGO}: expiry date is ${expiryDate}`);
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
     EXPIRYDATE: expiryDate,
@@ -829,12 +866,21 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
  * @returns {Promise<any>} A promise that resolves with the market conditions check result.
  */
 export const checkMarketConditions = async () => {
-  const expiryDate = getTodayExpiry();
-  console.log(`${ALGO}: expiry date is ${expiryDate}`);
+  const expiryDate = await getNearestWeeklyExpiry('NIFTY');
+  const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
+  console.log(`${ALGO}: indiaVix: `, indiaVix);
+  const indiaVixLtp = await getLtpData({
+    exchange: indiaVix[0].exch_seg,
+    symboltoken: indiaVix[0].token,
+    tradingsymbol: indiaVix[0].symbol,
+  });
+  await delay({ milliSeconds: DELAY });
+  console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   try {
     const { isAllowed, reasons } = await isTradeAllowed();
     return {
       conditions: {
+        indiaVixLtp: indiaVixLtp.ltp,
         isAllowed,
         reasons,
         expiryDate,
