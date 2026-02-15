@@ -1,4 +1,4 @@
-import { getIndexScrip, getLtpData, getScrip } from './apiService';
+import { getIndexScrip, getLtpData, getLtpWithRetry, getScrip } from './apiService';
 import {
   BothPresent,
   Credentails,
@@ -44,10 +44,12 @@ export const getAtmStrikePriceForIndex = async (
   }
 
   // 3. Fetch live LTP of the index
-  const ltpData = await getLtpData({
+  const ltpData = await getLtpWithRetry({
     exchange: indexScrip[0].exch_seg,
     tradingsymbol: indexScrip[0].symbol,
     symboltoken: indexScrip[0].token,
+    delayMs: 500,
+    maxRetries: 3,
   });
 
   const ltp = ltpData.ltp;

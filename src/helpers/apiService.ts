@@ -124,7 +124,7 @@ export const getLtpWithRetry = async ({
   while (attempt < maxRetries) {
     const ltpData: LtpDataType = await getLtpData({ exchange, symboltoken, tradingsymbol });
 
-    if (ltpData?.ltp > 0) {
+    if (ltpData?.ltp !== undefined && ltpData?.ltp !== null && ltpData.ltp > 0) {
       return ltpData;
     }
 
@@ -159,7 +159,15 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
   };
   try {
     const response = await post(GET_LTP_DATA_API, data, headers);
-    return _get(response, 'data', {}) || {};
+    const responseData = _get(response, 'data', null);
+
+    // Safety: handle both response shapes
+    const ltp = _get(responseData, 'ltp', undefined);
+    console.log(
+      `${ALGO}: getLtpData raw response for ${tradingsymbol} — ltp: ${ltp}, full data: ${JSON.stringify(responseData)}`,
+    );
+
+    return responseData || {};
   } catch (error) {
     console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`);
     console.log(error);
