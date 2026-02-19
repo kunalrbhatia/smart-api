@@ -1346,3 +1346,147 @@ export const executeSellAtmBuyHedge = async ({
 
   return { index, expiry, atmStrike, lotSize, isFirstTrade, trades };
 };
+/**
+ * Places stoploss orders for all sell positions that don't already have one.
+ * Stoploss trigger = sellavgprice * stoplossFactor (default 1.5 for 150%)
+ *
+ * @param index - e.g. 'NIFTY'
+ * @param expiry - e.g. '17FEB2026'
+ * @param stoplossFactor - multiplier for stoploss price (default 1.5 = 150%)
+ */
+export const placeStoplossForAllSells = async ({
+  index,
+  expiry,
+  stoplossFactor = 1.5,
+}: {
+  index: string;
+  expiry: string;
+  stoplossFactor?: number;
+}) => {
+  console.log(`${ALGO}: placeStoplossForAllSells — index: ${index}, expiry: ${expiry}, factor: ${stoplossFactor}`);
+
+  // ── Step 1: Get all SELL positions ───────────────────────────────
+  const sellPositions = await fetchOpenPositionsByExpiry(index, expiry, 'SELL');
+
+  if (sellPositions.length === 0) {
+    console.log(`${ALGO}: No sell positions found, nothing to place stoploss for`);
+    return { index, expiry, stoplossFactor, sellPositionCount: 0, stoplossOrders: [] };
+  }
+
+  console.log(`${ALGO}: Found ${sellPositions.length} sell positions`);
+
+  // ── Step 2: Get existing pending stoploss orders ─────────────────
+  const smartApiData: ISmartApiData = await getSmartSession();
+  const jwtToken = _get(smartApiData, 'jwtToken');
+  const cred = DataStore.getInstance().getPostData();
+  const headers = {
+    Authorization: `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+    'X-MACAddress': 'MAC_ADDRESS',
+    'X-PrivateKey': cred.APIKEY,
+  };
+
+  let pendingOrders: Record<string, unknown>[] = [];
+  try {
+    const response = await get(GET_ORDER_BOOK_API, headers);
+    const orders = _get(response, 'data', []);
+    pendingOrders = Array.isArray(orders)
+      ? orders.filter(
+          (order: Record<string, unknown>) =>
+            _get(order, 'status', '') === PENDING_ORDER_STATUS && _get(order, 'variety', '') === VARIETY_STOPLOSS,
+        )
+      : [];
+    console.log(`${ALGO}: Found ${pendingOrders.length} existing pending stoploss orders`);
+  } catch (error) {
+    console.warn(`${ALGO}: Failed to fetch pending orders, continuing without dedup:`, error);
+  }
+
+  // ── Step 3: Place stoploss for each sell position ────────────────
+  const stoplossOrders = [];
+
+  for (const position of sellPositions) {
+    const tradingsymbol = position.tradingsymbol;
+    const symboltoken = position.symboltoken;
+    const netqty = Number.parseInt(position.netqty);
+    const sellavgprice = Number.parseFloat(position.sellavgprice);
+
+    // Validate
+    if (!sellavgprice || sellavgprice <= 0) {
+      console.warn(`${ALGO}: Invalid sellavgprice for ${tradingsymbol}: ${position.sellavgprice}, skipping`);
+      continue;
+    }
+
+    // Check if stoploss already exists for this position
+    const hasExistingStoploss = pendingOrders.some(
+      (order: Record<string, unknown>) =>
+        _get(order, 'tradingsymbol', '') === tradingsymbol && _get(order, 'symboltoken', '') === symboltoken,
+    );
+
+    if (hasExistingStoploss) {
+      console.log(`${ALGO}: Stoploss already exists for ${tradingsymbol}, skipping`);
+      stoplossOrders.push({
+        tradingsymbol,
+        symboltoken,
+        status: 'skipped',
+        reason: 'Stoploss already exists',
+      });
+      continue;
+    }
+
+    // Calculate stoploss price — 150% MORE than entry, not 150% OF entry
+    const stoplossPrice = sellavgprice + sellavgprice * stoplossFactor;
+    const quantity = Math.abs(netqty);
+    console.log(
+      `${ALGO}: Placing stoploss for ${tradingsymbol} — entry: ${sellavgprice}, stoploss: ${stoplossPrice.toFixed(2)}, qty: ${quantity}`,
+    );
+
+    try {
+      await delay({ milliSeconds: DELAY });
+
+      const orderResponse = await doOrder({
+        tradingsymbol,
+        symboltoken,
+        transactionType: TRANSACTION_TYPE_BUY, // Closing a sell = buy
+        exchange: 'NFO',
+        quantity,
+        variety: VARIETY_STOPLOSS,
+        ordertype: 'STOPLOSS_MARKET',
+        productType: 'CARRYFORWARD',
+        price: stoplossPrice,
+        triggerprice: stoplossPrice,
+      });
+
+      console.log(`${ALGO}: Stoploss order placed for ${tradingsymbol}:`, orderResponse.status);
+
+      stoplossOrders.push({
+        tradingsymbol,
+        symboltoken,
+        entryPrice: sellavgprice,
+        stoplossPrice: Number(stoplossPrice.toFixed(2)),
+        quantity,
+        status: orderResponse.status,
+      });
+    } catch (error) {
+      console.error(`${ALGO}: Failed to place stoploss for ${tradingsymbol}:`, error);
+      stoplossOrders.push({
+        tradingsymbol,
+        symboltoken,
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  return {
+    index,
+    expiry,
+    stoplossFactor,
+    sellPositionCount: sellPositions.length,
+    stoplossOrders,
+  };
+};

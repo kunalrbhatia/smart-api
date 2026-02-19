@@ -10,6 +10,7 @@ import {
   getNearestWeeklyExpiry,
   fetchOpenPositionsByExpiry,
   executeSellAtmBuyHedge,
+  placeStoplossForAllSells,
 } from '../helpers/apiService';
 import {
   countSellPairs,
@@ -393,19 +394,7 @@ router.post('/getOpenPositions', async (req: Request, res: Response) => {
         expiry,
         type,
         count: positions.length,
-        positions: positions.map(p => ({
-          tradingsymbol: p.tradingsymbol,
-          symboltoken: p.symboltoken,
-          optiontype: p.optiontype,
-          strikeprice: p.strikeprice,
-          expirydate: p.expirydate,
-          netqty: p.netqty,
-          ltp: p.ltp,
-          unrealised: p.unrealised,
-          realised: p.realised,
-          exchange: p.exchange,
-          symbolname: p.symbolname,
-        })),
+        positions,
       },
     });
   } catch (err) {
@@ -563,6 +552,40 @@ router.post('/shouldExecuteTrade', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(`${ALGO}: /shouldExecuteTrade error`, err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to evaluate trade conditions' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
+/**
+ * @route   POST /api/api/placeStoploss
+ * @desc    Places stoploss orders for all sell positions at 150% of entry price
+ * @access  Public
+ */
+router.post('/placeStoploss', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+
+    const index: string = req.body.index || 'NIFTY';
+    const stoplossFactor: number = Number(req.body.stoplossFactor) || 1.5;
+
+    // Auto-detect expiry if not provided
+    let expiry: string = req.body.expiry || '';
+    if (!expiry) {
+      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY');
+    }
+
+    const result = await placeStoplossForAllSells({
+      index,
+      expiry,
+      stoplossFactor,
+    });
+
+    res.status(200).json({ data: result });
+  } catch (err) {
+    console.error(`${ALGO}: /placeStoploss error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to place stoploss orders' });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
