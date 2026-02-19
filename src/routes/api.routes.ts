@@ -11,7 +11,13 @@ import {
   fetchOpenPositionsByExpiry,
   executeSellAtmBuyHedge,
 } from '../helpers/apiService';
-import { getAtmStrikePriceForIndex, hasOpenPositionForStrike, setCred } from '../helpers/functions';
+import {
+  countSellPairs,
+  getAtmStrikePriceForIndex,
+  hasHedgePositions,
+  hasOpenPositionForStrike,
+  setCred,
+} from '../helpers/functions';
 import { ALGO } from '../helpers/constants';
 import { delay, INDICES } from 'krb-smart-api-module';
 interface IndexData {
@@ -410,7 +416,8 @@ router.post('/getOpenPositions', async (req: Request, res: Response) => {
 });
 /**
  * @route   POST /api/api/executeTrade
- * @desc    Sell ATM CE+PE and buy hedge CE+PE for NIFTY
+ * @desc    Pure execution — places orders only. No decision logic.
+ *          Always call /shouldExecuteTrade before this.
  * @access  Public
  */
 router.post('/executeTrade', async (req: Request, res: Response) => {
@@ -420,20 +427,22 @@ router.post('/executeTrade', async (req: Request, res: Response) => {
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
-    // Validate required fields
+    // Required fields
     const atmStrike = Number(req.body.atmStrike);
+    const isFirstTrade = req.body.isFirstTrade === true || req.body.isFirstTrade === 'true';
+
     if (!atmStrike || Number.isNaN(atmStrike)) {
-      return res.status(400).json({
-        error: 'Missing or invalid required field: atmStrike',
-      });
+      return res.status(400).json({ error: 'Missing or invalid: atmStrike' });
+    }
+    if (req.body.isFirstTrade === undefined) {
+      return res.status(400).json({ error: 'Missing required field: isFirstTrade' });
     }
 
-    const index: string       = req.body.index         || 'NIFTY';
-    const sellLots: number    = Number(req.body.sellLots)    || 1;
-    const buyLots: number     = Number(req.body.buyLots)     || 3;
+    const index: string = req.body.index || 'NIFTY';
+    const sellLots: number = Number(req.body.sellLots) || 1;
+    const buyLots: number = Number(req.body.buyLots) || 3;
     const hedgeDistance: number = Number(req.body.hedgeDistance) || 500;
 
-    // Auto-detect expiry if not provided
     let expiry: string = req.body.expiry || '';
     if (!expiry) {
       expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY');
@@ -443,6 +452,7 @@ router.post('/executeTrade', async (req: Request, res: Response) => {
       index,
       expiry,
       atmStrike,
+      isFirstTrade,
       sellLots,
       buyLots,
       hedgeDistance,
@@ -452,6 +462,107 @@ router.post('/executeTrade', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(`${ALGO}: /executeTrade error`, err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to execute trade' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
+/**
+ * @route   POST /api/api/shouldExecuteTrade
+ * @desc    Decides whether to execute a trade and what kind
+ * @access  Public
+ */
+router.post('/shouldExecuteTrade', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+
+    const atmStrike = Number(req.body.atmStrike);
+    if (!atmStrike || Number.isNaN(atmStrike)) {
+      return res.status(400).json({
+        error: 'Missing or invalid required field: atmStrike',
+      });
+    }
+
+    const index: string = req.body.index || 'NIFTY';
+    const maxSellPairs: number = Number(req.body.maxSellPairs) || 3;
+    const buyLots: number = Number(req.body.buyLots) || 3;
+    const sellLots: number = Number(req.body.sellLots) || 1;
+    const hedgeDistance: number = Number(req.body.hedgeDistance) || 500;
+
+    // Auto-detect expiry if not provided
+    let expiry: string = req.body.expiry || '';
+    if (!expiry) {
+      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY');
+    }
+
+    // Fetch all open positions once — used for all checks below
+    const allPositions = await fetchOpenPositionsByExpiry(index, expiry, 'ALL');
+
+    const isFirstTrade = !hasHedgePositions(allPositions);
+    const sellPairCount = countSellPairs(allPositions);
+    const strikeAlreadySold = hasOpenPositionForStrike(
+      allPositions.filter(p => Number.parseInt(p.netqty) < 0),
+      atmStrike,
+    );
+
+    console.log(
+      `${ALGO}: shouldExecuteTrade — isFirstTrade: ${isFirstTrade}, sellPairCount: ${sellPairCount}/${maxSellPairs}, strikeAlreadySold: ${strikeAlreadySold}`,
+    );
+
+    // ── Decision logic ────────────────────────────────────────────
+
+    // Block: max pairs reached
+    if (sellPairCount >= maxSellPairs) {
+      return res.status(200).json({
+        data: {
+          shouldTrade: false,
+          reason: `Max sell pairs (${maxSellPairs}) already reached`,
+          isFirstTrade,
+          sellPairCount,
+          atmStrike,
+          index,
+          expiry,
+        },
+      });
+    }
+
+    // Block: this strike already sold
+    if (strikeAlreadySold) {
+      return res.status(200).json({
+        data: {
+          shouldTrade: false,
+          reason: `Strike ${atmStrike} already has open sell positions`,
+          isFirstTrade,
+          sellPairCount,
+          atmStrike,
+          index,
+          expiry,
+        },
+      });
+    }
+
+    // All clear — return what executeTrade needs directly
+    return res.status(200).json({
+      data: {
+        shouldTrade: true,
+        isFirstTrade,
+        sellPairCount,
+        reason: isFirstTrade
+          ? 'First trade — buy hedges + sell ATM'
+          : `Repeat trade ${sellPairCount + 1}/${maxSellPairs} — sell ATM only`,
+        // Pass-through params for executeTrade
+        index,
+        expiry,
+        atmStrike,
+        sellLots,
+        buyLots,
+        hedgeDistance,
+      },
+    });
+  } catch (err) {
+    console.error(`${ALGO}: /shouldExecuteTrade error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to evaluate trade conditions' });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });

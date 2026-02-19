@@ -14,14 +14,11 @@ import {
 import {
   areBothOptionTypesPresentForStrike,
   checkStrike,
-  countSellPairs,
   getAllOpenPositions,
   getAtmStrikePrice,
   getOpenPositionsByExpiry,
   getOpenSellPositions,
   getStrikeDifference,
-  hasHedgePositions,
-  hasOpenPositionForStrike,
   hedgeCalculation,
   isMarketClosed,
 } from './functions';
@@ -1179,93 +1176,38 @@ export const placeStopLossOnAllTrades = async (stoplossPercentage: number = 125)
   }
 };
 /**
- * Core trade execution:
- * - First trade:      Buy 3L hedge CE+PE + Sell 1L ATM CE+PE
- * - Subsequent trade: Only sell 1L ATM CE+PE (hedges already in place)
- * - Blocked:          If 3 sell pairs already exist, do nothing
- *
- * @param index          - e.g. 'NIFTY'
- * @param expiry         - e.g. '17FEB2026'
- * @param atmStrike      - e.g. 25450
- * @param sellLots       - lots to sell at ATM (default: 1)
- * @param buyLots        - lots to buy for hedge, first trade only (default: 3)
- * @param hedgeDistance  - points away from ATM for hedge (default: 500)
- * @param maxSellPairs   - maximum allowed sell pairs before blocking (default: 3)
+ * Pure execution — places orders based on what it's told. No position checking.
+ * Caller is responsible for deciding isFirstTrade.
  */
 export const executeSellAtmBuyHedge = async ({
   index,
   expiry,
   atmStrike,
+  isFirstTrade,
   sellLots = 1,
   buyLots = 3,
   hedgeDistance = 500,
-  maxSellPairs = 3,
 }: {
   index: string;
   expiry: string;
   atmStrike: number;
+  isFirstTrade: boolean;
   sellLots?: number;
   buyLots?: number;
   hedgeDistance?: number;
-  maxSellPairs?: number;
 }) => {
-  // ── Step 1: Fetch all current open positions for this expiry ─────
-  const allPositions = await fetchOpenPositionsByExpiry(index, expiry, 'ALL');
-
-  const isFirstTrade = !hasHedgePositions(allPositions);
-  const sellPairCount = countSellPairs(allPositions);
-
-  console.log(
-    `${ALGO}: executeSellAtmBuyHedge — isFirstTrade: ${isFirstTrade}, sellPairCount: ${sellPairCount}/${maxSellPairs}`,
-  );
-
-  // ── Step 2: Block if max sell pairs already reached ──────────────
-  if (sellPairCount >= maxSellPairs) {
-    console.log(`${ALGO}: executeSellAtmBuyHedge — max sell pairs (${maxSellPairs}) reached, blocking trade`);
-    return {
-      index,
-      expiry,
-      atmStrike,
-      blocked: true,
-      reason: `Max sell pairs (${maxSellPairs}) already reached. No new trade taken.`,
-      sellPairCount,
-      trades: [],
-    };
-  }
-
-  // ── Step 3: Check if this ATM strike already sold ────────────────
-  const isStrikeAlreadySold = hasOpenPositionForStrike(
-    allPositions.filter(p => Number.parseInt(p.netqty) < 0),
-    atmStrike,
-  );
-
-  if (isStrikeAlreadySold) {
-    console.log(`${ALGO}: executeSellAtmBuyHedge — ATM strike ${atmStrike} already sold, skipping`);
-    return {
-      index,
-      expiry,
-      atmStrike,
-      blocked: true,
-      reason: `Strike ${atmStrike} already has open sell positions.`,
-      sellPairCount,
-      trades: [],
-    };
-  }
-
-  // ── Step 4: Fetch required scrip tokens ─────────────────────────
   const ceHedgeStrike = atmStrike + hedgeDistance;
   const peHedgeStrike = atmStrike - hedgeDistance;
 
-  console.log(`${ALGO}: executeSellAtmBuyHedge —`);
+  console.log(`${ALGO}: executeSellAtmBuyHedge — isFirstTrade: ${isFirstTrade}`);
+  console.log(`${ALGO}:   SELL ${sellLots}L ATM CE+PE @ ${atmStrike}`);
   if (isFirstTrade) {
-    console.log(`${ALGO}:   [FIRST TRADE] BUY ${buyLots}L CE hedge @ ${ceHedgeStrike}`);
-    console.log(`${ALGO}:   [FIRST TRADE] BUY ${buyLots}L PE hedge @ ${peHedgeStrike}`);
+    console.log(`${ALGO}:   BUY  ${buyLots}L hedge CE @ ${ceHedgeStrike}`);
+    console.log(`${ALGO}:   BUY  ${buyLots}L hedge PE @ ${peHedgeStrike}`);
   }
-  console.log(`${ALGO}:   SELL ${sellLots}L ATM CE @ ${atmStrike}`);
-  console.log(`${ALGO}:   SELL ${sellLots}L ATM PE @ ${atmStrike}`);
 
-  // Fetch ATM scrips always; hedge scrips only on first trade
-  const scripPromises: Promise<scripMasterResponse[]>[] = [
+  // ── Fetch required scrips ────────────────────────────────────────
+  const scripPromises = [
     getScrip({ scriptName: index, expiryDate: expiry, optionType: OptionType.CE, strikePrice: atmStrike.toString() }),
     getScrip({ scriptName: index, expiryDate: expiry, optionType: OptionType.PE, strikePrice: atmStrike.toString() }),
     ...(isFirstTrade
@@ -1289,9 +1231,7 @@ export const executeSellAtmBuyHedge = async ({
   const scripResults = await Promise.all(scripPromises);
 
   const validate = (scrip: scripMasterResponse[], label: string) => {
-    if (!scrip || scrip.length === 0) {
-      throw new Error(`${ALGO}: scrip not found for ${label}`);
-    }
+    if (!scrip || scrip.length === 0) throw new Error(`${ALGO}: scrip not found for ${label}`);
     return scrip[0];
   };
 
@@ -1301,15 +1241,13 @@ export const executeSellAtmBuyHedge = async ({
   const hedgePe = isFirstTrade ? validate(scripResults[3], `Hedge PE ${peHedgeStrike}`) : null;
 
   const lotSize = Number.parseInt(atmCe.lotsize);
-  if (!lotSize || lotSize <= 0) {
-    throw new Error(`${ALGO}: invalid lotsize from scrip master: ${atmCe.lotsize}`);
-  }
+  if (!lotSize || lotSize <= 0) throw new Error(`${ALGO}: invalid lotsize: ${atmCe.lotsize}`);
 
   console.log(`${ALGO}: lotSize = ${lotSize}`);
 
   const trades = [];
 
-  // ── Step 5: Place hedge BUY orders (first trade only) ────────────
+  // ── BUY hedges (first trade only) ───────────────────────────────
   if (isFirstTrade && hedgeCe && hedgePe) {
     await delay({ milliSeconds: DELAY });
     console.log(`${ALGO}: [1] BUY hedge CE — ${hedgeCe.symbol}, qty: ${buyLots * lotSize}`);
@@ -1323,7 +1261,6 @@ export const executeSellAtmBuyHedge = async ({
       ordertype: 'MARKET',
       productType: 'CARRYFORWARD',
     });
-    console.log(`${ALGO}: [1] hedge CE status:`, hedgeCeOrder.status);
     trades.push({
       action: 'BUY',
       type: 'HEDGE_CE',
@@ -1347,7 +1284,6 @@ export const executeSellAtmBuyHedge = async ({
       ordertype: 'MARKET',
       productType: 'CARRYFORWARD',
     });
-    console.log(`${ALGO}: [2] hedge PE status:`, hedgePeOrder.status);
     trades.push({
       action: 'BUY',
       type: 'HEDGE_PE',
@@ -1360,7 +1296,7 @@ export const executeSellAtmBuyHedge = async ({
     });
   }
 
-  // ── Step 6: Sell ATM CE ──────────────────────────────────────────
+  // ── SELL ATM CE ──────────────────────────────────────────────────
   await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: [${isFirstTrade ? 3 : 1}] SELL ATM CE — ${atmCe.symbol}, qty: ${sellLots * lotSize}`);
   const atmCeOrder = await doOrder({
@@ -1373,7 +1309,6 @@ export const executeSellAtmBuyHedge = async ({
     ordertype: 'MARKET',
     productType: 'CARRYFORWARD',
   });
-  console.log(`${ALGO}: ATM CE sell status:`, atmCeOrder.status);
   trades.push({
     action: 'SELL',
     type: 'ATM_CE',
@@ -1385,7 +1320,7 @@ export const executeSellAtmBuyHedge = async ({
     status: atmCeOrder.status,
   });
 
-  // ── Step 7: Sell ATM PE ──────────────────────────────────────────
+  // ── SELL ATM PE ──────────────────────────────────────────────────
   await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: [${isFirstTrade ? 4 : 2}] SELL ATM PE — ${atmPe.symbol}, qty: ${sellLots * lotSize}`);
   const atmPeOrder = await doOrder({
@@ -1398,7 +1333,6 @@ export const executeSellAtmBuyHedge = async ({
     ordertype: 'MARKET',
     productType: 'CARRYFORWARD',
   });
-  console.log(`${ALGO}: ATM PE sell status:`, atmPeOrder.status);
   trades.push({
     action: 'SELL',
     type: 'ATM_PE',
@@ -1410,15 +1344,5 @@ export const executeSellAtmBuyHedge = async ({
     status: atmPeOrder.status,
   });
 
-  // ── Step 8: Return summary ───────────────────────────────────────
-  return {
-    index,
-    expiry,
-    atmStrike,
-    lotSize,
-    blocked: false,
-    isFirstTrade,
-    sellPairCount: sellPairCount + 1,
-    trades,
-  };
+  return { index, expiry, atmStrike, lotSize, isFirstTrade, trades };
 };

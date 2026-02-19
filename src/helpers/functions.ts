@@ -51,16 +51,6 @@ export const getOpenPositionsByExpiry = (
 };
 
 /**
- * Checks if there is an open position for a given ATM strike.
- * @param {Position[]} positions - List of open positions
- * @param {number} atmStrike - The ATM strike price to check
- * @returns {boolean} True if an open position exists for the ATM strike
- */
-export const hasOpenPositionForStrike = (positions: Position[], atmStrike: number): boolean => {
-  return positions.some(position => Number.parseInt(position.strikeprice) === atmStrike);
-};
-
-/**
  * Gets the ATM strike price for a given index and expiry — standalone, no OrderStore dependency.
  * @param {string} scriptName - The index name e.g. 'NIFTY', 'BANKNIFTY'
  * @param {string} expiryDate - Expiry in DDMMMYYYY format e.g. '20FEB2025'
@@ -405,22 +395,30 @@ export const getStrikeVariance = (index: string) => {
       return 0;
   }
 };
+
 /**
- * Counts unique ATM strikes already sold (each unique strike = 1 pair = CE+PE).
- * A "pair" is counted as 1 even if both CE and PE are present for that strike.
- * @param {Position[]} positions - Open positions filtered by expiry
- * @returns {number} Number of unique sell strikes
+ * Normalizes strikeprice string to integer — handles "25400.0" and "25400" both.
+ */
+const normalizeStrike = (strikeprice: string): number => Math.round(Number(strikeprice));
+
+/**
+ * Checks if there is an open position for a given ATM strike.
+ */
+export const hasOpenPositionForStrike = (positions: Position[], atmStrike: number): boolean => {
+  return positions.some(p => normalizeStrike(p.strikeprice) === atmStrike);
+};
+
+/**
+ * Counts unique ATM strikes already sold (each unique strike = 1 pair).
  */
 export const countSellPairs = (positions: Position[]): number => {
   const sellPositions = positions.filter(p => Number.parseInt(p.netqty) < 0);
-  const uniqueStrikes = new Set(sellPositions.map(p => p.strikeprice));
+  const uniqueStrikes = new Set(sellPositions.map(p => normalizeStrike(p.strikeprice)));
   return uniqueStrikes.size;
 };
 
 /**
  * Checks if hedge (BUY) positions already exist for this expiry.
- * @param {Position[]} positions - Open positions filtered by expiry
- * @returns {boolean} True if hedge positions exist
  */
 export const hasHedgePositions = (positions: Position[]): boolean => {
   return positions.some(p => Number.parseInt(p.netqty) > 0);
