@@ -1413,7 +1413,7 @@ export const placeStoplossForAllSells = async ({
     const tradingsymbol = position.tradingsymbol;
     const symboltoken = position.symboltoken;
     const netqty = Number.parseInt(position.netqty);
-    const sellavgprice = Number.parseFloat(position.sellavgprice);
+    const sellavgprice = Number.parseFloat(position.cfsellavgprice);
 
     // Validate
     if (!sellavgprice || sellavgprice <= 0) {
