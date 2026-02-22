@@ -1366,6 +1366,7 @@ export const placeStoplossForAllSells = async ({
   console.log(`${ALGO}: placeStoplossForAllSells — index: ${index}, expiry: ${expiry}, factor: ${stoplossFactor}`);
 
   // ── Step 1: Get all SELL positions ───────────────────────────────
+  console.log(`${ALGO}: Fetching sell positions for index: ${index}, expiry: ${expiry}`);
   const sellPositions = await fetchOpenPositionsByExpiry(index, expiry, 'SELL');
 
   if (sellPositions.length === 0) {
@@ -1374,8 +1375,15 @@ export const placeStoplossForAllSells = async ({
   }
 
   console.log(`${ALGO}: Found ${sellPositions.length} sell positions`);
+  console.log(`${ALGO}: Sell positions details:`, sellPositions.map(p => ({
+    tradingsymbol: p.tradingsymbol,
+    symboltoken: p.symboltoken,
+    netqty: p.netqty,
+    cfsellavgprice: p.cfsellavgprice
+  })));
 
   // ── Step 2: Get existing pending stoploss orders ─────────────────
+  console.log(`${ALGO}: Fetching existing pending stoploss orders`);
   const smartApiData: ISmartApiData = await getSmartSession();
   const jwtToken = _get(smartApiData, 'jwtToken');
   const cred = DataStore.getInstance().getPostData();
@@ -1393,8 +1401,11 @@ export const placeStoplossForAllSells = async ({
 
   let pendingOrders: Record<string, unknown>[] = [];
   try {
+    console.log(`${ALGO}: Making request to GET_ORDER_BOOK_API`);
     const response = await get(GET_ORDER_BOOK_API, headers);
+    console.log(`${ALGO}: Raw order book response:`, response);
     const orders = _get(response, 'data', []);
+    console.log(`${ALGO}: Orders from response:`, orders);
     pendingOrders = Array.isArray(orders)
       ? orders.filter(
           (order: Record<string, unknown>) =>
@@ -1402,14 +1413,29 @@ export const placeStoplossForAllSells = async ({
         )
       : [];
     console.log(`${ALGO}: Found ${pendingOrders.length} existing pending stoploss orders`);
+    console.log(`${ALGO}: Pending orders details:`, pendingOrders.map(o => ({
+      tradingsymbol: _get(o, 'tradingsymbol', ''),
+      symboltoken: _get(o, 'symboltoken', ''),
+      status: _get(o, 'status', ''),
+      variety: _get(o, 'variety', '')
+    })));
   } catch (error) {
     console.warn(`${ALGO}: Failed to fetch pending orders, continuing without dedup:`, error);
   }
 
   // ── Step 3: Place stoploss for each sell position ────────────────
   const stoplossOrders = [];
+  console.log(`${ALGO}: Processing ${sellPositions.length} sell positions for stoploss placement`);
 
-  for (const position of sellPositions) {
+  for (let i = 0; i < sellPositions.length; i++) {
+    const position = sellPositions[i];
+    console.log(`${ALGO}: Processing position ${i+1}/${sellPositions.length}`, {
+      tradingsymbol: position.tradingsymbol,
+      symboltoken: position.symboltoken,
+      netqty: position.netqty,
+      cfsellavgprice: position.cfsellavgprice
+    });
+    
     const tradingsymbol = position.tradingsymbol;
     const symboltoken = position.symboltoken;
     const netqty = Number.parseInt(position.netqty);
@@ -1418,10 +1444,17 @@ export const placeStoplossForAllSells = async ({
     // Validate
     if (!sellavgprice || sellavgprice <= 0) {
       console.warn(`${ALGO}: Invalid sellavgprice for ${tradingsymbol}: ${position.sellavgprice}, skipping`);
+      stoplossOrders.push({
+        tradingsymbol,
+        symboltoken,
+        status: 'skipped',
+        reason: `Invalid sellavgprice: ${position.sellavgprice}`,
+      });
       continue;
     }
 
     // Check if stoploss already exists for this position
+    console.log(`${ALGO}: Checking if stoploss already exists for ${tradingsymbol}`);
     const hasExistingStoploss = pendingOrders.some(
       (order: Record<string, unknown>) =>
         _get(order, 'tradingsymbol', '') === tradingsymbol && _get(order, 'symboltoken', '') === symboltoken,
@@ -1442,26 +1475,35 @@ export const placeStoplossForAllSells = async ({
     const stoplossPrice = sellavgprice + sellavgprice * stoplossFactor;
     const quantity = Math.abs(netqty);
     console.log(
-      `${ALGO}: Placing stoploss for ${tradingsymbol} — entry: ${sellavgprice}, stoploss: ${stoplossPrice.toFixed(2)}, qty: ${quantity}`,
+      `${ALGO}: Calculated stoploss for ${tradingsymbol} — entry: ${sellavgprice}, stoploss: ${stoplossPrice.toFixed(2)}, qty: ${quantity}`,
     );
 
     try {
+      console.log(`${ALGO}: Placing stoploss order for ${tradingsymbol}`);
       await delay({ milliSeconds: DELAY });
 
-      const orderResponse = await doOrder({
+      const orderParams = {
         tradingsymbol,
         symboltoken,
         transactionType: TRANSACTION_TYPE_BUY, // Closing a sell = buy
         exchange: 'NFO',
         quantity,
-        variety: VARIETY_STOPLOSS,
-        ordertype: 'STOPLOSS_MARKET',
-        productType: 'CARRYFORWARD',
+        variety: VARIETY_STOPLOSS as "STOPLOSS",
+        ordertype: 'STOPLOSS_MARKET' as const,
+        productType: 'CARRYFORWARD' as const,
         price: stoplossPrice,
         triggerprice: stoplossPrice,
-      });
+      };
+      
+      console.log(`${ALGO}: Order parameters:`, orderParams);
 
-      console.log(`${ALGO}: Stoploss order placed for ${tradingsymbol}:`, orderResponse.status);
+      const orderResponse = await doOrder(orderParams);
+
+      console.log(`${ALGO}: Stoploss order placed for ${tradingsymbol}:`, {
+        status: orderResponse.status,
+        orderId: orderResponse.data?.orderid,
+        message: orderResponse.message
+      });
 
       stoplossOrders.push({
         tradingsymbol,
@@ -1470,6 +1512,8 @@ export const placeStoplossForAllSells = async ({
         stoplossPrice: Number(stoplossPrice.toFixed(2)),
         quantity,
         status: orderResponse.status,
+        orderId: orderResponse.data?.orderid,
+        message: orderResponse.message
       });
     } catch (error) {
       console.error(`${ALGO}: Failed to place stoploss for ${tradingsymbol}:`, error);
@@ -1481,6 +1525,14 @@ export const placeStoplossForAllSells = async ({
       });
     }
   }
+
+  console.log(`${ALGO}: Completed processing all positions. Results:`, {
+    totalPositions: sellPositions.length,
+    processedOrders: stoplossOrders.length,
+    successfulOrders: stoplossOrders.filter(o => o.status === 'success' || o.orderId).length,
+    skippedOrders: stoplossOrders.filter(o => o.status === 'skipped').length,
+    failedOrders: stoplossOrders.filter(o => o.status === 'failed').length
+  });
 
   return {
     index,
