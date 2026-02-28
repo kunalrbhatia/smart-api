@@ -11,9 +11,11 @@ import {
   fetchOpenPositionsByExpiry,
   executeSellAtmBuyHedge,
   placeStoplossForAllSells,
+  getCandleData,
 } from '../helpers/apiService';
 import {
   countSellPairs,
+  generateTradingSignal,
   getAtmStrikePriceForIndex,
   hasHedgePositions,
   hasOpenPositionForStrike,
@@ -21,6 +23,7 @@ import {
 } from '../helpers/functions';
 import { ALGO } from '../helpers/constants';
 import { delay, INDICES } from 'krb-smart-api-module';
+import moment from 'moment-timezone';
 interface IndexData {
   exchange: string;
   tradingsymbol: string;
@@ -586,6 +589,112 @@ router.post('/placeStoploss', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(`${ALGO}: /placeStoploss error`, err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to place stoploss orders' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
+/**
+ * @route   POST /api/api/getTechnicalSignal
+ * @desc    Get technical indicators and trading signal for a given index/stock
+ * @access  Public
+ */
+router.post('/getTechnicalSignal', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    console.log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+
+    const scriptName: string = req.body.scriptName || 'NIFTY';
+    const interval: string = req.body.interval || 'FIVE_MINUTE';
+    const candleCount: number = Number(req.body.candleCount) || 50;
+
+    // Get the index scrip to fetch symboltoken
+    const indexScrip = await getIndexScrip({ scriptName });
+    if (!indexScrip || indexScrip.length === 0) {
+      return res.status(404).json({ error: `Index ${scriptName} not found` });
+    }
+
+    const symboltoken = indexScrip[0].token;
+    const exchange = indexScrip[0].exch_seg;
+
+    // Calculate date range based on interval and candle count
+    const todate = moment().tz('Asia/Kolkata');
+    const fromdate = moment().tz('Asia/Kolkata');
+
+    // Estimate how far back we need to go
+    switch (interval) {
+      case 'ONE_MINUTE':
+        fromdate.subtract(candleCount, 'minutes');
+        break;
+      case 'FIVE_MINUTE':
+        fromdate.subtract(candleCount * 5, 'minutes');
+        break;
+      case 'FIFTEEN_MINUTE':
+        fromdate.subtract(candleCount * 15, 'minutes');
+        break;
+      case 'ONE_HOUR':
+        fromdate.subtract(candleCount, 'hours');
+        break;
+      case 'ONE_DAY':
+        fromdate.subtract(candleCount, 'days');
+        break;
+      default:
+        fromdate.subtract(candleCount * 5, 'minutes');
+    }
+
+    // Validate interval parameter
+    const validIntervals = [
+      'ONE_MINUTE',
+      'THREE_MINUTE',
+      'FIVE_MINUTE',
+      'TEN_MINUTE',
+      'FIFTEEN_MINUTE',
+      'THIRTY_MINUTE',
+      'ONE_HOUR',
+      'ONE_DAY'
+    ] as const;
+    type ValidInterval = typeof validIntervals[number];
+
+    if (!validIntervals.includes(interval as ValidInterval)) {
+      return res.status(400).json({
+        error: `Invalid interval. Must be one of: ${validIntervals.join(', ')}`,
+      });
+    }
+
+    // Fetch candle data
+    const candles = await getCandleData({
+      exchange,
+      symboltoken,
+      interval: interval as typeof validIntervals[number],
+      fromdate: fromdate.format('YYYY-MM-DD HH:mm'),
+      todate: todate.format('YYYY-MM-DD HH:mm'),
+    });
+
+    if (!candles || candles.length < 50) {
+      return res.status(400).json({
+        error: `Not enough candle data. Got ${candles?.length || 0} candles, need at least 50`,
+      });
+    }
+
+    // Extract close prices: candle format is [timestamp, open, high, low, close, volume]
+    const closes = candles.map(candle => candle[4]);
+
+    // Generate signal
+    const technicalData = generateTradingSignal(closes);
+
+    res.status(200).json({
+      data: {
+        scriptName,
+        interval,
+        candleCount: candles.length,
+        lastPrice: closes.at(-1),
+        ...technicalData,
+        lastUpdated: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error(`${ALGO}: /getTechnicalSignal error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to get technical signal' });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });

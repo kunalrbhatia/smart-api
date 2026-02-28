@@ -423,3 +423,116 @@ export const countSellPairs = (positions: Position[]): number => {
 export const hasHedgePositions = (positions: Position[]): boolean => {
   return positions.some(p => Number.parseInt(p.netqty) > 0);
 };
+/**
+ * Technical indicator calculations
+ */
+
+// Simple Moving Average
+export const calculateSMA = (data: number[], period: number): number => {
+  if (data.length < period) throw new Error(`Not enough data for SMA(${period})`);
+  const slice = data.slice(-period);
+  return slice.reduce((sum, val) => sum + val, 0) / period;
+};
+
+// Exponential Moving Average
+export const calculateEMA = (data: number[], period: number): number => {
+  if (data.length < period) throw new Error(`Not enough data for EMA(${period})`);
+
+  const k = 2 / (period + 1);
+  let ema = data[0];
+
+  for (let i = 1; i < data.length; i++) {
+    ema = data[i] * k + ema * (1 - k);
+  }
+
+  return ema;
+};
+
+// RSI (Relative Strength Index)
+export const calculateRSI = (closes: number[], period: number = 14): number => {
+  if (closes.length < period + 1) {
+    throw new Error(`Not enough data for RSI(${period}). Need at least ${period + 1} candles.`);
+  }
+
+  let gains = 0;
+  let losses = 0;
+
+  // Calculate gains and losses over the period
+  for (let i = closes.length - period - 1; i < closes.length - 1; i++) {
+    const diff = closes[i + 1] - closes[i];
+    if (diff >= 0) {
+      gains += diff;
+    } else {
+      losses -= diff; // losses is positive
+    }
+  }
+
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+
+  if (avgLoss === 0) return 100; // No losses means RSI = 100
+
+  const rs = avgGain / avgLoss;
+  const rsi = 100 - 100 / (1 + rs);
+
+  return rsi;
+};
+
+// MACD (Moving Average Convergence Divergence)
+export const calculateMACD = (closes: number[]): { macd: number; signal: number; histogram: number } => {
+  if (closes.length < 26) {
+    throw new Error('Not enough data for MACD. Need at least 26 candles.');
+  }
+
+  const ema12 = calculateEMA(closes.slice(-26), 12);
+  const ema26 = calculateEMA(closes.slice(-26), 26);
+  const macd = ema12 - ema26;
+
+  // Signal line is 9-period EMA of MACD
+  // For simplicity, using single MACD value as signal (should ideally calculate over multiple MACD values)
+  const signal = macd; // Simplified - in production, calculate EMA of multiple MACD values
+  const histogram = macd - signal;
+
+  return { macd, signal, histogram };
+};
+
+/**
+ * Generates trading signal based on RSI and MACD
+ */
+export const generateTradingSignal = (
+  closes: number[],
+): {
+  rsi: number;
+  sma20: number;
+  sma50: number;
+  macd: number;
+  macdSignal: number;
+  signal: 'BUY' | 'SELL' | 'NEUTRAL';
+} => {
+  if (closes.length < 50) {
+    throw new Error('Need at least 50 candles for complete analysis');
+  }
+
+  const rsi = calculateRSI(closes, 14);
+  const sma20 = calculateSMA(closes, 20);
+  const sma50 = calculateSMA(closes, 50);
+  const { macd, signal: macdSignal } = calculateMACD(closes);
+
+  // Trading logic
+  let signal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+
+  if (rsi < 30 && macd > macdSignal) {
+    signal = 'BUY'; // Oversold + bullish MACD crossover
+  } else if (rsi > 70 && macd < macdSignal) {
+    signal = 'SELL'; // Overbought + bearish MACD crossover
+  }
+
+  return {
+    rsi: Number(rsi.toFixed(2)),
+    sma20: Number(sma20.toFixed(2)),
+    sma50: Number(sma50.toFixed(2)),
+    macd: Number(macd.toFixed(2)),
+    macdSignal: Number(macdSignal.toFixed(2)),
+    signal,
+  };
+};

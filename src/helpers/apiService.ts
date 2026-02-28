@@ -1375,12 +1375,15 @@ export const placeStoplossForAllSells = async ({
   }
 
   console.log(`${ALGO}: Found ${sellPositions.length} sell positions`);
-  console.log(`${ALGO}: Sell positions details:`, sellPositions.map(p => ({
-    tradingsymbol: p.tradingsymbol,
-    symboltoken: p.symboltoken,
-    netqty: p.netqty,
-    cfsellavgprice: p.cfsellavgprice
-  })));
+  console.log(
+    `${ALGO}: Sell positions details:`,
+    sellPositions.map(p => ({
+      tradingsymbol: p.tradingsymbol,
+      symboltoken: p.symboltoken,
+      netqty: p.netqty,
+      cfsellavgprice: p.cfsellavgprice,
+    })),
+  );
 
   // ── Step 2: Get existing pending stoploss orders ─────────────────
   console.log(`${ALGO}: Fetching existing pending stoploss orders`);
@@ -1413,12 +1416,15 @@ export const placeStoplossForAllSells = async ({
         )
       : [];
     console.log(`${ALGO}: Found ${pendingOrders.length} existing pending stoploss orders`);
-    console.log(`${ALGO}: Pending orders details:`, pendingOrders.map(o => ({
-      tradingsymbol: _get(o, 'tradingsymbol', ''),
-      symboltoken: _get(o, 'symboltoken', ''),
-      status: _get(o, 'status', ''),
-      variety: _get(o, 'variety', '')
-    })));
+    console.log(
+      `${ALGO}: Pending orders details:`,
+      pendingOrders.map(o => ({
+        tradingsymbol: _get(o, 'tradingsymbol', ''),
+        symboltoken: _get(o, 'symboltoken', ''),
+        status: _get(o, 'status', ''),
+        variety: _get(o, 'variety', ''),
+      })),
+    );
   } catch (error) {
     console.warn(`${ALGO}: Failed to fetch pending orders, continuing without dedup:`, error);
   }
@@ -1429,13 +1435,13 @@ export const placeStoplossForAllSells = async ({
 
   for (let i = 0; i < sellPositions.length; i++) {
     const position = sellPositions[i];
-    console.log(`${ALGO}: Processing position ${i+1}/${sellPositions.length}`, {
+    console.log(`${ALGO}: Processing position ${i + 1}/${sellPositions.length}`, {
       tradingsymbol: position.tradingsymbol,
       symboltoken: position.symboltoken,
       netqty: position.netqty,
-      cfsellavgprice: position.cfsellavgprice
+      cfsellavgprice: position.cfsellavgprice,
     });
-    
+
     const tradingsymbol = position.tradingsymbol;
     const symboltoken = position.symboltoken;
     const netqty = Number.parseInt(position.netqty);
@@ -1488,13 +1494,13 @@ export const placeStoplossForAllSells = async ({
         transactionType: TRANSACTION_TYPE_BUY, // Closing a sell = buy
         exchange: 'NFO',
         quantity,
-        variety: VARIETY_STOPLOSS as "STOPLOSS",
+        variety: VARIETY_STOPLOSS as 'STOPLOSS',
         ordertype: 'STOPLOSS_MARKET' as const,
         productType: 'CARRYFORWARD' as const,
         price: stoplossPrice,
         triggerprice: stoplossPrice,
       };
-      
+
       console.log(`${ALGO}: Order parameters:`, orderParams);
 
       const orderResponse = await doOrder(orderParams);
@@ -1502,7 +1508,7 @@ export const placeStoplossForAllSells = async ({
       console.log(`${ALGO}: Stoploss order placed for ${tradingsymbol}:`, {
         status: orderResponse.status,
         orderId: orderResponse.data?.orderid,
-        message: orderResponse.message
+        message: orderResponse.message,
       });
 
       stoplossOrders.push({
@@ -1513,7 +1519,7 @@ export const placeStoplossForAllSells = async ({
         quantity,
         status: orderResponse.status,
         orderId: orderResponse.data?.orderid,
-        message: orderResponse.message
+        message: orderResponse.message,
       });
     } catch (error) {
       console.error(`${ALGO}: Failed to place stoploss for ${tradingsymbol}:`, error);
@@ -1531,7 +1537,7 @@ export const placeStoplossForAllSells = async ({
     processedOrders: stoplossOrders.length,
     successfulOrders: stoplossOrders.filter(o => o.status === 'success' || o.orderId).length,
     skippedOrders: stoplossOrders.filter(o => o.status === 'skipped').length,
-    failedOrders: stoplossOrders.filter(o => o.status === 'failed').length
+    failedOrders: stoplossOrders.filter(o => o.status === 'failed').length,
   });
 
   return {
@@ -1541,4 +1547,76 @@ export const placeStoplossForAllSells = async ({
     sellPositionCount: sellPositions.length,
     stoplossOrders,
   };
+};
+/**
+ * Fetches historical candle data (OHLC) from SmartAPI.
+ * @param exchange - e.g. 'NSE', 'NFO'
+ * @param symboltoken - token from scrip master
+ * @param interval - 'ONE_MINUTE' | 'FIVE_MINUTE' | 'FIFTEEN_MINUTE' | 'ONE_HOUR' | 'ONE_DAY'
+ * @param fromdate - 'YYYY-MM-DD HH:mm'
+ * @param todate - 'YYYY-MM-DD HH:mm'
+ */
+export const getCandleData = async ({
+  exchange,
+  symboltoken,
+  interval,
+  fromdate,
+  todate,
+}: {
+  exchange: string;
+  symboltoken: string;
+  interval:
+    | 'ONE_MINUTE'
+    | 'THREE_MINUTE'
+    | 'FIVE_MINUTE'
+    | 'TEN_MINUTE'
+    | 'FIFTEEN_MINUTE'
+    | 'THIRTY_MINUTE'
+    | 'ONE_HOUR'
+    | 'ONE_DAY';
+  fromdate: string;
+  todate: string;
+}): Promise<number[][]> => {
+  const smartApiData: ISmartApiData = await getSmartSession();
+  const jwtToken = _get(smartApiData, 'jwtToken');
+  const cred = DataStore.getInstance().getPostData();
+
+  const headers = {
+    Authorization: `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+    'X-MACAddress': 'MAC_ADDRESS',
+    'X-PrivateKey': cred.APIKEY,
+  };
+
+  const data = {
+    exchange,
+    symboltoken,
+    interval,
+    fromdate,
+    todate,
+  };
+
+  try {
+    const response = await post(
+      'https://apiconnect.angelbroking.com/rest/secure/angelbroking/historical/v1/getCandleData',
+      data,
+      headers,
+    );
+    const candles = _get(response, 'data', []);
+
+    if (!Array.isArray(candles)) {
+      throw new TypeError('Invalid candle data format');
+    }
+
+    console.log(`${ALGO}: getCandleData — fetched ${candles.length} candles for token ${symboltoken}`);
+    return candles;
+  } catch (error) {
+    console.error(`${ALGO}: getCandleData failed:`, error);
+    throw error;
+  }
 };
