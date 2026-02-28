@@ -651,9 +651,9 @@ router.post('/getTechnicalSignal', async (req: Request, res: Response) => {
       'FIFTEEN_MINUTE',
       'THIRTY_MINUTE',
       'ONE_HOUR',
-      'ONE_DAY'
+      'ONE_DAY',
     ] as const;
-    type ValidInterval = typeof validIntervals[number];
+    type ValidInterval = (typeof validIntervals)[number];
 
     if (!validIntervals.includes(interval as ValidInterval)) {
       return res.status(400).json({
@@ -665,12 +665,12 @@ router.post('/getTechnicalSignal', async (req: Request, res: Response) => {
     const candles = await getCandleData({
       exchange,
       symboltoken,
-      interval: interval as typeof validIntervals[number],
+      interval: interval as (typeof validIntervals)[number],
       fromdate: fromdate.format('YYYY-MM-DD HH:mm'),
       todate: todate.format('YYYY-MM-DD HH:mm'),
     });
 
-    if (!candles || candles.length < 50) {
+    if (!candles || candles.length < 30) {
       return res.status(400).json({
         error: `Not enough candle data. Got ${candles?.length || 0} candles, need at least 50`,
       });
@@ -695,6 +695,72 @@ router.post('/getTechnicalSignal', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(`${ALGO}: /getTechnicalSignal error`, err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to get technical signal' });
+  }
+  console.log(`${ALGO}: -----------------------------------`);
+});
+/**
+ * @route   POST /api/api/debugCandles
+ * @desc    Debug endpoint to see raw candle data from SmartAPI
+ * @access  Public
+ */
+router.post('/debugCandles', async (req: Request, res: Response) => {
+  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  try {
+    setCred(req);
+
+    const scriptName: string = req.body.scriptName || 'NIFTY';
+    const interval: string = req.body.interval || 'FIVE_MINUTE';
+
+    // Validate interval parameter
+    const validIntervals = [
+      'ONE_MINUTE',
+      'THREE_MINUTE',
+      'FIVE_MINUTE',
+      'TEN_MINUTE',
+      'FIFTEEN_MINUTE',
+      'THIRTY_MINUTE',
+      'ONE_HOUR',
+      'ONE_DAY',
+    ] as const;
+    type ValidInterval = (typeof validIntervals)[number];
+
+    const indexScrip = await getIndexScrip({ scriptName });
+    const symboltoken = indexScrip[0].token;
+    const exchange = indexScrip[0].exch_seg;
+
+    // Go back 5 days from now
+    const todate = moment().tz('Asia/Kolkata');
+    const fromdate = todate.clone().subtract(5, 'days');
+
+    console.log(
+      `${ALGO}: Debug request — from: ${fromdate.format('YYYY-MM-DD HH:mm')}, to: ${todate.format('YYYY-MM-DD HH:mm')}`,
+    );
+
+    const candles = await getCandleData({
+      exchange,
+      symboltoken,
+      interval: interval as ValidInterval,
+      fromdate: fromdate.format('YYYY-MM-DD HH:mm'),
+      todate: todate.format('YYYY-MM-DD HH:mm'),
+    });
+
+    res.status(200).json({
+      data: {
+        scriptName,
+        symboltoken,
+        exchange,
+        interval,
+        fromdate: fromdate.format('YYYY-MM-DD HH:mm'),
+        todate: todate.format('YYYY-MM-DD HH:mm'),
+        candleCount: candles.length,
+        firstCandle: candles[0],
+        lastCandle: candles.at(-1),
+        sample: candles.slice(0, 5), // First 5 candles
+      },
+    });
+  } catch (err) {
+    console.error(`${ALGO}: /debugCandles error`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed', details: err });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });

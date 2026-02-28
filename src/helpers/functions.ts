@@ -504,18 +504,16 @@ export const generateTradingSignal = (
 ): {
   rsi: number;
   sma20: number;
-  sma50: number;
   macd: number;
   macdSignal: number;
   signal: 'BUY' | 'SELL' | 'NEUTRAL';
 } => {
-  if (closes.length < 50) {
+  if (closes.length < 30) {
     throw new Error('Need at least 50 candles for complete analysis');
   }
 
   const rsi = calculateRSI(closes, 14);
   const sma20 = calculateSMA(closes, 20);
-  const sma50 = calculateSMA(closes, 50);
   const { macd, signal: macdSignal } = calculateMACD(closes);
 
   // Trading logic
@@ -530,7 +528,6 @@ export const generateTradingSignal = (
   return {
     rsi: Number(rsi.toFixed(2)),
     sma20: Number(sma20.toFixed(2)),
-    sma50: Number(sma50.toFixed(2)),
     macd: Number(macd.toFixed(2)),
     macdSignal: Number(macdSignal.toFixed(2)),
     signal,

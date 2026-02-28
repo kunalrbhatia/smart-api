@@ -1550,6 +1550,7 @@ export const placeStoplossForAllSells = async ({
 };
 /**
  * Fetches historical candle data (OHLC) from SmartAPI.
+ * API Doc: https://smartapi.angelbroking.com/docs/Historical
  * @param exchange - e.g. 'NSE', 'NFO'
  * @param symboltoken - token from scrip master
  * @param interval - 'ONE_MINUTE' | 'FIVE_MINUTE' | 'FIFTEEN_MINUTE' | 'ONE_HOUR' | 'ONE_DAY'
@@ -1601,19 +1602,29 @@ export const getCandleData = async ({
     todate,
   };
 
+  console.log(`${ALGO}: getCandleData request:`, JSON.stringify(data, null, 2));
+
   try {
+    // Correct API endpoint from docs
     const response = await post(
       'https://apiconnect.angelbroking.com/rest/secure/angelbroking/historical/v1/getCandleData',
       data,
       headers,
     );
+
+    console.log(`${ALGO}: getCandleData raw response:`, JSON.stringify(response, null, 2));
+
     const candles = _get(response, 'data', []);
 
     if (!Array.isArray(candles)) {
-      throw new TypeError('Invalid candle data format');
+      console.error(`${ALGO}: Invalid candle data format:`, response);
+      throw new Error('Invalid candle data format from API');
     }
 
     console.log(`${ALGO}: getCandleData — fetched ${candles.length} candles for token ${symboltoken}`);
+    console.log(`${ALGO}: First candle:`, candles[0]);
+    console.log(`${ALGO}: Last candle:`, candles.at(-1));
+
     return candles;
   } catch (error) {
     console.error(`${ALGO}: getCandleData failed:`, error);
