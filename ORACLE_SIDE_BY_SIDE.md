@@ -90,7 +90,6 @@ Add these lines:
 0 10 * * 2 curl -X POST http://localhost:8001/algo/run-short-straddle -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret","lots":1,"loss_per_lot":3500}' >> ~/smart-api/logs/algo_run.log 2>&1
 ```
 
-
 ---
 
 ## 🔐 5. Angel One Whitelisting
