@@ -415,7 +415,8 @@ const doOrderByStrike = async (
     const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
     console.log(`${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`);
     await delay({ milliSeconds: DELAY });
-    const scripName = `${OrderStore.getInstance().getPostData().INDEX}${moment('2024-05-30').format('DDMMMYY').toUpperCase()}${strike.toString()}${OptionType.PE}`;
+    const formattedExpiry = moment(expiryDate, 'DDMMMYYYY').format('DDMMMYY').toUpperCase();
+    const scripName = `${OrderStore.getInstance().getPostData().INDEX}${formattedExpiry}${strike.toString()}${optionType}`;
     console.log(`${ALGO}: scripName: `, scripName);
     const searchedScrip = await searchScrip(scripName);
     console.log(`${ALGO}: searchedScrip: `, searchedScrip);
@@ -893,13 +894,17 @@ const executeTrade = async () => {
 };
 /**
  * Checks if trading is allowed based on market conditions.
+ * @param {string} expiryDate - The nearest expiry date for NIFTY.
  * @returns {Promise<{isAllowed: boolean, reasons: string[]}>} A promise that resolves with a boolean and detailed reasons if not allowed.
  */
-const isTradeAllowed = async () => {
+const isTradeAllowed = async (expiryDate: string) => {
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isHoliday = isTradingHoliday();
-  const isTuesday = moment().day() === 2; // Tuesday
+
+  const todayStr = moment().format('DDMMMYYYY').toUpperCase();
+  const isExpiryDay = todayStr === expiryDate;
+
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,
@@ -913,11 +918,11 @@ const isTradeAllowed = async () => {
     console.log('Error occurred for getSmartSession in isTradeAllowed:', err);
   }
   console.log(
-    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isTuesday: ${isTuesday}`,
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:15am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isExpiryDay: ${isExpiryDay} (${expiryDate})`,
   );
 
   const reasons: string[] = [];
-  if (!isTuesday) reasons.push('It is not Tuesday');
+  if (!isExpiryDay) reasons.push(`Today is not NIFTY expiry day (Next expiry: ${expiryDate})`);
   if (isWeekend) reasons.push('It is a weekend');
   if (!isMarketOpen) reasons.push('Market is closed');
   if (!hasTimePassedToTakeTrade) reasons.push('Time has not passed 09:15 AM');
@@ -925,7 +930,7 @@ const isTradeAllowed = async () => {
   if (isHoliday) reasons.push('Today is a trading holiday');
 
   const isAllowed =
-    isTuesday === true &&
+    isExpiryDay === true &&
     isWeekend === false &&
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
@@ -951,13 +956,13 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
     EXPIRYDATE: expiryDate,
-    INDEX: getScripName(expiryDate),
+    INDEX: 'NIFTY',
     LOSSPERLOT: lossPerLot,
     INDIAVIX: indiaVixLtp.ltp,
   });
   console.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
   try {
-    const { isAllowed, reasons } = await isTradeAllowed();
+    const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     if (isAllowed === false) {
       const detailedMessage = `${MESSAGE_NOT_TAKE_TRADE}. Reason(s): ${reasons.join(', ')}`;
       console.log(`${ALGO}: ${detailedMessage}`);
@@ -983,7 +988,7 @@ export const checkMarketConditions = async () => {
   await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   try {
-    const { isAllowed, reasons } = await isTradeAllowed();
+    const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     return {
       conditions: {
         indiaVixLtp: indiaVixLtp.ltp,
