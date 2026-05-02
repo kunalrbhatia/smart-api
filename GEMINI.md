@@ -43,6 +43,10 @@ npm run dev
 
 # Development Conventions
 
+### Environment
+- **Operating System:** Windows
+- **Shell:** PowerShell. Always use PowerShell-compatible commands (e.g., use `;` instead of `&&`, `Get-Content` instead of `cat`, etc.) when executing shell tasks.
+
 ### Coding Style & Linting
 - **Linting:** ESLint is used for code quality.
 - **Formatting:** Prettier is used for consistent code styling.
