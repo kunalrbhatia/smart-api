@@ -70,18 +70,26 @@ sudo netfilter-persistent save
 ---
 
 ## 📅 4. Scheduling Trades (Cron)
-Since the algo is an API, you trigger it by sending a `POST` request.
+Since the algo is an API, you trigger it by sending a `POST` request. To check positions and execute trades every 5 minutes during market hours, use the following configuration.
+
+**Market Hours (IST)**: 09:15 AM to 03:30 PM
+**UTC Equivalent**: 03:45 AM to 10:00 AM
 
 Open crontab: `crontab -e`
 
-Add these examples (adjust times to your strategy):
+Add these lines:
 ```cron
-# 1. Warmup at 9:16 AM IST (03:46 AM UTC)
+# 1. Warmup once at 9:16 AM IST (03:46 AM UTC) to fetch Scrip Master
 46 03 * * * curl -X POST http://localhost:8001/api/warmup -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret"}' >> ~/smart-api/logs/warmup.log 2>&1
 
-# 2. Run Algo at 9:20 AM IST (03:50 AM UTC)
-50 03 * * * curl -X POST http://localhost:8001/algo/run-short-straddle -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret","lots":1,"loss_per_lot":3500}' >> ~/smart-api/logs/algo_run.log 2>&1
+# 2. Run/Check Algo every 5 minutes from 9:20 AM to 3:30 PM IST (03:50 AM to 10:00 AM UTC)
+*/5 04-09 * * * curl -X POST http://localhost:8001/algo/run-short-straddle -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret","lots":1,"loss_per_lot":3500}' >> ~/smart-api/logs/algo_run.log 2>&1
+
+# Handle the 03:50-04:00 gap and 10:00 boundary if needed
+50,55 03 * * * curl -X POST http://localhost:8001/algo/run-short-straddle -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret","lots":1,"loss_per_lot":3500}' >> ~/smart-api/logs/algo_run.log 2>&1
+0 10 * * * curl -X POST http://localhost:8001/algo/run-short-straddle -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret","lots":1,"loss_per_lot":3500}' >> ~/smart-api/logs/algo_run.log 2>&1
 ```
+
 
 ---
 
