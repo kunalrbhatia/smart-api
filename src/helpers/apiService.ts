@@ -3,11 +3,11 @@ import {
   CREDENTIALS,
   DELAY,
   delay,
-  generateSmartSession,
+  // generateSmartSession,
   getCredentials,
   getNearestStrike,
   getScripName,
-  getSmartSession,
+  // getSmartSession,
   isCurrentTimeGreater,
   isTradingHoliday,
 } from 'krb-smart-api-module';
@@ -63,8 +63,49 @@ import {
 import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
+import SmartSession from '../store/smartSession';
 import moment from 'moment-timezone';
 import { get, post } from './api';
+import { getLocalIp, getMacAddress, getPublicIp } from './ip';
+import { loginToSmartApi } from './smartApiLogin';
+
+/**
+ * Gets the smart API session data.
+ * @returns {Promise<ISmartApiData>}
+ */
+export const getSmartSession = async (): Promise<ISmartApiData> => {
+  const session = SmartSession.getInstance().getPostData();
+  if (session && session.jwtToken) {
+    return session;
+  }
+  const creds = DataStore.getInstance().getPostData();
+  const newSession = await loginToSmartApi(creds);
+  SmartSession.getInstance().setPostData(newSession);
+  return newSession;
+};
+
+/**
+ * Generates the headers for SmartAPI requests.
+ */
+export const getAuthHeaders = async () => {
+  const smartApiData = await getSmartSession();
+  const cred = DataStore.getInstance().getPostData();
+  const publicIp = await getPublicIp();
+  const localIp = getLocalIp();
+  const macAddress = getMacAddress();
+
+  return {
+    Authorization: `Bearer ${smartApiData.jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': localIp,
+    'X-ClientPublicIP': publicIp,
+    'X-MACAddress': macAddress,
+    'X-PrivateKey': cred.APIKEY,
+  };
+};
 
 /**
  * Gets the nearest weekly expiry date for a given index (NIFTY or BANKNIFTY).
@@ -159,21 +200,8 @@ export const getLtpWithRetry = async ({
  * @returns {Promise<LtpDataType>} A promise that resolves with the LTP data.
  */
 export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLtpDataType): Promise<LtpDataType> => {
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
   const data = { exchange, tradingsymbol, symboltoken };
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
   try {
     const response = await post(GET_LTP_DATA_API, data, headers);
     const responseData = _get(response, 'data', null);
@@ -198,20 +226,7 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
  * @returns {Promise<any>} A promise that resolves with the search results.
  */
 export const searchScrip = async (scripName: string, exchange: string = 'NFO') => {
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
   const data = { exchange, searchscrip: scripName };
   const response = await post(SEARCHSCRIPAPI, data, headers);
   return _get(response, 'data', '');
@@ -371,18 +386,7 @@ export const doOrder = async ({
     triggerprice,
   };
   console.log(`${ALGO} doOrder data `, data);
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
   try {
     const response = await post(ORDER_API, data, headers);
     return response;
@@ -614,17 +618,7 @@ export const getPositions = async (
   maxRetries: number = 5,
   delayMs: number = 1000,
 ): Promise<Position[]> => {
-  const headers = {
-    Authorization: `Bearer ${smartSession.jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
 
   let attempt = 0;
 
@@ -912,12 +906,11 @@ const isTradeAllowed = async () => {
   });
   let isSmartAPIWorking = false;
   try {
-    const creds = DataStore.getInstance().getPostData();
-    const smartData = await generateSmartSession(creds);
+    const smartData = await getSmartSession();
     await delay({ milliSeconds: DELAY });
     isSmartAPIWorking = !isEmpty(smartData);
   } catch (err) {
-    console.log('Error occurred for generateSmartSession:', err);
+    console.log('Error occurred for getSmartSession in isTradeAllowed:', err);
   }
   console.log(
     `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isTuesday: ${isTuesday}`,
@@ -1029,20 +1022,7 @@ export const checkPositionAlreadyExists = async ({ position, trades }: CheckPosi
  */
 const getPendingOrders = async (): Promise<Record<string, unknown>[]> => {
   try {
-    const smartApiData: ISmartApiData = await getSmartSession();
-    const jwtToken = _get(smartApiData, 'jwtToken');
-    const cred = DataStore.getInstance().getPostData();
-    const headers = {
-      Authorization: `Bearer ${jwtToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': cred.APIKEY,
-    };
+    const headers = await getAuthHeaders();
     const response = await get(GET_ORDER_BOOK_API, headers);
     const orders = _get(response, 'data', []);
     // Filter for pending stop loss orders
@@ -1387,20 +1367,7 @@ export const placeStoplossForAllSells = async ({
 
   // ── Step 2: Get existing pending stoploss orders ─────────────────
   console.log(`${ALGO}: Fetching existing pending stoploss orders`);
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
 
   let pendingOrders: Record<string, unknown>[] = [];
   try {
@@ -1578,21 +1545,7 @@ export const getCandleData = async ({
   fromdate: string;
   todate: string;
 }): Promise<number[][]> => {
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
 
   const data = {
     exchange,
