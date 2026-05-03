@@ -28,7 +28,6 @@ export const sendTelegramMessage = async (message: string): Promise<void> => {
     console.error('Error sending Telegram message:', error);
   }
 };
-
 /**
  * Polls for new Telegram messages to handle remote commands.
  */
