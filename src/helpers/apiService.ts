@@ -68,6 +68,7 @@ import moment from 'moment-timezone';
 import { get, post } from './api';
 import { getLocalIp, getMacAddress, getPublicIp } from './ip';
 import { loginToSmartApi } from './smartApiLogin';
+import { notify } from './notifier';
 
 /**
  * Gets the smart API session data.
@@ -793,6 +794,7 @@ const closeTrade = async (isAbrupt = false) => {
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
   const mtm = await getMtm();
+  await notify(`All trades closed. Final MTM: ${mtm}`);
   console.log(`${ALGO}: mtm is ${mtm}`);
 };
 /**
@@ -831,6 +833,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
   if (isTradeAlreadyTaken === false) {
     console.log(`${ALGO}: executing trade`);
     await shortStraddle(true);
+    await notify('Short Straddle order executed successfully!');
   } else {
     console.log(`${ALGO}: trade executed already checking conditions to repeat the trade`);
     await delay({ milliSeconds: DELAY });
@@ -1106,6 +1109,9 @@ const placeStopLossOrder = async (
         triggerprice: stoplossPrice,
       });
       console.log(`${ALGO}: placeStopLossOrder status for ${tradingsymbol}:`, stoplossStatus);
+      if (stoplossStatus.status) {
+        await notify(`Stop Loss order placed for ${tradingsymbol} at ${stoplossPrice.toFixed(2)}`);
+      }
       return stoplossStatus;
     }
     return null;
