@@ -903,6 +903,7 @@ const executeTrade = async () => {
 const isTradeAllowed = async (expiryDate: string) => {
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
+  const isTuesday = moment().day() === 2;
   const isHoliday = isTradingHoliday();
 
   const todayStr = moment().format('DDMMMYYYY').toUpperCase();
@@ -921,11 +922,12 @@ const isTradeAllowed = async (expiryDate: string) => {
     console.log('Error occurred for getSmartSession in isTradeAllowed:', err);
   }
   console.log(
-    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:15am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isExpiryDay: ${isExpiryDay} (${expiryDate})`,
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isTuesday: ${isTuesday}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:15am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isExpiryDay: ${isExpiryDay} (${expiryDate})`,
   );
 
   const reasons: string[] = [];
   if (!isExpiryDay) reasons.push(`Today is not NIFTY expiry day (Next expiry: ${expiryDate})`);
+  if (!isTuesday) reasons.push('Today is not Tuesday');
   if (isWeekend) reasons.push('It is a weekend');
   if (!isMarketOpen) reasons.push('Market is closed');
   if (!hasTimePassedToTakeTrade) reasons.push('Time has not passed 09:15 AM');
@@ -934,6 +936,7 @@ const isTradeAllowed = async (expiryDate: string) => {
 
   const isAllowed =
     isExpiryDay === true &&
+    isTuesday === true &&
     isWeekend === false &&
     isMarketOpen &&
     hasTimePassedToTakeTrade &&
