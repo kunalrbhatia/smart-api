@@ -971,7 +971,7 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
     const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     if (isAllowed === false) {
       const detailedMessage = `${MESSAGE_NOT_TAKE_TRADE}. Reason(s): ${reasons.join(', ')}`;
-      console.log(`${ALGO}: ${detailedMessage}`);
+      await notify(detailedMessage);
       return detailedMessage;
     } else return await executeTrade();
   } catch (err) {
