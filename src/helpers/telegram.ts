@@ -42,12 +42,23 @@ export const startTelegramBotListener = async () => {
   console.log('🤖 Telegram Remote Control Listener started...');
   let lastUpdateId = 0;
 
-  setInterval(async () => {
+  // Initialize lastUpdateId to the latest update to avoid processing old messages on startup
+  try {
+    const response: any = await get(`https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=-1`, {});
+    if (response && response.ok && response.result && response.result.length > 0) {
+      lastUpdateId = response.result[0].update_id;
+      console.log(`🤖 Telegram: Starting from update ID ${lastUpdateId + 1}`);
+    }
+  } catch (error) {
+    console.error('🤖 Telegram: Error initializing listener:', error);
+  }
+
+  const poll = async () => {
     try {
       const url = `https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=${lastUpdateId + 1}&timeout=30`;
       const response: any = await get(url, {});
 
-      if (response && response.ok && response.result.length > 0) {
+      if (response && response.ok && response.result && response.result.length > 0) {
         for (const update of response.result) {
           lastUpdateId = update.update_id;
 
@@ -64,17 +75,28 @@ export const startTelegramBotListener = async () => {
           if (text === '/kill') {
             await sendTelegramMessage('🛑 *Kill Signal Received.* Initiating abrupt shutdown...');
             console.log('🛑 Telegram: Received /kill command. Shutting down...');
-            
+
+            // Confirm this update with Telegram to prevent loops on restart
+            try {
+              await get(`https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=${lastUpdateId + 1}`, {});
+            } catch (e) {
+              // Ignore confirmation errors
+            }
+
             // Trigger the server's kill route locally
             const port = config.port || 8080;
             await get(`http://localhost:${port}/kill`, {});
+            return; // Stop polling
           } else if (text === '/status') {
-             await sendTelegramMessage('✅ *Algo is running.* Monitoring active.');
+            await sendTelegramMessage('✅ *Algo is running.* Monitoring active.');
           }
         }
       }
     } catch (error) {
       // Quietly ignore errors to prevent log spamming during polling
     }
-  }, 5000); // Poll every 5 seconds
+    setTimeout(poll, 5000);
+  };
+
+  poll();
 };
