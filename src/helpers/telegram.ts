@@ -1,5 +1,6 @@
 import { config } from '../config/env';
 import { get } from './api';
+import { clearKillSwitch, isKillSwitchActive, setKillSwitch } from './killSwitch';
 
 /**
  * Sends a message to a Telegram chat.
@@ -73,6 +74,7 @@ export const startTelegramBotListener = async () => {
 
           const text = message.text.toLowerCase();
           if (text === '/kill') {
+            setKillSwitch();
             await sendTelegramMessage('🛑 *Kill Signal Received.* Initiating abrupt shutdown...');
             console.log('🛑 Telegram: Received /kill command. Shutting down...');
 
@@ -87,8 +89,12 @@ export const startTelegramBotListener = async () => {
             const port = config.port || 8080;
             await get(`http://localhost:${port}/kill`, {});
             return; // Stop polling
+          } else if (text === '/resume' || text === '/start') {
+            clearKillSwitch();
+            await sendTelegramMessage('🚀 *Kill Switch Cleared.* Algo is now allowed to run.');
           } else if (text === '/status') {
-            await sendTelegramMessage('✅ *Algo is running.* Monitoring active.');
+            const status = isKillSwitchActive() ? '🛑 *Stopped (Kill Switch Active)*' : '✅ *Running*';
+            await sendTelegramMessage(`${status}. Monitoring active.`);
           }
         }
       }

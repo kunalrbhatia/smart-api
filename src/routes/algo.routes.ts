@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { checkMarketConditionsAndExecuteTrade, checkMarketConditions } from '../helpers/apiService';
 import { ALGO } from '../helpers/constants';
 import { setCred } from '../helpers/functions';
+import { isKillSwitchActive } from '../helpers/killSwitch';
 
 const router = Router();
 
@@ -11,6 +12,10 @@ const router = Router();
  * @access  Public
  */
 router.post('/run-short-straddle', async (req: Request, res: Response) => {
+  if (isKillSwitchActive()) {
+    return res.status(403).json({ response: 'Algo is disabled by kill switch. Send /resume via Telegram to enable.' });
+  }
+
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
@@ -40,6 +45,10 @@ router.post('/run-short-straddle', async (req: Request, res: Response) => {
  * @access  Public
  */
 router.post('/check-market-conditions', async (req: Request, res: Response) => {
+  if (isKillSwitchActive()) {
+    return res.status(403).json({ response: 'Algo is disabled by kill switch. Send /resume via Telegram to enable.' });
+  }
+
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
