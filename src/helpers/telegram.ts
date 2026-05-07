@@ -1,6 +1,7 @@
 import { config } from '../config/env';
 import { get } from './api';
 import { clearKillSwitch, isKillSwitchActive, setKillSwitch } from './killSwitch';
+import { logger } from './logger';
 
 /**
  * Sends a message to a Telegram chat.
@@ -11,7 +12,7 @@ export const sendTelegramMessage = async (message: string): Promise<void> => {
   const { telegramBotToken, telegramChatId } = config;
 
   if (!telegramBotToken || !telegramChatId) {
-    console.warn('Telegram notifications are disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.');
+    logger.warn('Telegram notifications are disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.');
     return;
   }
 
@@ -22,10 +23,10 @@ export const sendTelegramMessage = async (message: string): Promise<void> => {
   try {
     const response = await get(url, {});
     if (response && response.ok === false) {
-      console.error('Failed to send Telegram message:', response.description);
+      logger.error('Failed to send Telegram message:', response.description);
     }
   } catch (error) {
-    console.error('Error sending Telegram message:', error);
+    logger.error('Error sending Telegram message:', error);
   }
 };
 
@@ -36,11 +37,11 @@ export const startTelegramBotListener = async () => {
   const { telegramBotToken, telegramChatId } = config;
 
   if (!telegramBotToken || !telegramChatId) {
-    console.warn('Telegram command listener disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.');
+    logger.warn('Telegram command listener disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.');
     return;
   }
 
-  console.log('🤖 Telegram Remote Control Listener started...');
+  logger.log('🤖 Telegram Remote Control Listener started...');
   let lastUpdateId = 0;
 
   // Initialize lastUpdateId to the latest update to avoid processing old messages on startup
@@ -48,10 +49,10 @@ export const startTelegramBotListener = async () => {
     const response: any = await get(`https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=-1`, {});
     if (response && response.ok && response.result && response.result.length > 0) {
       lastUpdateId = response.result[0].update_id;
-      console.log(`🤖 Telegram: Starting from update ID ${lastUpdateId + 1}`);
+      logger.log(`🤖 Telegram: Starting from update ID ${lastUpdateId + 1}`);
     }
   } catch (error) {
-    console.error('🤖 Telegram: Error initializing listener:', error);
+    logger.error('🤖 Telegram: Error initializing listener:', error);
   }
 
   const poll = async () => {
@@ -68,7 +69,7 @@ export const startTelegramBotListener = async () => {
 
           // Security check: Only respond to the authorized Chat ID
           if (message.chat.id.toString() !== telegramChatId.toString()) {
-            console.warn(`Unauthorized command attempt from Chat ID: ${message.chat.id}`);
+            logger.warn(`Unauthorized command attempt from Chat ID: ${message.chat.id}`);
             continue;
           }
 
@@ -76,7 +77,7 @@ export const startTelegramBotListener = async () => {
           if (text === '/kill') {
             setKillSwitch();
             await sendTelegramMessage('🛑 *Kill Signal Received.* Initiating abrupt shutdown...');
-            console.log('🛑 Telegram: Received /kill command. Shutting down...');
+            logger.log('🛑 Telegram: Received /kill command. Shutting down...');
 
             // Confirm this update with Telegram to prevent loops on restart
             try {

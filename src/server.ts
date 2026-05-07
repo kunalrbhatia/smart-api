@@ -4,6 +4,7 @@ import app from './app';
 import { config } from './config/env';
 import { ALGO } from './helpers/constants';
 import { startTelegramBotListener } from './helpers/telegram';
+import { logger } from './helpers/logger';
 
 /**
  * The HTTP server.
@@ -17,7 +18,7 @@ startTelegramBotListener();
 let connections: Socket[] = [];
 
 server.listen(config.port, () => {
-  console.log(`${ALGO}: Server running on PORT number ${config.port}`);
+  logger.log(`${ALGO}: Server running on PORT number ${config.port}`);
 });
 
 server.on('connection', connection => {
@@ -31,14 +32,14 @@ server.on('connection', connection => {
  * Gracefully shuts down the server.
  */
 export const shutdown = () => {
-  console.log('Received kill signal, shutting down gracefully');
+  logger.log('Received kill signal, shutting down gracefully');
   server.close(() => {
-    console.log('Closed out remaining connections');
+    logger.log('Closed out remaining connections');
     process.exit(0);
   });
 
   setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
+    logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
 
@@ -47,7 +48,7 @@ export const shutdown = () => {
 };
 
 process.on('uncaughtException', err => {
-  console.error(err);
+  logger.error('Uncaught Exception:', err);
 });
 
 process.on('SIGTERM', shutdown);
