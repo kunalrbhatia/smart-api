@@ -59,6 +59,12 @@ npm run dev
 - **Configuration:** Managed via `eslint.config.mjs`, `.babelrc`, and settings in `package.json`.
 - **Pre-commit Hooks:** Husky and `lint-staged` ensure that formatting and linting are applied automatically before each commit.
 
+### Push Requirements
+- **Verification:** Before pushing any changes, you MUST always run a full typecheck and build to ensure no regressions:
+  ```powershell
+  npx tsc --noEmit; npm run build
+  ```
+
 ### Commits
 - This project follows **Conventional Commits** using emojis.
 - Use `npm run commit` to use the interactive Commitizen CLI (`cz-emoji-conventional`).
