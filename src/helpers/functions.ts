@@ -19,6 +19,7 @@ import { Request } from 'express';
 import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
 import { getLastThursdayOfCurrentMonth, isCurrentTimeGreater, setCredentials } from 'krb-smart-api-module';
+import { logger } from './logger';
 
 /**
  * Gets all open positions filtered by index and expiry date — standalone, no OrderStore dependency.
@@ -60,7 +61,7 @@ export const getAtmStrikePriceForIndex = async (
   scriptName: string,
   expiryDate: string,
 ): Promise<{ atmStrike: number; ltp: number; expiry: string; index: string }> => {
-  console.log(`${ALGO}: getAtmStrikePriceForIndex called — index: ${scriptName}, expiry: ${expiryDate}`);
+  logger.log(`${ALGO}: Fetching ATM strike for ${scriptName} (Expiry: ${expiryDate})`);
 
   // 1. Get all options for this index & expiry from scrip master
   const optionChain = await getScrip({ scriptName, expiryDate });
@@ -84,7 +85,7 @@ export const getAtmStrikePriceForIndex = async (
   });
 
   const ltp = ltpData.ltp;
-  console.log(`${ALGO}: ${scriptName} spot LTP = ${ltp}`);
+  logger.log(`${ALGO}: ${scriptName} spot LTP: ${ltp}`);
 
   if (typeof ltp !== 'number' || Number.isNaN(ltp) || ltp <= 0) {
     throw new Error(`Invalid LTP received for ${scriptName}: ${ltp}`);
@@ -92,7 +93,7 @@ export const getAtmStrikePriceForIndex = async (
 
   // 4. Find nearest strike (reuses your existing findNearestStrike)
   const atmStrike = findNearestStrike(optionChain, ltp);
-  console.log(`${ALGO}: ATM Strike for ${scriptName} = ${atmStrike}`);
+  logger.log(`${ALGO}: Calculated ATM Strike for ${scriptName}: ${atmStrike}`);
 
   return { atmStrike, ltp, expiry: expiryDate, index: scriptName };
 };
@@ -220,7 +221,7 @@ export const findNearestStrike = (options: scripMasterResponse[], target: number
  */
 export const getAtmStrikePrice = async () => {
   const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
-  console.log(`${ALGO}: expiryDate is ${expiryDate}`);
+  logger.log(`${ALGO}: Fetching ATM for expiry: ${expiryDate}`);
   try {
     const optionChain = await getScrip({
       scriptName: OrderStore.getInstance().getPostData().INDEX,
@@ -235,15 +236,15 @@ export const getAtmStrikePrice = async () => {
       symboltoken: bnfScrip[0].token,
     });
     const ltpPrice = ltp.ltp;
-    console.log(`${ALGO}: fetched ltp ${ltpPrice}`);
+    logger.log(`${ALGO}: Fetched LTP: ${ltpPrice}`);
     if (typeof ltpPrice === 'number' && !Number.isNaN(ltpPrice)) {
       return findNearestStrike(optionChain, ltpPrice);
     } else {
-      console.log(`${ALGO}: Oops, 'ltpPrice' is not a valid number! Cannot execute further.`);
+      logger.error(`${ALGO}: Invalid LTP received: ${ltpPrice}`);
       throw new Error(`ltpPrice is not a valid number!`);
     }
   } catch (error) {
-    console.error(`${ALGO}: Error - ${error}`);
+    logger.error(`${ALGO} Error in getAtmStrikePrice:`, error);
     throw error; // This will immediately stop further execution
   }
 };

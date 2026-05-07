@@ -3,6 +3,7 @@ import { checkMarketConditionsAndExecuteTrade, checkMarketConditions } from '../
 import { ALGO } from '../helpers/constants';
 import { setCred } from '../helpers/functions';
 import { isKillSwitchActive } from '../helpers/killSwitch';
+import { logger } from '../helpers/logger';
 
 const router = Router();
 
@@ -16,27 +17,27 @@ router.post('/run-short-straddle', async (req: Request, res: Response) => {
     return res.status(403).json({ response: 'Algo is disabled by kill switch. Send /resume via Telegram to enable.' });
   }
 
-  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  logger.log(`${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
-    console.log(`${ALGO}: time, ${istTz}`);
+    logger.log(`${ALGO}: time, ${istTz}`);
 
     setCred(req);
 
     const lots: number = req.body.lots;
     const lossPerLot: number = req.body.loss_per_lot;
 
-    console.log(`${ALGO}: lots: ${lots}`);
+    logger.log(`${ALGO}: lots: ${lots}`);
 
     const response = await checkMarketConditionsAndExecuteTrade(lots, lossPerLot);
-    console.log(`${ALGO} response: ${response}`);
+    logger.log(`${ALGO} response: ${response}`);
 
     res.json({ response });
   } catch (err) {
-    console.error(err);
+    logger.error(`${ALGO} Error:`, err);
     res.status(500).json({ response: err });
   }
-  console.log(`${ALGO}: -----------------------------------`);
+  logger.log(`${ALGO}: -----------------------------------`);
 });
 
 /**
@@ -49,22 +50,21 @@ router.post('/check-market-conditions', async (req: Request, res: Response) => {
     return res.status(403).json({ response: 'Algo is disabled by kill switch. Send /resume via Telegram to enable.' });
   }
 
-  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
+  logger.log(`${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
-    console.log(`${ALGO}: time, ${istTz}`);
+    logger.log(`${ALGO}: time, ${istTz}`);
 
     setCred(req);
 
     const response = await checkMarketConditions();
-    console.log(`${ALGO} response:`);
-    console.dir(response);
+    logger.log(`${ALGO} response: ${JSON.stringify(response)}`);
     res.json({ response });
   } catch (err) {
-    console.error(err);
+    logger.error(`${ALGO} Error:`, err);
     res.status(500).json({ response: err });
   }
-  console.log(`${ALGO}: -----------------------------------`);
+  logger.log(`${ALGO}: -----------------------------------`);
 });
 
 export default router;

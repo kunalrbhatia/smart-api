@@ -45,7 +45,13 @@ npm run dev
 
 ### Environment
 - **Operating System:** Windows
-- **Shell:** PowerShell. Always use PowerShell-compatible commands (e.g., use `;` instead of `&&`, `Get-Content` instead of `cat`, etc.) when executing shell tasks.
+- **Shell:** PowerShell.
+- **CRITICAL RULE FOR AI:** **YOU MUST refer to this `GEMINI.md` file BEFORE executing ANY terminal command.**
+- **PowerShell Compatibility Requirements:**
+    - **NO `&&`:** Standard Windows PowerShell (5.1) does NOT support `&&`. Use `;` for sequential execution or check `$?` for conditional logic.
+    - **NO `grep`:** Use `Select-String` or the built-in `grep_search` tool.
+    - **NO `cat` / `ls` / `rm` with Bash flags:** While aliases exist, avoid Bash-specific flags (e.g., `ls -la`, `rm -rf`). Use `Get-ChildItem`, `Get-Content`, or `Remove-Item -Recurse -Force`.
+    - **Quoting:** Use double quotes `"` for paths with spaces. Avoid single quotes `'` if variable expansion is needed.
 
 ### Coding Style & Linting
 - **Linting:** ESLint is used for code quality.

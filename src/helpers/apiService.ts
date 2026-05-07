@@ -69,6 +69,7 @@ import { get, post } from './api';
 import { getLocalIp, getMacAddress, getPublicIp } from './ip';
 import { loginToSmartApi } from './smartApiLogin';
 import { notify } from './notifier';
+import { logger } from './logger';
 
 /**
  * Gets the smart API session data.
@@ -144,7 +145,7 @@ export const getNearestWeeklyExpiry = async (scriptName: 'NIFTY' | 'BANKNIFTY' =
 
   // The first one is the nearest weekly expiry
   const nearest = parsedExpiries[0];
-  console.log(`${ALGO}: Nearest weekly expiry for ${scriptName}: ${nearest.raw}`);
+  logger.log(`${ALGO}: Nearest weekly expiry for ${scriptName}: ${nearest.raw}`);
 
   return nearest.raw; // returns e.g. "20FEB2025"
 };
@@ -172,11 +173,11 @@ export const getLtpWithRetry = async ({
         return ltpData;
       }
 
-      console.warn(
-        `${ALGO}: getLtpWithRetry — invalid LTP for ${tradingsymbol} on attempt ${attempt + 1}/${maxRetries}, got: ${ltpData?.ltp}`,
+      logger.warn(
+        `${ALGO}: getLtpWithRetry — Invalid LTP for ${tradingsymbol} on attempt ${attempt + 1}/${maxRetries}: ${ltpData?.ltp}`,
       );
     } catch (error) {
-      console.warn(`${ALGO}: getLtpWithRetry — error on attempt ${attempt + 1}/${maxRetries}:`, error);
+      logger.error(`${ALGO}: getLtpWithRetry — Error on attempt ${attempt + 1}/${maxRetries}:`, error);
 
       // Rethrow immediately on last attempt
       if (attempt + 1 >= maxRetries) throw error;
@@ -184,15 +185,15 @@ export const getLtpWithRetry = async ({
 
     // ── Exponential backoff: 1s → 2s → 4s → 8s → 16s ──
     const backoffMs = delayMs * Math.pow(2, attempt);
-    console.warn(
-      `${ALGO}: getLtpWithRetry — retrying ${tradingsymbol} in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`,
+    logger.warn(
+      `${ALGO}: getLtpWithRetry — Retrying ${tradingsymbol} in ${backoffMs}ms (Attempt ${attempt + 1}/${maxRetries})`,
     );
     await delay({ milliSeconds: backoffMs });
 
     attempt++;
   }
 
-  throw new Error(`${ALGO}: getLtpWithRetry — no valid LTP for ${tradingsymbol} after ${maxRetries} attempts`);
+  throw new Error(`${ALGO}: getLtpWithRetry — No valid LTP for ${tradingsymbol} after ${maxRetries} attempts`);
 };
 
 /**
@@ -209,14 +210,11 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
 
     // Safety: handle both response shapes
     const ltp = _get(responseData, 'ltp', undefined);
-    console.log(
-      `${ALGO}: getLtpData raw response for ${tradingsymbol} — ltp: ${ltp}, full data: ${JSON.stringify(responseData)}`,
-    );
+    logger.log(`${ALGO}: LTP for ${tradingsymbol}: ${ltp}`);
 
     return responseData || {};
   } catch (error) {
-    console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`);
-    console.log(error);
+    logger.error(`${ALGO}: GET_LTP_DATA_API failed for ${tradingsymbol}:`, error);
     throw error;
   }
 };
@@ -243,17 +241,16 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
     return data as scripMasterResponse[];
   } else {
     try {
-      console.log(`${ALGO}: 📥 Downloading Scrip Master...`);
+      logger.log(`${ALGO}: 📥 Downloading Scrip Master...`);
       const response = (await get(SCRIPMASTER, {})) as scripMasterResponse[];
       const acData: scripMasterResponse[] = response;
-      console.log(`${ALGO}: response if script master api loaded and its length is ${acData.length}`);
+      logger.log(`${ALGO}: Scrip Master loaded. Total scrips: ${acData.length}`);
       ScripMasterStore.getInstance().setPostData({
         SCRIP_MASTER_JSON: acData,
       });
       return acData;
     } catch (error) {
-      console.log(`${ALGO}: fetchData failed error below`);
-      console.log(error);
+      logger.error(`${ALGO}: fetchData failed:`, error);
       throw error;
     }
   }
@@ -270,13 +267,7 @@ export const getScrip = async ({
   expiryDate,
 }: getScripType): Promise<scripMasterResponse[]> => {
   const scripMaster: scripMasterResponse[] = await fetchData();
-  console.log(
-    `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(scripMaster)}, its length is: ${
-      scripMaster.length
-    }`,
-  );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
-    console.log(`${ALGO}: all check cleared getScrip call`);
     let scrips = scripMaster.filter(scrip => {
       const _scripName: string = _get(scrip, 'name', '') || '';
       const _symbol: string = _get(scrip, 'symbol', '') || '';
@@ -306,8 +297,8 @@ export const getScrip = async ({
     });
     return scrips;
   } else {
-    const errorMessage = `${ALGO}: getScrip failed`;
-    console.log(errorMessage);
+    const errorMessage = `${ALGO}: getScrip failed for ${scriptName}`;
+    logger.error(errorMessage);
     throw errorMessage;
   }
 };
@@ -325,8 +316,8 @@ export const getIndexScrip = async ({ scriptName }: { scriptName: string }): Pro
     });
     return scrips;
   } else {
-    const errorMessage = `${ALGO}: getScrip failed`;
-    console.log(errorMessage);
+    const errorMessage = `${ALGO}: getIndexScrip failed for ${scriptName}`;
+    logger.error(errorMessage);
     throw errorMessage;
   }
 };
@@ -367,7 +358,7 @@ export const doOrder = async ({
     const storedLots = lots || OrderStore.getInstance().getPostData().QUANTITY || 1;
     const hedgeQuantity = storedLots * 5;
     const lotsCalc = isHedge ? hedgeQuantity : storedLots;
-    console.log(`${ALGO} {doOrder}: isHedge: ${isHedge}, lotsCalc: ${lotsCalc}, hedgeQuantity: ${hedgeQuantity}`);
+    logger.log(`${ALGO}: doOrder — isHedge: ${isHedge}, lots: ${lotsCalc}`);
     quantity = Math.abs(lotSize * lotsCalc);
   } else {
     quantity = Math.abs(providedQuantity);
@@ -386,15 +377,13 @@ export const doOrder = async ({
     price,
     triggerprice,
   };
-  console.log(`${ALGO} doOrder data `, data);
+  logger.log(`${ALGO}: Placing ${transactionType} order for ${tradingsymbol} (Qty: ${quantity})`);
   const headers = await getAuthHeaders();
   try {
     const response = await post(ORDER_API, data, headers);
     return response;
   } catch (error) {
-    const errorMessage = `${ALGO}: doOrder failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: doOrder failed for ${tradingsymbol}:`, error);
     throw error;
   }
 };
@@ -414,13 +403,10 @@ const doOrderByStrike = async (
 ): Promise<OrderData | boolean> => {
   try {
     const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
-    console.log(`${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`);
     await delay({ milliSeconds: DELAY });
     const formattedExpiry = moment(expiryDate, 'DDMMMYYYY').format('DDMMMYY').toUpperCase();
     const scripName = `${OrderStore.getInstance().getPostData().INDEX}${formattedExpiry}${strike.toString()}${optionType}`;
-    console.log(`${ALGO}: scripName: `, scripName);
     const searchedScrip = await searchScrip(scripName);
-    console.log(`${ALGO}: searchedScrip: `, searchedScrip);
     const token = await getScrip({
       scriptName: OrderStore.getInstance().getPostData().INDEX,
       expiryDate: expiryDate,
@@ -432,13 +418,11 @@ const doOrderByStrike = async (
       symboltoken: _get(token, '0.token', ''),
       tradingsymbol: _get(token, '0.symbol', ''),
     });
-    console.log(`${ALGO}: ltpData: `, ltpData.ltp);
-    console.log(`${ALGO} {doOrderByStrike}: token: `, token);
     await delay({ milliSeconds: DELAY });
     const lotsize = _get(token, '0.lotsize', '0') || '0';
     // IF IS HEDGE WRITE LOGIC TO CHECK IF LTP IS LESS THAN 3 PREMIUM THEN ONLY GO AHEAD
     if (isHedge && ltpData.ltp > 3) {
-      console.log(`${ALGO} {doOrderByStrike}: exit as ltp of hedge is more than 3`);
+      logger.log(`${ALGO}: Skipping hedge ${scripName} as LTP (${ltpData.ltp}) > 3`);
       return false;
     }
     const orderData = await doOrder({
@@ -450,7 +434,7 @@ const doOrderByStrike = async (
       ordertype: 'MARKET',
       isHedge,
     });
-    console.log(`${ALGO} {doOrderByStrike}: order status: `, orderData.status);
+    logger.log(`${ALGO}: Order ${scripName} status: ${orderData.status}`);
     return {
       stikePrice: strike.toString(),
       expiryDate: expiryDate,
@@ -460,9 +444,7 @@ const doOrderByStrike = async (
       status: orderData.status,
     };
   } catch (error) {
-    const errorMessage = `${ALGO}: doOrderByStrike failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: doOrderByStrike failed for ${strike} ${optionType}:`, error);
     throw error;
   }
 };
@@ -478,8 +460,7 @@ const shortStraddle = async (isBuyHedge = false) => {
     const index = OrderStore.getInstance().getPostData().INDEX;
     const hedgeVariance = hedgeCalculation(index);
     const strikeDiff = getStrikeDifference(index);
-    console.log(`${ALGO}: STRIKEDIFF: ${strikeDiff}`);
-    console.log(`${ALGO}: shortStraddle: atmStrike: ${atmStrike}, isBuyHedge: ${isBuyHedge}`);
+    logger.log(`${ALGO}: Executing short straddle. ATM: ${atmStrike}, Hedge: ${isBuyHedge}, Strike Diff: ${strikeDiff}`);
     if (isBuyHedge) {
       let strikeVariance = 0;
       let strikeIncrement = 0;
@@ -501,9 +482,7 @@ const shortStraddle = async (isBuyHedge = false) => {
     await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
     await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
   } catch (error) {
-    const errorMessage = `${ALGO}: shortStraddle failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: shortStraddle failed:`, error);
     throw error;
   }
 };
@@ -526,53 +505,51 @@ const checkBoth_CE_PE_Present = (data: BothPresent) => {
 const checkBothLegs = async ({ cepe_present, atmStrike }: checkBothLegsType) => {
   try {
     if (cepe_present === CheckOptionType.BOTH_CE_PE_NOT_PRESENT) {
-      console.log(`${ALGO}: Both legs not present, selling both!`);
+      logger.log(`${ALGO}: Neither leg present for ATM ${atmStrike}. Selling both.`);
       await shortStraddle();
     } else if (cepe_present === CheckOptionType.ONLY_CE_PRESENT) {
-      console.log(`${ALGO}: only calls present, selling puts`);
+      logger.log(`${ALGO}: Only CE present for ATM ${atmStrike}. Selling PE.`);
       const token = await getScrip({
         scriptName: OrderStore.getInstance().getPostData().INDEX,
         expiryDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
         optionType: OptionType.PE,
         strikePrice: atmStrike.toString(),
       });
-      console.log(`${ALGO}: token: `, token);
       const ltpData = await getLtpData({
         exchange: _get(token, '0.exch_seg', ''),
         symboltoken: _get(token, '0.token', ''),
         tradingsymbol: _get(token, '0.symbol', ''),
       });
-      console.log(`${ALGO}: ltpData: `, ltpData.ltp);
       if (ltpData.ltp > 5) {
-        console.log(`${ALGO}: As ltp is greater then 5, selling puts again`);
+        logger.log(`${ALGO}: PE LTP (${ltpData.ltp}) > 5. Executing sell.`);
         await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
+      } else {
+        logger.log(`${ALGO}: PE LTP (${ltpData.ltp}) <= 5. Skipping sell.`);
       }
     } else if (cepe_present === CheckOptionType.ONLY_PE_PRESENT) {
-      console.log(`${ALGO}: only puts present, selling calls`);
+      logger.log(`${ALGO}: Only PE present for ATM ${atmStrike}. Selling CE.`);
       const token = await getScrip({
         scriptName: OrderStore.getInstance().getPostData().INDEX,
         expiryDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
         optionType: OptionType.CE,
         strikePrice: atmStrike.toString(),
       });
-      console.log(`${ALGO}: token: `, token);
       const ltpData = await getLtpData({
         exchange: _get(token, '0.exch_seg', ''),
         symboltoken: _get(token, '0.token', ''),
         tradingsymbol: _get(token, '0.symbol', ''),
       });
-      console.log(`${ALGO}: ltpData: `, ltpData.ltp);
       if (ltpData.ltp > 5) {
-        console.log(`${ALGO}: As ltp is greater then 5, selling calls again`);
+        logger.log(`${ALGO}: CE LTP (${ltpData.ltp}) > 5. Executing sell.`);
         await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
+      } else {
+        logger.log(`${ALGO}: CE LTP (${ltpData.ltp}) <= 5. Skipping sell.`);
       }
     } else {
-      console.log(`${ALGO}: Both legs of the atm strike present, no need to worry!`);
+      logger.log(`${ALGO}: Both legs present for ATM ${atmStrike}.`);
     }
   } catch (error) {
-    const errorMessage = `${ALGO}: checkBothLegs failed ...`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: checkBothLegs failed:`, error);
     throw error;
   }
 };
@@ -586,30 +563,22 @@ const repeatShortStraddle = async (difference: number, atmStrike: number) => {
   try {
     const idx = OrderStore.getInstance().getPostData().INDEX;
     const strikeDiff = getStrikeDifference(idx);
-    console.log(`${ALGO}: strikeDiff: ${strikeDiff}`);
-    console.log(`${ALGO}: difference: ${Math.abs(difference)}`);
     const positions = await getPositionsJson();
     const isSameStrikeAlreadyTraded = checkStrike(positions, atmStrike.toString());
-    console.log(
-      `${ALGO}: checking conditions\n\t1. if the difference is more or equal to strikeDiff (${strikeDiff}): ${
-        Math.abs(difference) >= strikeDiff
-      }\n\t2. if this same strike is already traded: ${isSameStrikeAlreadyTraded}`,
-    );
     const result = areBothOptionTypesPresentForStrike(positions, atmStrike.toString());
-    console.log(`${ALGO}: areBothOptionTypesPresentForStrike: `, result);
     const cepe_present = checkBoth_CE_PE_Present(result);
+    
+    logger.log(`${ALGO}: Repeat check — Diff: ${Math.abs(difference)}, Threshold: ${strikeDiff}, Traded: ${isSameStrikeAlreadyTraded}`);
+
     if (Math.abs(difference) >= strikeDiff && isSameStrikeAlreadyTraded === false) {
-      console.log(`${ALGO}: executing trade repeat ...`);
-      checkBothLegs({ cepe_present, atmStrike });
+      logger.log(`${ALGO}: Conditions met for new strike ${atmStrike}.`);
+      await checkBothLegs({ cepe_present, atmStrike });
     } else if (difference === 0 && isSameStrikeAlreadyTraded) {
-      //Code to re-enter  in the same strike
-      console.log(`${ALGO}: same strike already traded checking both legs ...`);
-      checkBothLegs({ cepe_present, atmStrike });
+      logger.log(`${ALGO}: Re-checking existing strike ${atmStrike}.`);
+      await checkBothLegs({ cepe_present, atmStrike });
     }
   } catch (error) {
-    const errorMessage = `${ALGO}: repeatShortStraddle failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: repeatShortStraddle failed:`, error);
     throw error;
   }
 };
@@ -637,32 +606,30 @@ export const getPositions = async (
         const positions = _get(responseJson, 'data', []) as Position[];
 
         if (Array.isArray(positions)) {
-          console.log(
-            `${ALGO}: getPositions — success on attempt ${attempt + 1}, total positions: ${positions.length}`,
-          );
+          logger.log(`${ALGO}: getPositions — Success on attempt ${attempt + 1}. Total positions: ${positions.length}`);
           return positions;
         }
 
-        console.warn(
-          `${ALGO}: getPositions — invalid data shape on attempt ${attempt + 1}/${maxRetries}, got: ${JSON.stringify(positions)}`,
+        logger.warn(
+          `${ALGO}: getPositions — Invalid data shape on attempt ${attempt + 1}/${maxRetries}: ${JSON.stringify(positions)}`,
         );
       } else {
-        console.warn(`${ALGO}: getPositions — HTTP ${response.status} on attempt ${attempt + 1}/${maxRetries}`);
+        logger.warn(`${ALGO}: getPositions — HTTP ${response.status} on attempt ${attempt + 1}/${maxRetries}`);
       }
     } catch (error) {
-      console.warn(`${ALGO}: getPositions — error on attempt ${attempt + 1}/${maxRetries}:`, error);
+      logger.error(`${ALGO}: getPositions — Error on attempt ${attempt + 1}/${maxRetries}:`, error);
       if (attempt + 1 >= maxRetries) throw error;
     }
 
     // ── Exponential backoff: 1s → 2s → 4s → 8s → 16s ──
     const backoffMs = delayMs * Math.pow(2, attempt);
-    console.log(`${ALGO}: getPositions — retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+    logger.log(`${ALGO}: getPositions — Retrying in ${backoffMs}ms (Attempt ${attempt + 1}/${maxRetries})`);
     await delay({ milliSeconds: backoffMs });
 
     attempt++;
   }
 
-  throw new Error(`${ALGO}: getPositions — failed to get valid positions after ${maxRetries} attempts`);
+  throw new Error(`${ALGO}: getPositions — Failed to get valid positions after ${maxRetries} attempts`);
 };
 
 /**
@@ -677,12 +644,10 @@ const getPositionsJson = async (isAbrupt = false) => {
     await delay({ milliSeconds: DELAY });
     const positions: Position[] = await getPositions(smartSession, cred);
     const openPositions = isAbrupt ? getAllOpenPositions(positions) : getOpenSellPositions(positions);
-    console.log(`${ALGO}: total open positions are ${openPositions.length}`);
+    logger.log(`${ALGO}: Total open positions: ${openPositions.length}`);
     return openPositions;
   } catch (error) {
-    const errorMessage = `${ALGO}: getPositionsJson failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: getPositionsJson failed:`, error);
     throw error;
   }
 };
@@ -703,12 +668,12 @@ export const fetchOpenPositionsByExpiry = async (
   await delay({ milliSeconds: DELAY });
 
   const allPositions: Position[] = await getPositions(smartSession, cred);
-  console.log(`${ALGO}: fetchOpenPositionsByExpiry — total raw positions: ${allPositions?.length ?? 0}`);
+  logger.log(`${ALGO}: fetchOpenPositionsByExpiry — Raw positions: ${allPositions?.length ?? 0}`);
 
   if (!Array.isArray(allPositions) || allPositions.length === 0) return [];
 
   const filtered = getOpenPositionsByExpiry(allPositions, index, expiryDate, type);
-  console.log(`${ALGO}: fetchOpenPositionsByExpiry — filtered (${index} ${expiryDate} ${type}): ${filtered.length}`);
+  logger.log(`${ALGO}: fetchOpenPositionsByExpiry — Filtered (${index} ${expiryDate} ${type}): ${filtered.length}`);
 
   return filtered;
 };
@@ -734,11 +699,9 @@ const closeParticularTrade = async ({ trade }: { trade: Position }) => {
       variety: 'NORMAL',
       ordertype: 'MARKET',
     });
-    console.log(`${ALGO}, closeParticularTrade: `, transactionStatus);
+    logger.log(`${ALGO}: closeParticularTrade — ${tradingsymbol}: ${transactionStatus.status}`);
   } catch (error) {
-    const errorMessage = `${ALGO}: closeTrade failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: closeParticularTrade failed:`, error);
     throw error;
   }
 };
@@ -762,8 +725,7 @@ const closeAllTrades = async (isAbrupt = false) => {
             symboltoken: position.symboltoken,
           });
 
-          console.log(`${ALGO}: position: `, position);
-          console.log(`${ALGO}: ltpData: `, ltpData);
+          logger.log(`${ALGO}: Closing trade check for ${position.tradingsymbol} — LTP: ${ltpData.ltp}`);
 
           const isNetqtyNegative = Number.parseInt(position.netqty) < 0;
           const isLtpGreaterThanFive = ltpData && ltpData.ltp > 5;
@@ -775,9 +737,7 @@ const closeAllTrades = async (isAbrupt = false) => {
       }
     }
   } catch (error) {
-    const errorMessage = `${ALGO}: closeAllTrades failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(`${ALGO}: closeAllTrades failed:`, error);
     throw error;
   }
 };
@@ -787,15 +747,15 @@ const closeAllTrades = async (isAbrupt = false) => {
  * @returns {Promise<void>}
  */
 const closeTrade = async (isAbrupt = false) => {
-  console.log(`${ME}: check if all the trades are closed.`);
+  logger.log(`${ME}: Checking if all trades are closed.`);
   while ((await getPositionsJson(isAbrupt)).length > 0) {
-    console.log(`${ALGO}: all trades are not closed, closing trades...`);
+    logger.log(`${ALGO}: Active trades found. Executing close...`);
     await closeAllTrades(isAbrupt);
   }
-  console.log(`${ALGO}: Yes, all the trades are closed.`);
+  logger.log(`${ALGO}: All trades confirmed closed.`);
   const mtm = await getMtm();
   await notify(`All trades closed. Final MTM: ${mtm}`);
-  console.log(`${ALGO}: mtm is ${mtm}`);
+  logger.log(`${ALGO}: Final MTM: ${mtm}`);
 };
 /**
  * Checks if the short straddle strategy should be repeated.
@@ -804,22 +764,14 @@ const closeTrade = async (isAbrupt = false) => {
  * @returns {Promise<void>}
  */
 const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrikePrice: number) => {
-  console.log(`${ALGO}: atm strike price is ${atmStrike}. previous traded strike price is ${previousTradeStrikePrice}`);
+  logger.log(`${ALGO}: ATM Strike: ${atmStrike}. Previous Strike: ${previousTradeStrikePrice}`);
   if (Number.isFinite(atmStrike)) {
     const difference = atmStrike - previousTradeStrikePrice;
     await delay({ milliSeconds: DELAY });
     await repeatShortStraddle(difference, atmStrike);
-    if (atmStrike > previousTradeStrikePrice) {
-      console.log(
-        `${ALGO}: atm strike is greater than previously traded strike price. The difference is ${difference}`,
-      );
-    } else if (atmStrike < previousTradeStrikePrice) {
-      console.log(`${ALGO}: atm strike is lesser than previously traded strike price. The difference is ${difference}`);
-    } else {
-      console.log(`${ALGO}: atm strike is equal to previously traded strike price. The difference is ${difference}`);
-    }
+    logger.log(`${ALGO}: Strike Difference: ${difference}`);
   } else {
-    console.log(`${ALGO}: Oops, 'atmStrike' is infinity! Stopping operations.`);
+    logger.error(`${ALGO}: 'atmStrike' is infinity! Stopping operations.`);
     throw new Error(`Oops, atmStrike is infinity! Stopping operations.`);
   }
 };
@@ -831,11 +783,11 @@ const checkToRepeatShortStraddle = async (atmStrike: number, previousTradeStrike
 const coreTradeExecution = async ({ data }: { data: Position[] }) => {
   const isTradeAlreadyTaken = Array.isArray(data) && data.length > 0;
   if (isTradeAlreadyTaken === false) {
-    console.log(`${ALGO}: executing trade`);
+    logger.log(`${ALGO}: Executing initial trade.`);
     await shortStraddle(true);
     await notify('Short Straddle order executed successfully!');
   } else {
-    console.log(`${ALGO}: trade executed already checking conditions to repeat the trade`);
+    logger.log(`${ALGO}: Trade already active. Checking repeat conditions.`);
     await delay({ milliSeconds: DELAY });
     const atmStrike = await getAtmStrikePrice();
     const no_of_trades = data.length;
@@ -844,8 +796,8 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
       atmStrike: atmStrike,
       expirationDate: OrderStore.getInstance().getPostData().EXPIRYDATE,
     });
-    console.log(
-      `${ALGO}: atmStrike is ${atmStrike}, no of trades taken are ${no_of_trades}, previously traded  strike price is ${previousTradeStrikePrice}`,
+    logger.log(
+      `${ALGO}: ATM: ${atmStrike}, Positions: ${no_of_trades}, Previous Strike: ${previousTradeStrikePrice}`,
     );
     await checkToRepeatShortStraddle(atmStrike, previousTradeStrikePrice);
   }
