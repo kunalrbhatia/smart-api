@@ -8,42 +8,41 @@ The algorithm is built with Node.js, Express, and TypeScript. It uses the SmartA
 
 ## Features
 
-- Short straddle strategy for BankNifty index options.
-- Dynamic adjustments based on market movements.
-- Real-time MTM (Mark to Market) tracking.
-- Risk management with stop-loss criteria.
-- Graceful shutdown mechanism.
+- **Automated Login:** Enhanced security with automated 6-digit TOTP generation from 16-character secret keys.
+- **Dynamic Networking:** Automatic resolution of Public IP, Local IP, and MAC address for compliant API headers.
+- **Short Straddle Strategy:** Automated execution for BankNifty index options.
+- **Dynamic Adjustments:** Real-time adjustments based on market movements.
+- **Risk Management:** Built-in MTM tracking and stop-loss criteria.
+- **Graceful Shutdown:** Safe execution termination via `/kill` endpoint or signals.
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+Before you begin, ensure you have the following:
 
-- [Node.js](https://nodejs.org/en/) (v14 or higher)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- [Node.js](https://nodejs.org/en/) (v18 or higher recommended)
+- [npm](https://www.npmjs.com/)
+- A [SmartAPI](https://smartapi.angelbroking.com/) account and API Key.
+- Your 16-character TOTP Secret Key from Angel Broking.
 
 ## Installation
 
 1.  Clone the repository:
-    ```bash
-    git clone https://github.com/your-username/intraday-trading-algorithm.git
-    cd intraday-trading-algorithm
+    ```powershell
+    git clone https://github.com/kunalrbhatia/smart-api.git
+    cd smart-api
     ```
-2.  Install the dependencies:
-    ```bash
+2.  Install dependencies:
+    ```powershell
     npm install
-    ```
-    or
-    ```bash
-    yarn install
     ```
 
 ## Configuration
 
-1.  Create a `.env` file in the root of the project by copying the example file:
-    ```bash
-    cp .env.example .env
+1.  Create a `.env` file from the example:
+    ```powershell
+    Copy-Item .env.example .env
     ```
-2.  Open the `.env` file and add your credentials for SmartAPI.
+2.  Fill in your SmartAPI credentials. Note that `CLIENT_TOTP_PIN` should now contain your **16-character TOTP secret key** for automated login.
 
 ## Running the Application
 

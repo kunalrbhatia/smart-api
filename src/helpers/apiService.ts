@@ -3,11 +3,11 @@ import {
   CREDENTIALS,
   DELAY,
   delay,
-  generateSmartSession,
+  // generateSmartSession,
   getCredentials,
   getNearestStrike,
   getScripName,
-  getSmartSession,
+  // getSmartSession,
   isCurrentTimeGreater,
   isTradingHoliday,
 } from 'krb-smart-api-module';
@@ -63,8 +63,50 @@ import {
 import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
 import ScripMasterStore from '../store/scripMasterStore';
+import SmartSession from '../store/smartSession';
 import moment from 'moment-timezone';
 import { get, post } from './api';
+import { getLocalIp, getMacAddress, getPublicIp } from './ip';
+import { loginToSmartApi } from './smartApiLogin';
+import { notify } from './notifier';
+
+/**
+ * Gets the smart API session data.
+ * @returns {Promise<ISmartApiData>}
+ */
+export const getSmartSession = async (): Promise<ISmartApiData> => {
+  const session = SmartSession.getInstance().getPostData();
+  if (session && session.jwtToken) {
+    return session;
+  }
+  const creds = DataStore.getInstance().getPostData();
+  const newSession = await loginToSmartApi(creds);
+  SmartSession.getInstance().setPostData(newSession);
+  return newSession;
+};
+
+/**
+ * Generates the headers for SmartAPI requests.
+ */
+export const getAuthHeaders = async () => {
+  const smartApiData = await getSmartSession();
+  const cred = DataStore.getInstance().getPostData();
+  const publicIp = await getPublicIp();
+  const localIp = getLocalIp();
+  const macAddress = getMacAddress();
+
+  return {
+    Authorization: `Bearer ${smartApiData.jwtToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': localIp,
+    'X-ClientPublicIP': publicIp,
+    'X-MACAddress': macAddress,
+    'X-PrivateKey': cred.APIKEY,
+  };
+};
 
 /**
  * Gets the nearest weekly expiry date for a given index (NIFTY or BANKNIFTY).
@@ -159,21 +201,8 @@ export const getLtpWithRetry = async ({
  * @returns {Promise<LtpDataType>} A promise that resolves with the LTP data.
  */
 export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLtpDataType): Promise<LtpDataType> => {
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
   const data = { exchange, tradingsymbol, symboltoken };
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
   try {
     const response = await post(GET_LTP_DATA_API, data, headers);
     const responseData = _get(response, 'data', null);
@@ -198,20 +227,7 @@ export const getLtpData = async ({ exchange, tradingsymbol, symboltoken }: getLt
  * @returns {Promise<any>} A promise that resolves with the search results.
  */
 export const searchScrip = async (scripName: string, exchange: string = 'NFO') => {
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
   const data = { exchange, searchscrip: scripName };
   const response = await post(SEARCHSCRIPAPI, data, headers);
   return _get(response, 'data', '');
@@ -371,18 +387,7 @@ export const doOrder = async ({
     triggerprice,
   };
   console.log(`${ALGO} doOrder data `, data);
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
   try {
     const response = await post(ORDER_API, data, headers);
     return response;
@@ -411,7 +416,8 @@ const doOrderByStrike = async (
     const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
     console.log(`${ALGO} {doOrderByStrike}: stike: ${strike}, expiryDate: ${expiryDate}`);
     await delay({ milliSeconds: DELAY });
-    const scripName = `${OrderStore.getInstance().getPostData().INDEX}${moment('2024-05-30').format('DDMMMYY').toUpperCase()}${strike.toString()}${OptionType.PE}`;
+    const formattedExpiry = moment(expiryDate, 'DDMMMYYYY').format('DDMMMYY').toUpperCase();
+    const scripName = `${OrderStore.getInstance().getPostData().INDEX}${formattedExpiry}${strike.toString()}${optionType}`;
     console.log(`${ALGO}: scripName: `, scripName);
     const searchedScrip = await searchScrip(scripName);
     console.log(`${ALGO}: searchedScrip: `, searchedScrip);
@@ -614,17 +620,7 @@ export const getPositions = async (
   maxRetries: number = 5,
   delayMs: number = 1000,
 ): Promise<Position[]> => {
-  const headers = {
-    Authorization: `Bearer ${smartSession.jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
 
   let attempt = 0;
 
@@ -798,6 +794,7 @@ const closeTrade = async (isAbrupt = false) => {
   }
   console.log(`${ALGO}: Yes, all the trades are closed.`);
   const mtm = await getMtm();
+  await notify(`All trades closed. Final MTM: ${mtm}`);
   console.log(`${ALGO}: mtm is ${mtm}`);
 };
 /**
@@ -836,6 +833,7 @@ const coreTradeExecution = async ({ data }: { data: Position[] }) => {
   if (isTradeAlreadyTaken === false) {
     console.log(`${ALGO}: executing trade`);
     await shortStraddle(true);
+    await notify('Short Straddle order executed successfully!');
   } else {
     console.log(`${ALGO}: trade executed already checking conditions to repeat the trade`);
     await delay({ milliSeconds: DELAY });
@@ -899,32 +897,37 @@ const executeTrade = async () => {
 };
 /**
  * Checks if trading is allowed based on market conditions.
+ * @param {string} expiryDate - The nearest expiry date for NIFTY.
  * @returns {Promise<{isAllowed: boolean, reasons: string[]}>} A promise that resolves with a boolean and detailed reasons if not allowed.
  */
-const isTradeAllowed = async () => {
+const isTradeAllowed = async (expiryDate: string) => {
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
+  const isTuesday = moment().day() === 2;
   const isHoliday = isTradingHoliday();
-  const isTuesday = moment().day() === 2; // Tuesday
+
+  const todayStr = moment().format('DDMMMYYYY').toUpperCase();
+  const isExpiryDay = todayStr === expiryDate;
+
   const hasTimePassedToTakeTrade = isCurrentTimeGreater({
     hours: 9,
     minutes: 15,
   });
   let isSmartAPIWorking = false;
   try {
-    const creds = DataStore.getInstance().getPostData();
-    const smartData = await generateSmartSession(creds);
+    const smartData = await getSmartSession();
     await delay({ milliSeconds: DELAY });
     isSmartAPIWorking = !isEmpty(smartData);
   } catch (err) {
-    console.log('Error occurred for generateSmartSession:', err);
+    console.log('Error occurred for getSmartSession in isTradeAllowed:', err);
   }
   console.log(
-    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:45am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isTuesday: ${isTuesday}`,
+    `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isTuesday: ${isTuesday}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:15am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isExpiryDay: ${isExpiryDay} (${expiryDate})`,
   );
 
   const reasons: string[] = [];
-  if (!isTuesday) reasons.push('It is not Tuesday');
+  if (!isExpiryDay) reasons.push(`Today is not NIFTY expiry day (Next expiry: ${expiryDate})`);
+  if (!isTuesday) reasons.push('Today is not Tuesday');
   if (isWeekend) reasons.push('It is a weekend');
   if (!isMarketOpen) reasons.push('Market is closed');
   if (!hasTimePassedToTakeTrade) reasons.push('Time has not passed 09:15 AM');
@@ -932,6 +935,7 @@ const isTradeAllowed = async () => {
   if (isHoliday) reasons.push('Today is a trading holiday');
 
   const isAllowed =
+    isExpiryDay === true &&
     isTuesday === true &&
     isWeekend === false &&
     isMarketOpen &&
@@ -958,13 +962,13 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
     EXPIRYDATE: expiryDate,
-    INDEX: getScripName(expiryDate),
+    INDEX: 'NIFTY',
     LOSSPERLOT: lossPerLot,
     INDIAVIX: indiaVixLtp.ltp,
   });
   console.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
   try {
-    const { isAllowed, reasons } = await isTradeAllowed();
+    const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     if (isAllowed === false) {
       const detailedMessage = `${MESSAGE_NOT_TAKE_TRADE}. Reason(s): ${reasons.join(', ')}`;
       console.log(`${ALGO}: ${detailedMessage}`);
@@ -990,7 +994,7 @@ export const checkMarketConditions = async () => {
   await delay({ milliSeconds: DELAY });
   console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   try {
-    const { isAllowed, reasons } = await isTradeAllowed();
+    const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     return {
       conditions: {
         indiaVixLtp: indiaVixLtp.ltp,
@@ -1029,20 +1033,7 @@ export const checkPositionAlreadyExists = async ({ position, trades }: CheckPosi
  */
 const getPendingOrders = async (): Promise<Record<string, unknown>[]> => {
   try {
-    const smartApiData: ISmartApiData = await getSmartSession();
-    const jwtToken = _get(smartApiData, 'jwtToken');
-    const cred = DataStore.getInstance().getPostData();
-    const headers = {
-      Authorization: `Bearer ${jwtToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-      'X-MACAddress': 'MAC_ADDRESS',
-      'X-PrivateKey': cred.APIKEY,
-    };
+    const headers = await getAuthHeaders();
     const response = await get(GET_ORDER_BOOK_API, headers);
     const orders = _get(response, 'data', []);
     // Filter for pending stop loss orders
@@ -1121,6 +1112,9 @@ const placeStopLossOrder = async (
         triggerprice: stoplossPrice,
       });
       console.log(`${ALGO}: placeStopLossOrder status for ${tradingsymbol}:`, stoplossStatus);
+      if (stoplossStatus.status) {
+        await notify(`Stop Loss order placed for ${tradingsymbol} at ${stoplossPrice.toFixed(2)}`);
+      }
       return stoplossStatus;
     }
     return null;
@@ -1387,20 +1381,7 @@ export const placeStoplossForAllSells = async ({
 
   // ── Step 2: Get existing pending stoploss orders ─────────────────
   console.log(`${ALGO}: Fetching existing pending stoploss orders`);
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
 
   let pendingOrders: Record<string, unknown>[] = [];
   try {
@@ -1578,21 +1559,7 @@ export const getCandleData = async ({
   fromdate: string;
   todate: string;
 }): Promise<number[][]> => {
-  const smartApiData: ISmartApiData = await getSmartSession();
-  const jwtToken = _get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-
-  const headers = {
-    Authorization: `Bearer ${jwtToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    'X-UserType': 'USER',
-    'X-SourceID': 'WEB',
-    'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-    'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-    'X-MACAddress': 'MAC_ADDRESS',
-    'X-PrivateKey': cred.APIKEY,
-  };
+  const headers = await getAuthHeaders();
 
   const data = {
     exchange,

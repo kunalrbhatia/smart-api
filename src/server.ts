@@ -3,12 +3,16 @@ import { Socket } from 'net';
 import app from './app';
 import { config } from './config/env';
 import { ALGO } from './helpers/constants';
+import { startTelegramBotListener } from './helpers/telegram';
 
 /**
  * The HTTP server.
  * @type {Server}
  */
 const server: Server = createServer(app);
+
+// Start Telegram Bot Listener
+startTelegramBotListener();
 
 let connections: Socket[] = [];
 
