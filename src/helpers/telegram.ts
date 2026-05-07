@@ -29,10 +29,7 @@ export const sendTelegramMessage = async (message: string): Promise<void> => {
     logger.error('Error sending Telegram message:', error);
   }
 };
-<<<<<<< HEAD
-=======
 
->>>>>>> cf7c3c5 (feat: 🛑 add remote kill via Telegram and revert 5min cron)
 /**
  * Polls for new Telegram messages to handle remote commands.
  */
