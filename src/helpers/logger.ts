@@ -46,14 +46,16 @@ const writeToFile = (formattedMessage: string) => {
 };
 
 export const logger = {
-  log: (message: any) => {
-    const formatted = formatMessage('INFO', message);
-    console.log(message);
+  log: (...messages: any[]) => {
+    const combinedMessage = messages.map(m => (typeof m === 'object' ? JSON.stringify(m) : String(m))).join(' ');
+    const formatted = formatMessage('INFO', combinedMessage);
+    console.log(...messages);
     writeToFile(formatted);
   },
-  info: (message: any) => {
-    const formatted = formatMessage('INFO', message);
-    console.info(message);
+  info: (...messages: any[]) => {
+    const combinedMessage = messages.map(m => (typeof m === 'object' ? JSON.stringify(m) : String(m))).join(' ');
+    const formatted = formatMessage('INFO', combinedMessage);
+    console.info(...messages);
     writeToFile(formatted);
   },
   error: (message: any, error?: any) => {
@@ -62,9 +64,10 @@ export const logger = {
     console.error(message, error || '');
     writeToFile(formatted);
   },
-  warn: (message: any) => {
-    const formatted = formatMessage('WARN', message);
-    console.warn(message);
+  warn: (...messages: any[]) => {
+    const combinedMessage = messages.map(m => (typeof m === 'object' ? JSON.stringify(m) : String(m))).join(' ');
+    const formatted = formatMessage('WARN', combinedMessage);
+    console.warn(...messages);
     writeToFile(formatted);
   }
 };

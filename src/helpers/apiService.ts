@@ -836,8 +836,8 @@ const executeTrade = async () => {
   const closingTime: TimeComparisonType = { hours: 15, minutes: 17 };
   const isPastClosingTime = isCurrentTimeGreater(closingTime);
   const mtmData = await getMtm();
-  console.log(`${ALGO}: MTM: ${mtmData} -----`);
-  console.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
+  logger.log(`${ALGO}: MTM: ${mtmData} -----`);
+  logger.log(`${ALGO}: isPastClosingTime: ${isPastClosingTime}`);
   const data = await getPositionsJson();
   if (isPastClosingTime === false) {
     await coreTradeExecution({ data });
@@ -871,9 +871,9 @@ const isTradeAllowed = async (expiryDate: string) => {
     await delay({ milliSeconds: DELAY });
     isSmartAPIWorking = !isEmpty(smartData);
   } catch (err) {
-    console.log('Error occurred for getSmartSession in isTradeAllowed:', err);
+    logger.error('Error occurred for getSmartSession in isTradeAllowed:', err);
   }
-  console.log(
+  logger.log(
     `${ALGO}: checking conditions, isWeekend: ${isWeekend}, isTuesday: ${isTuesday}, isHoliday: ${isHoliday}, isMarketOpen: ${isMarketOpen}, hasTimePassed 09:15am: ${hasTimePassedToTakeTrade}, isSmartAPIWorking: ${isSmartAPIWorking}, isExpiryDay: ${isExpiryDay} (${expiryDate})`,
   );
 
@@ -910,7 +910,7 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
     symboltoken: indiaVix[0].token,
     tradingsymbol: indiaVix[0].symbol,
   });
-  console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
+  logger.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   OrderStore.getInstance().setPostData({
     QUANTITY: lots,
     EXPIRYDATE: expiryDate,
@@ -918,12 +918,12 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
     LOSSPERLOT: lossPerLot,
     INDIAVIX: indiaVixLtp.ltp,
   });
-  console.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
+  logger.log(`${ALGO}: OrderStore data: `, OrderStore.getInstance().getPostData());
   try {
     const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     if (isAllowed === false) {
       const detailedMessage = `${MESSAGE_NOT_TAKE_TRADE}. Reason(s): ${reasons.join(', ')}`;
-      console.log(`${ALGO}: ${detailedMessage}`);
+      logger.log(`${ALGO}: ${detailedMessage}`);
       return detailedMessage;
     } else return await executeTrade();
   } catch (err) {
@@ -937,14 +937,14 @@ export const checkMarketConditionsAndExecuteTrade = async (lots: number = LOTS, 
 export const checkMarketConditions = async () => {
   const expiryDate = await getNearestWeeklyExpiry('NIFTY');
   const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
-  console.log(`${ALGO}: indiaVix: `, indiaVix);
+  logger.log(`${ALGO}: indiaVix: `, indiaVix);
   const indiaVixLtp = await getLtpData({
     exchange: indiaVix[0].exch_seg,
     symboltoken: indiaVix[0].token,
     tradingsymbol: indiaVix[0].symbol,
   });
   await delay({ milliSeconds: DELAY });
-  console.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
+  logger.log(`${ALGO}: INDIA VIX ltp is ${indiaVixLtp.ltp}`);
   try {
     const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     return {
@@ -999,8 +999,7 @@ const getPendingOrders = async (): Promise<Record<string, unknown>[]> => {
     return pendingOrders;
   } catch (error) {
     const errorMessage = `${ALGO}: getPendingOrders failed error below`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(errorMessage, error);
     return [];
   }
 };
@@ -1049,7 +1048,7 @@ const placeStopLossOrder = async (
       const entryPrice = Math.abs(Number.parseFloat(position.netvalue) / netQty);
       const stoplossPrice = entryPrice + entryPrice * (stoplossPercentage / 100);
 
-      console.log(
+      logger.log(
         `${ALGO}: placeStopLossOrder for ${tradingsymbol} - entry price: ${entryPrice}, stoploss price: ${stoplossPrice}`,
       );
 
@@ -1063,7 +1062,7 @@ const placeStopLossOrder = async (
         price: stoplossPrice,
         triggerprice: stoplossPrice,
       });
-      console.log(`${ALGO}: placeStopLossOrder status for ${tradingsymbol}:`, stoplossStatus);
+      logger.log(`${ALGO}: placeStopLossOrder status for ${tradingsymbol}:`, stoplossStatus);
       if (stoplossStatus.status) {
         await notify(`Stop Loss order placed for ${tradingsymbol} at ${stoplossPrice.toFixed(2)}`);
       }
@@ -1072,8 +1071,7 @@ const placeStopLossOrder = async (
     return null;
   } catch (error) {
     const errorMessage = `${ALGO}: placeStopLossOrder failed for ${position.tradingsymbol}`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(errorMessage, error);
     return null;
   }
 };
@@ -1086,18 +1084,18 @@ const placeStopLossOrder = async (
  */
 export const placeStopLossOnAllTrades = async (stoplossPercentage: number = 125): Promise<void> => {
   try {
-    console.log(`${ALGO}: Starting placeStopLossOnAllTrades with ${stoplossPercentage}% stop loss`);
+    logger.log(`${ALGO}: Starting placeStopLossOnAllTrades with ${stoplossPercentage}% stop loss`);
 
     // Get existing pending orders
     const pendingOrders = await getPendingOrders();
-    console.log(`${ALGO}: Found ${pendingOrders.length} existing pending stop loss orders`);
+    logger.log(`${ALGO}: Found ${pendingOrders.length} existing pending stop loss orders`);
 
     // Get open positions (only sell positions)
     const positions = await getPositionsJson(false);
-    console.log(`${ALGO}: Found ${positions.length} open sell positions`);
+    logger.log(`${ALGO}: Found ${positions.length} open sell positions`);
 
     if (!Array.isArray(positions) || positions.length === 0) {
-      console.log(`${ALGO}: No open positions found, nothing to place stop loss orders for`);
+      logger.log(`${ALGO}: No open positions found, nothing to place stop loss orders for`);
       return;
     }
 
@@ -1105,7 +1103,7 @@ export const placeStopLossOnAllTrades = async (stoplossPercentage: number = 125)
     const positionsWithoutStopLoss = positions.filter(
       (position: Position) => !hasStopLossOrderForPosition(position, pendingOrders),
     );
-    console.log(
+    logger.log(
       `${ALGO}: ${positionsWithoutStopLoss.length} positions need stop loss orders (${positions.length - positionsWithoutStopLoss.length} already have them)`,
     );
 
@@ -1114,11 +1112,10 @@ export const placeStopLossOnAllTrades = async (stoplossPercentage: number = 125)
       await placeStopLossOrder(position, stoplossPercentage);
     }
 
-    console.log(`${ALGO}: Completed placeStopLossOnAllTrades`);
+    logger.log(`${ALGO}: Completed placeStopLossOnAllTrades`);
   } catch (error) {
     const errorMessage = `${ALGO}: placeStopLossOnAllTrades failed`;
-    console.log(errorMessage);
-    console.log(error);
+    logger.error(errorMessage, error);
   }
 };
 /**
@@ -1145,11 +1142,11 @@ export const executeSellAtmBuyHedge = async ({
   const ceHedgeStrike = atmStrike + hedgeDistance;
   const peHedgeStrike = atmStrike - hedgeDistance;
 
-  console.log(`${ALGO}: executeSellAtmBuyHedge — isFirstTrade: ${isFirstTrade}`);
-  console.log(`${ALGO}:   SELL ${sellLots}L ATM CE+PE @ ${atmStrike}`);
+  logger.log(`${ALGO}: executeSellAtmBuyHedge — isFirstTrade: ${isFirstTrade}`);
+  logger.log(`${ALGO}:   SELL ${sellLots}L ATM CE+PE @ ${atmStrike}`);
   if (isFirstTrade) {
-    console.log(`${ALGO}:   BUY  ${buyLots}L hedge CE @ ${ceHedgeStrike}`);
-    console.log(`${ALGO}:   BUY  ${buyLots}L hedge PE @ ${peHedgeStrike}`);
+    logger.log(`${ALGO}:   BUY  ${buyLots}L hedge CE @ ${ceHedgeStrike}`);
+    logger.log(`${ALGO}:   BUY  ${buyLots}L hedge PE @ ${peHedgeStrike}`);
   }
 
   // ── Fetch required scrips ────────────────────────────────────────
@@ -1189,14 +1186,14 @@ export const executeSellAtmBuyHedge = async ({
   const lotSize = Number.parseInt(atmCe.lotsize);
   if (!lotSize || lotSize <= 0) throw new Error(`${ALGO}: invalid lotsize: ${atmCe.lotsize}`);
 
-  console.log(`${ALGO}: lotSize = ${lotSize}`);
+  logger.log(`${ALGO}: lotSize = ${lotSize}`);
 
   const trades = [];
 
   // ── BUY hedges (first trade only) ───────────────────────────────
   if (isFirstTrade && hedgeCe && hedgePe) {
     await delay({ milliSeconds: DELAY });
-    console.log(`${ALGO}: [1] BUY hedge CE — ${hedgeCe.symbol}, qty: ${buyLots * lotSize}`);
+    logger.log(`${ALGO}: [1] BUY hedge CE — ${hedgeCe.symbol}, qty: ${buyLots * lotSize}`);
     const hedgeCeOrder = await doOrder({
       tradingsymbol: hedgeCe.symbol,
       symboltoken: hedgeCe.token,
@@ -1219,7 +1216,7 @@ export const executeSellAtmBuyHedge = async ({
     });
 
     await delay({ milliSeconds: DELAY });
-    console.log(`${ALGO}: [2] BUY hedge PE — ${hedgePe.symbol}, qty: ${buyLots * lotSize}`);
+    logger.log(`${ALGO}: [2] BUY hedge PE — ${hedgePe.symbol}, qty: ${buyLots * lotSize}`);
     const hedgePeOrder = await doOrder({
       tradingsymbol: hedgePe.symbol,
       symboltoken: hedgePe.token,
@@ -1244,7 +1241,7 @@ export const executeSellAtmBuyHedge = async ({
 
   // ── SELL ATM CE ──────────────────────────────────────────────────
   await delay({ milliSeconds: DELAY });
-  console.log(`${ALGO}: [${isFirstTrade ? 3 : 1}] SELL ATM CE — ${atmCe.symbol}, qty: ${sellLots * lotSize}`);
+  logger.log(`${ALGO}: [${isFirstTrade ? 3 : 1}] SELL ATM CE — ${atmCe.symbol}, qty: ${sellLots * lotSize}`);
   const atmCeOrder = await doOrder({
     tradingsymbol: atmCe.symbol,
     symboltoken: atmCe.token,
@@ -1268,7 +1265,7 @@ export const executeSellAtmBuyHedge = async ({
 
   // ── SELL ATM PE ──────────────────────────────────────────────────
   await delay({ milliSeconds: DELAY });
-  console.log(`${ALGO}: [${isFirstTrade ? 4 : 2}] SELL ATM PE — ${atmPe.symbol}, qty: ${sellLots * lotSize}`);
+  logger.log(`${ALGO}: [${isFirstTrade ? 4 : 2}] SELL ATM PE — ${atmPe.symbol}, qty: ${sellLots * lotSize}`);
   const atmPeOrder = await doOrder({
     tradingsymbol: atmPe.symbol,
     symboltoken: atmPe.token,
@@ -1309,19 +1306,19 @@ export const placeStoplossForAllSells = async ({
   expiry: string;
   stoplossFactor?: number;
 }) => {
-  console.log(`${ALGO}: placeStoplossForAllSells — index: ${index}, expiry: ${expiry}, factor: ${stoplossFactor}`);
+  logger.log(`${ALGO}: placeStoplossForAllSells — index: ${index}, expiry: ${expiry}, factor: ${stoplossFactor}`);
 
   // ── Step 1: Get all SELL positions ───────────────────────────────
-  console.log(`${ALGO}: Fetching sell positions for index: ${index}, expiry: ${expiry}`);
+  logger.log(`${ALGO}: Fetching sell positions for index: ${index}, expiry: ${expiry}`);
   const sellPositions = await fetchOpenPositionsByExpiry(index, expiry, 'SELL');
 
   if (sellPositions.length === 0) {
-    console.log(`${ALGO}: No sell positions found, nothing to place stoploss for`);
+    logger.log(`${ALGO}: No sell positions found, nothing to place stoploss for`);
     return { index, expiry, stoplossFactor, sellPositionCount: 0, stoplossOrders: [] };
   }
 
-  console.log(`${ALGO}: Found ${sellPositions.length} sell positions`);
-  console.log(
+  logger.log(`${ALGO}: Found ${sellPositions.length} sell positions`);
+  logger.log(
     `${ALGO}: Sell positions details:`,
     sellPositions.map(p => ({
       tradingsymbol: p.tradingsymbol,
@@ -1332,24 +1329,24 @@ export const placeStoplossForAllSells = async ({
   );
 
   // ── Step 2: Get existing pending stoploss orders ─────────────────
-  console.log(`${ALGO}: Fetching existing pending stoploss orders`);
+  logger.log(`${ALGO}: Fetching existing pending stoploss orders`);
   const headers = await getAuthHeaders();
 
   let pendingOrders: Record<string, unknown>[] = [];
   try {
-    console.log(`${ALGO}: Making request to GET_ORDER_BOOK_API`);
+    logger.log(`${ALGO}: Making request to GET_ORDER_BOOK_API`);
     const response = await get(GET_ORDER_BOOK_API, headers);
-    console.log(`${ALGO}: Raw order book response:`, response);
+    logger.log(`${ALGO}: Raw order book response:`, response);
     const orders = _get(response, 'data', []);
-    console.log(`${ALGO}: Orders from response:`, orders);
+    logger.log(`${ALGO}: Orders from response:`, orders);
     pendingOrders = Array.isArray(orders)
       ? orders.filter(
           (order: Record<string, unknown>) =>
             _get(order, 'status', '') === PENDING_ORDER_STATUS && _get(order, 'variety', '') === VARIETY_STOPLOSS,
         )
       : [];
-    console.log(`${ALGO}: Found ${pendingOrders.length} existing pending stoploss orders`);
-    console.log(
+    logger.log(`${ALGO}: Found ${pendingOrders.length} existing pending stoploss orders`);
+    logger.log(
       `${ALGO}: Pending orders details:`,
       pendingOrders.map(o => ({
         tradingsymbol: _get(o, 'tradingsymbol', ''),
@@ -1359,16 +1356,16 @@ export const placeStoplossForAllSells = async ({
       })),
     );
   } catch (error) {
-    console.warn(`${ALGO}: Failed to fetch pending orders, continuing without dedup:`, error);
+    logger.warn(`${ALGO}: Failed to fetch pending orders, continuing without dedup:`, error);
   }
 
   // ── Step 3: Place stoploss for each sell position ────────────────
   const stoplossOrders = [];
-  console.log(`${ALGO}: Processing ${sellPositions.length} sell positions for stoploss placement`);
+  logger.log(`${ALGO}: Processing ${sellPositions.length} sell positions for stoploss placement`);
 
   for (let i = 0; i < sellPositions.length; i++) {
     const position = sellPositions[i];
-    console.log(`${ALGO}: Processing position ${i + 1}/${sellPositions.length}`, {
+    logger.log(`${ALGO}: Processing position ${i + 1}/${sellPositions.length}`, {
       tradingsymbol: position.tradingsymbol,
       symboltoken: position.symboltoken,
       netqty: position.netqty,
@@ -1382,7 +1379,7 @@ export const placeStoplossForAllSells = async ({
 
     // Validate
     if (!sellavgprice || sellavgprice <= 0) {
-      console.warn(`${ALGO}: Invalid sellavgprice for ${tradingsymbol}: ${position.sellavgprice}, skipping`);
+      logger.warn(`${ALGO}: Invalid sellavgprice for ${tradingsymbol}: ${position.sellavgprice}, skipping`);
       stoplossOrders.push({
         tradingsymbol,
         symboltoken,
@@ -1393,14 +1390,14 @@ export const placeStoplossForAllSells = async ({
     }
 
     // Check if stoploss already exists for this position
-    console.log(`${ALGO}: Checking if stoploss already exists for ${tradingsymbol}`);
+    logger.log(`${ALGO}: Checking if stoploss already exists for ${tradingsymbol}`);
     const hasExistingStoploss = pendingOrders.some(
       (order: Record<string, unknown>) =>
         _get(order, 'tradingsymbol', '') === tradingsymbol && _get(order, 'symboltoken', '') === symboltoken,
     );
 
     if (hasExistingStoploss) {
-      console.log(`${ALGO}: Stoploss already exists for ${tradingsymbol}, skipping`);
+      logger.log(`${ALGO}: Stoploss already exists for ${tradingsymbol}, skipping`);
       stoplossOrders.push({
         tradingsymbol,
         symboltoken,
@@ -1413,12 +1410,12 @@ export const placeStoplossForAllSells = async ({
     // Calculate stoploss price — 150% MORE than entry, not 150% OF entry
     const stoplossPrice = sellavgprice + sellavgprice * stoplossFactor;
     const quantity = Math.abs(netqty);
-    console.log(
+    logger.log(
       `${ALGO}: Calculated stoploss for ${tradingsymbol} — entry: ${sellavgprice}, stoploss: ${stoplossPrice.toFixed(2)}, qty: ${quantity}`,
     );
 
     try {
-      console.log(`${ALGO}: Placing stoploss order for ${tradingsymbol}`);
+      logger.log(`${ALGO}: Placing stoploss order for ${tradingsymbol}`);
       await delay({ milliSeconds: DELAY });
 
       const orderParams = {
@@ -1434,11 +1431,11 @@ export const placeStoplossForAllSells = async ({
         triggerprice: stoplossPrice,
       };
 
-      console.log(`${ALGO}: Order parameters:`, orderParams);
+      logger.log(`${ALGO}: Order parameters:`, orderParams);
 
       const orderResponse = await doOrder(orderParams);
 
-      console.log(`${ALGO}: Stoploss order placed for ${tradingsymbol}:`, {
+      logger.log(`${ALGO}: Stoploss order placed for ${tradingsymbol}:`, {
         status: orderResponse.status,
         orderId: orderResponse.data?.orderid,
         message: orderResponse.message,
@@ -1455,7 +1452,7 @@ export const placeStoplossForAllSells = async ({
         message: orderResponse.message,
       });
     } catch (error) {
-      console.error(`${ALGO}: Failed to place stoploss for ${tradingsymbol}:`, error);
+      logger.error(`${ALGO}: Failed to place stoploss for ${tradingsymbol}:`, error);
       stoplossOrders.push({
         tradingsymbol,
         symboltoken,
@@ -1465,7 +1462,7 @@ export const placeStoplossForAllSells = async ({
     }
   }
 
-  console.log(`${ALGO}: Completed processing all positions. Results:`, {
+  logger.log(`${ALGO}: Completed processing all positions. Results:`, {
     totalPositions: sellPositions.length,
     processedOrders: stoplossOrders.length,
     successfulOrders: stoplossOrders.filter(o => o.status === 'success' || o.orderId).length,
@@ -1521,7 +1518,7 @@ export const getCandleData = async ({
     todate,
   };
 
-  console.log(`${ALGO}: getCandleData request:`, JSON.stringify(data, null, 2));
+  logger.log(`${ALGO}: getCandleData request:`, JSON.stringify(data, null, 2));
 
   try {
     // Correct API endpoint from docs
@@ -1531,22 +1528,22 @@ export const getCandleData = async ({
       headers,
     );
 
-    console.log(`${ALGO}: getCandleData raw response:`, JSON.stringify(response, null, 2));
+    logger.log(`${ALGO}: getCandleData raw response:`, JSON.stringify(response, null, 2));
 
     const candles = _get(response, 'data', []);
 
     if (!Array.isArray(candles)) {
-      console.error(`${ALGO}: Invalid candle data format:`, response);
+      logger.error(`${ALGO}: Invalid candle data format:`, response);
       throw new Error('Invalid candle data format from API');
     }
 
-    console.log(`${ALGO}: getCandleData — fetched ${candles.length} candles for token ${symboltoken}`);
-    console.log(`${ALGO}: First candle:`, candles[0]);
-    console.log(`${ALGO}: Last candle:`, candles.at(-1));
+    logger.log(`${ALGO}: getCandleData — fetched ${candles.length} candles for token ${symboltoken}`);
+    logger.log(`${ALGO}: First candle:`, candles[0]);
+    logger.log(`${ALGO}: Last candle:`, candles.at(-1));
 
     return candles;
   } catch (error) {
-    console.error(`${ALGO}: getCandleData failed:`, error);
+    logger.error(`${ALGO}: getCandleData failed:`, error);
     throw error;
   }
 };
