@@ -1,65 +1,124 @@
-# Intraday Trading Algorithm
+# 🚀 SmartAPI Intraday Trading Algorithm
 
-## Overview
+[![CI Pipeline](https://github.com/kunalrbhatia/smart-api/actions/workflows/ci.yml/badge.svg)](https://github.com/kunalrbhatia/smart-api/actions/workflows/ci.yml)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-%5E5.4.5-blue)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Coverage](https://img.shields.io/badge/coverage-86.2%25-brightgreen)](https://github.com/kunalrbhatia/smart-api)
 
-This repository contains the implementation of an intraday trading algorithm developed by Kunal, a full-stack developer based in Mumbai, India. Kunal, who is also a proactive stock market trader, has crafted an algorithmic approach to capitalize on intraday opportunities in the BankNifty index options.
+A robust, enterprise-grade intraday trading algorithm built with Node.js and TypeScript, specifically designed for automating **Short Straddle** strategies on BankNifty index options using the Angel One **SmartAPI**.
 
-The algorithm is built with Node.js, Express, and TypeScript. It uses the SmartAPI for trade execution.
+---
 
-## Features
+## 🌟 Key Features
 
-- **Automated Login:** Enhanced security with automated 6-digit TOTP generation from 16-character secret keys.
-- **Dynamic Networking:** Automatic resolution of Public IP, Local IP, and MAC address for compliant API headers.
-- **Short Straddle Strategy:** Automated execution for BankNifty index options.
-- **Dynamic Adjustments:** Real-time adjustments based on market movements.
-- **Risk Management:** Built-in MTM tracking and stop-loss criteria.
-- **Graceful Shutdown:** Safe execution termination via `/kill` endpoint or signals.
+- 🔐 **Automated Smart Login**: Hands-free authentication with automated 6-digit TOTP generation.
+- 📡 **Compliance Ready**: Automatic resolution of Public IP, Local IP, and MAC addresses for secure API header requirements.
+- 📊 **Short Straddle Strategy**: Precision execution for index options with dynamic strike selection.
+- 📉 **Real-time Risk Management**: Active MTM (Mark-to-Market) tracking with customizable stop-loss and target criteria.
+- 🏗️ **Modular Architecture**: Clean, domain-driven design for high maintainability and testability.
+- 🛡️ **High Test Coverage**: Robust test suite with **86.2% branch coverage** ensuring reliable execution.
+- 🐳 **Docker Ready**: Fully containerized for consistent deployment across environments.
 
-## Prerequisites
+---
 
-Before you begin, ensure you have the following:
+## 🛠️ Tech Stack
 
-- [Node.js](https://nodejs.org/en/) (v18 or higher recommended)
-- [npm](https://www.npmjs.com/)
-- A [SmartAPI](https://smartapi.angelbroking.com/) account and API Key.
-- Your 16-character TOTP Secret Key from Angel Broking.
+- **Runtime**: Node.js v24+ (LTS)
+- **Language**: TypeScript
+- **Framework**: Express.js
+- **API Client**: [SmartAPI](https://smartapi.angelbroking.com/) (via `krb-smart-api-module`)
+- **Testing**: Jest
+- **Formatting/Linting**: Prettier & ESLint
+- **Package Manager**: pnpm
 
-## Installation
+---
 
-1.  Clone the repository:
-    ```powershell
-    git clone https://github.com/kunalrbhatia/smart-api.git
-    cd smart-api
-    ```
-2.  Install dependencies:
-    ```powershell
-    npm install
-    ```
+## 📥 Installation
 
-## Configuration
+### Prerequisites
+- **Node.js v24+**
+- **pnpm** (recommended) or npm
+- **SmartAPI Credentials**: API Key and 16-character TOTP Secret.
 
-1.  Create a `.env` file from the example:
-    ```powershell
-    Copy-Item .env.example .env
-    ```
-2.  Fill in your SmartAPI credentials. Note that `CLIENT_TOTP_PIN` should now contain your **16-character TOTP secret key** for automated login.
+### Setup
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/kunalrbhatia/smart-api.git
+   cd smart-api
+   ```
 
-## Running the Application
+2. **Install dependencies**:
+   ```bash
+   pnpm install
+   ```
 
-To start the application, run the following command:
+3. **Configure Environment**:
+   ```bash
+   cp .env.example .env
+   ```
+   *Edit `.env` and fill in your `API_KEY`, `CLIENT_ID`, `CLIENT_PASSWORD`, and `CLIENT_TOTP_PIN` (16-character secret).*
 
+---
+
+## 🚀 Usage
+
+### Development Mode
+Run with hot-reloading:
 ```bash
-npm start
+pnpm run dev
 ```
 
-The server will start on the port specified in your `.env` file (default is 3000).
+### Production Build
+Compile and start:
+```bash
+pnpm run build
+pnpm start
+```
 
-## API Endpoints
+### Testing
+Run the comprehensive test suite:
+```bash
+pnpm test
+pnpm run test:coverage # Generate coverage report
+```
 
-For detailed API endpoint documentation, please refer to [ENDPOINTS.md](ENDPOINTS.md).
+---
 
-## Disclaimer
+## 📂 Project Structure
 
-Trading involves risks, and past performance is not indicative of future results. Kunal encourages users to thoroughly understand the algorithm, backtest it, and use it responsibly.
+```
+smart-api/
+├── src/
+│   ├── helpers/
+│   │   ├── apiService/     # Domain-specific API logic (positions, orders, strategy)
+│   │   └── ...             # Utility helpers (logger, notifier, etc.)
+│   ├── store/              # In-memory state management
+│   ├── routes/             # API Endpoints
+│   └── app.ts              # Express application configuration
+├── __tests__/              # High-coverage test suite
+└── jest.config.js          # Testing configuration
+```
 
-Feel free to reach out to Kunal for any clarifications or improvements to the algorithm.
+---
+
+## 📖 API Documentation
+
+Detailed documentation for all endpoints (Algo control, Account info, Market data) can be found in [ENDPOINTS.md](ENDPOINTS.md).
+
+---
+
+## ⚠️ Disclaimer
+
+Trading in the stock market involves significant risk. This algorithm is provided for educational and demonstration purposes. **Kunal** and the contributors are not responsible for any financial losses incurred through the use of this software. Always backtest thoroughly and trade responsibly.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please ensure that any new features include corresponding unit tests and maintain the existing branch coverage standards (>= 80%).
+
+---
+
+**Developed with ❤️ by [Kunal](https://github.com/kunalrbhatia)**  
+*Full-stack Developer | Stock Market Trader*
