@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { checkMarketConditionsAndExecuteTrade, checkMarketConditions } from '../helpers/apiService';
+import {
+  checkMarketConditionsAndExecuteTrade,
+  checkMarketConditions,
+} from '../helpers/apiService';
 import { ALGO } from '../helpers/constants';
 import { setCred } from '../helpers/functions';
 import { isKillSwitchActive } from '../helpers/killSwitch';
@@ -14,12 +17,17 @@ const router = Router();
  */
 router.post('/run-short-straddle', async (req: Request, res: Response) => {
   if (isKillSwitchActive()) {
-    return res.status(403).json({ response: 'Algo is disabled by kill switch. Send /resume via Telegram to enable.' });
+    return res.status(403).json({
+      response:
+        'Algo is disabled by kill switch. Send /resume via Telegram to enable.',
+    });
   }
 
   logger.log(`${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     logger.log(`${ALGO}: time, ${istTz}`);
 
     setCred(req);
@@ -29,7 +37,10 @@ router.post('/run-short-straddle', async (req: Request, res: Response) => {
 
     logger.log(`${ALGO}: lots: ${lots}`);
 
-    const response = await checkMarketConditionsAndExecuteTrade(lots, lossPerLot);
+    const response = await checkMarketConditionsAndExecuteTrade(
+      lots,
+      lossPerLot,
+    );
     logger.log(`${ALGO} response: ${response}`);
 
     res.json({ response });
@@ -47,12 +58,17 @@ router.post('/run-short-straddle', async (req: Request, res: Response) => {
  */
 router.post('/check-market-conditions', async (req: Request, res: Response) => {
   if (isKillSwitchActive()) {
-    return res.status(403).json({ response: 'Algo is disabled by kill switch. Send /resume via Telegram to enable.' });
+    return res.status(403).json({
+      response:
+        'Algo is disabled by kill switch. Send /resume via Telegram to enable.',
+    });
   }
 
   logger.log(`${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     logger.log(`${ALGO}: time, ${istTz}`);
 
     setCred(req);

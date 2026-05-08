@@ -5,6 +5,7 @@ This document provides a comprehensive list of all available endpoints in the Sm
 ---
 
 ## Table of Contents
+
 - [Health Check](#health-check)
 - [Graceful Shutdown](#graceful-shutdown)
 - [API Endpoints](#api-endpoints)
@@ -25,11 +26,13 @@ This document provides a comprehensive list of all available endpoints in the Sm
 **Description:** Health check route to verify if the server is running.
 
 **Request:**
+
 - **Method:** `GET`
 - **Body:** None
 - **Headers:** None
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -38,6 +41,7 @@ This document provides a comprehensive list of all available endpoints in the Sm
 ```
 
 **Example:**
+
 ```bash
 curl http://localhost:3000/
 ```
@@ -51,16 +55,19 @@ curl http://localhost:3000/
 **Description:** Initiates a graceful shutdown of the server.
 
 **Request:**
+
 - **Method:** `GET`
 - **Body:** None
 - **Headers:** None
 
 **Response:**
+
 ```
 Execution of the 'Kill Algo' command has been initiated.
 ```
 
 **Example:**
+
 ```bash
 curl http://localhost:3000/kill
 ```
@@ -80,6 +87,7 @@ All API endpoints require authentication credentials in the request body.
 **Description:** Warms up the application by fetching the scrip master data. This should be called before executing any trades.
 
 **Request:**
+
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 - **Body:**
@@ -95,6 +103,7 @@ All API endpoints require authentication credentials in the request body.
 **Response:**
 
 **Success (200):**
+
 ```json
 {
   "response": "success"
@@ -102,6 +111,7 @@ All API endpoints require authentication credentials in the request body.
 ```
 
 **Error (500):**
+
 ```json
 {
   "response": "error message or error object"
@@ -109,6 +119,7 @@ All API endpoints require authentication credentials in the request body.
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:3000/api/warmup \
   -H "Content-Type: application/json" \
@@ -129,6 +140,7 @@ curl -X POST http://localhost:3000/api/warmup \
 **Description:** Fetches the LTP (Last Traded Price) data for all major indices including VIX, NIFTY, BANKNIFTY, and SENSEX.
 
 **Request:**
+
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 - **Body:**
@@ -144,6 +156,7 @@ curl -X POST http://localhost:3000/api/warmup \
 **Response:**
 
 **Success (200):**
+
 ```json
 {
   "data": {
@@ -193,6 +206,7 @@ curl -X POST http://localhost:3000/api/warmup \
 
 **Error Response:**
 If a specific index fails to fetch:
+
 ```json
 {
   "data": {
@@ -209,6 +223,7 @@ If a specific index fails to fetch:
 ```
 
 **General Error (500):**
+
 ```json
 {
   "response": "error message or error object"
@@ -216,6 +231,7 @@ If a specific index fails to fetch:
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:3000/api/getAllIndices \
   -H "Content-Type: application/json" \
@@ -236,6 +252,7 @@ curl -X POST http://localhost:3000/api/getAllIndices \
 **Description:** Places an order for a stock or option. You can either provide the exact `quantity` or use `lotSize` with optional `lots` multiplier.
 
 **Request:**
+
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 - **Body:**
@@ -264,6 +281,7 @@ curl -X POST http://localhost:3000/api/getAllIndices \
 **Parameters:**
 
 **Required:**
+
 - `api_key` (string): Your Smart API key
 - `client_code` (string): Your client code
 - `client_pin` (string): Your client PIN
@@ -277,6 +295,7 @@ curl -X POST http://localhost:3000/api/getAllIndices \
   - `lots` (number): Number of lots (optional, defaults to 1 if lotSize is used)
 
 **Optional:**
+
 - `exchange` (string): Exchange code - "NFO", "NSE", "BSE", etc. (defaults to "NFO")
 - `productType` (string): Product type - "CARRYFORWARD", "DELIVERY", "MARGIN", "INTRADAY", "BO" (defaults to "CARRYFORWARD")
 - `variety` (string): Order variety - "NORMAL" or "STOPLOSS" (defaults to "NORMAL")
@@ -288,6 +307,7 @@ curl -X POST http://localhost:3000/api/getAllIndices \
 **Response:**
 
 **Success (200):**
+
 ```json
 {
   "data": {
@@ -303,6 +323,7 @@ curl -X POST http://localhost:3000/api/getAllIndices \
 ```
 
 **Error (400):**
+
 ```json
 {
   "error": "Missing required fields: tradingsymbol, symboltoken, and transactionType are required"
@@ -310,6 +331,7 @@ curl -X POST http://localhost:3000/api/getAllIndices \
 ```
 
 **Error (500):**
+
 ```json
 {
   "error": "Failed to place order"
@@ -317,6 +339,7 @@ curl -X POST http://localhost:3000/api/getAllIndices \
 ```
 
 **Example - Using Quantity:**
+
 ```bash
 curl -X POST http://localhost:3000/api/placeOrder \
   -H "Content-Type: application/json" \
@@ -336,6 +359,7 @@ curl -X POST http://localhost:3000/api/placeOrder \
 ```
 
 **Example - Using Lot Size:**
+
 ```bash
 curl -X POST http://localhost:3000/api/placeOrder \
   -H "Content-Type: application/json" \
@@ -365,6 +389,7 @@ curl -X POST http://localhost:3000/api/placeOrder \
 **Description:** Fetches the Last Traded Price (LTP) and other market data (open, high, low, close) for a stock or option.
 
 **Request:**
+
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 - **Body:**
@@ -381,6 +406,7 @@ curl -X POST http://localhost:3000/api/placeOrder \
   ```
 
 **Parameters:**
+
 - `api_key` (required, string): Your Smart API key
 - `client_code` (required, string): Your client code
 - `client_pin` (required, string): Your client PIN
@@ -392,15 +418,16 @@ curl -X POST http://localhost:3000/api/placeOrder \
 **Response:**
 
 **Success (200):**
+
 ```json
 {
   "data": {
     "exchange": "NFO",
     "tradingsymbol": "BANKNIFTY24405PE50000",
     "symboltoken": "54321",
-    "open": 145.50,
-    "high": 152.30,
-    "low": 143.20,
+    "open": 145.5,
+    "high": 152.3,
+    "low": 143.2,
     "close": 148.75,
     "ltp": 150.25
   }
@@ -408,6 +435,7 @@ curl -X POST http://localhost:3000/api/placeOrder \
 ```
 
 **Error (400):**
+
 ```json
 {
   "error": "Missing required fields: exchange, tradingsymbol, and symboltoken are required"
@@ -415,6 +443,7 @@ curl -X POST http://localhost:3000/api/placeOrder \
 ```
 
 **Error (500):**
+
 ```json
 {
   "error": "Failed to fetch LTP data"
@@ -422,6 +451,7 @@ curl -X POST http://localhost:3000/api/placeOrder \
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:3000/api/getLtp \
   -H "Content-Type: application/json" \
@@ -445,6 +475,7 @@ curl -X POST http://localhost:3000/api/getLtp \
 **Description:** Searches for a stock or option by name across different exchanges. Useful for finding instrument tokens and symbols.
 
 **Request:**
+
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 - **Body:**
@@ -460,6 +491,7 @@ curl -X POST http://localhost:3000/api/getLtp \
   ```
 
 **Parameters:**
+
 - `api_key` (required, string): Your Smart API key
 - `client_code` (required, string): Your client code
 - `client_pin` (required, string): Your client PIN
@@ -470,6 +502,7 @@ curl -X POST http://localhost:3000/api/getLtp \
 **Response:**
 
 **Success (200):**
+
 ```json
 {
   "data": [
@@ -489,6 +522,7 @@ curl -X POST http://localhost:3000/api/getLtp \
 ```
 
 **Error (400):**
+
 ```json
 {
   "error": "Missing required field: scripName is required"
@@ -496,6 +530,7 @@ curl -X POST http://localhost:3000/api/getLtp \
 ```
 
 **Error (500):**
+
 ```json
 {
   "error": "Failed to search scrip"
@@ -503,6 +538,7 @@ curl -X POST http://localhost:3000/api/getLtp \
 ```
 
 **Example - Search in NFO (Options):**
+
 ```bash
 curl -X POST http://localhost:3000/api/searchScrip \
   -H "Content-Type: application/json" \
@@ -517,6 +553,7 @@ curl -X POST http://localhost:3000/api/searchScrip \
 ```
 
 **Example - Search in NSE (Stocks):**
+
 ```bash
 curl -X POST http://localhost:3000/api/searchScrip \
   -H "Content-Type: application/json" \
@@ -541,6 +578,7 @@ curl -X POST http://localhost:3000/api/searchScrip \
 **Description:** Executes the short straddle trading algorithm for BankNifty index options.
 
 **Request:**
+
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 - **Body:**
@@ -556,6 +594,7 @@ curl -X POST http://localhost:3000/api/searchScrip \
   ```
 
 **Parameters:**
+
 - `api_key` (required, string): Your Smart API key
 - `client_code` (required, string): Your client code
 - `client_pin` (required, string): Your client PIN
@@ -566,6 +605,7 @@ curl -X POST http://localhost:3000/api/searchScrip \
 **Response:**
 
 **Success (200):**
+
 ```json
 {
   "response": "response message from the algorithm"
@@ -573,6 +613,7 @@ curl -X POST http://localhost:3000/api/searchScrip \
 ```
 
 **Error (500):**
+
 ```json
 {
   "response": "error message or error object"
@@ -580,6 +621,7 @@ curl -X POST http://localhost:3000/api/searchScrip \
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:3000/algo/run-short-straddle \
   -H "Content-Type: application/json" \
@@ -644,6 +686,7 @@ or
 ```
 
 **HTTP Status Codes:**
+
 - `200` - Success
 - `400` - Bad Request (missing or invalid parameters)
 - `404` - Not Found
@@ -666,4 +709,3 @@ or
 ## Disclaimer
 
 Trading involves risks, and past performance is not indicative of future results. Use this API responsibly and ensure you understand the algorithms before executing trades.
-

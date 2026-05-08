@@ -5,6 +5,7 @@ This guide explains how to host the **smart-api** algorithm on the same Oracle C
 ---
 
 ## 🛠️ 1. Unique Port Configuration
+
 Since this project is an Express API server, it needs its own network port.
 
 1.  **Clone and Build**:
@@ -29,6 +30,7 @@ Since this project is an Express API server, it needs its own network port.
 ---
 
 ## 🔄 2. Process Management (PM2)
+
 Use **PM2** to keep the API server running in the background.
 
 1.  **Install PM2**:
@@ -48,16 +50,19 @@ Use **PM2** to keep the API server running in the background.
 ---
 
 ## 🔓 3. Open Port in Oracle Cloud (OCI)
+
 You must allow traffic on the new port in both the OCI Console and the server's local firewall.
 
 ### OCI Console Setup
+
 1.  **Navigate**: Compute > Instances > [Your Instance] > **Subnet** > **Security List**.
 2.  **Add Ingress Rule**:
-    *   **Source CIDR**: `0.0.0.0/0`
-    *   **IP Protocol**: `TCP`
-    *   **Destination Port Range**: `8001`
+    - **Source CIDR**: `0.0.0.0/0`
+    - **IP Protocol**: `TCP`
+    - **Destination Port Range**: `8001`
 
 ### Local Server Firewall (Ubuntu)
+
 ```bash
 # For UFW:
 sudo ufw allow 8001
@@ -70,6 +75,7 @@ sudo netfilter-persistent save
 ---
 
 ## 📅 4. Scheduling Trades (Cron)
+
 Since the algo is an API, you trigger it by sending a `POST` request. To check positions and execute trades every 5 minutes during market hours:
 
 **Market Hours (IST)**: 09:15 AM to 03:30 PM
@@ -78,6 +84,7 @@ Since the algo is an API, you trigger it by sending a `POST` request. To check p
 Open crontab: `crontab -e`
 
 Add these lines:
+
 ```cron
 # 1. Warmup once at 9:16 AM IST (03:46 AM UTC) to fetch Scrip Master
 46 03 * * * curl -X POST http://localhost:8001/api/warmup -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret"}' >> ~/smart-api/logs/warmup.log 2>&1
@@ -90,12 +97,13 @@ Add these lines:
 0 10 * * 2 curl -X POST http://localhost:8001/algo/run-short-straddle -H "Content-Type: application/json" -d '{"api_key":"your_key","client_code":"your_code","client_pin":"your_pin","client_totp_pin":"your_totp_secret","lots":1,"loss_per_lot":3500}' >> ~/smart-api/logs/algo_run.log 2>&1
 ```
 
-
 ---
 
 ## 🔐 5. Angel One Whitelisting
+
 1.  **Get Public IP**: Run `curl ifconfig.me` on your server.
 2.  **Whitelist**: Log in to the [SmartAPI Portal](https://smartapi.angelbroking.com/) and add this IP to the **Whitelisted IPs** for the specific App you are using for this algo.
 
 ---
+
 **Note:** Both algos will now run independently. You can monitor this one using `pm2 logs smart-api`.

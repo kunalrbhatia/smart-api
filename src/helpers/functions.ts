@@ -1,4 +1,9 @@
-import { getIndexScrip, getLtpData, getLtpWithRetry, getScrip } from './apiService';
+import {
+  getIndexScrip,
+  getLtpData,
+  getLtpWithRetry,
+  getScrip,
+} from './apiService';
 import {
   BothPresent,
   Credentails,
@@ -18,7 +23,11 @@ import { ALGO } from './constants';
 import { Request } from 'express';
 import DataStore from '../store/dataStore';
 import OrderStore from '../store/orderStore';
-import { getLastThursdayOfCurrentMonth, isCurrentTimeGreater, setCredentials } from 'krb-smart-api-module';
+import {
+  getLastThursdayOfCurrentMonth,
+  isCurrentTimeGreater,
+  setCredentials,
+} from 'krb-smart-api-module';
 import { logger } from './logger';
 
 /**
@@ -60,13 +69,22 @@ export const getOpenPositionsByExpiry = (
 export const getAtmStrikePriceForIndex = async (
   scriptName: string,
   expiryDate: string,
-): Promise<{ atmStrike: number; ltp: number; expiry: string; index: string }> => {
-  logger.log(`${ALGO}: Fetching ATM strike for ${scriptName} (Expiry: ${expiryDate})`);
+): Promise<{
+  atmStrike: number;
+  ltp: number;
+  expiry: string;
+  index: string;
+}> => {
+  logger.log(
+    `${ALGO}: Fetching ATM strike for ${scriptName} (Expiry: ${expiryDate})`,
+  );
 
   // 1. Get all options for this index & expiry from scrip master
   const optionChain = await getScrip({ scriptName, expiryDate });
   if (!optionChain || optionChain.length === 0) {
-    throw new Error(`No option chain found for ${scriptName} expiry ${expiryDate}`);
+    throw new Error(
+      `No option chain found for ${scriptName} expiry ${expiryDate}`,
+    );
   }
 
   // 2. Get the index scrip to fetch LTP (spot price)
@@ -174,11 +192,15 @@ export const getNextExpiry = () => {
   const isWednesday = currentDay === 3;
   const lastWednesday = getLastWednesdayOfMonth();
   const isLastWednesday = lastWednesday
-    ? lastWednesday.format('DDMMMYYYY').toUpperCase() === today.format('DDMMMYYYY').toUpperCase()
+    ? lastWednesday.format('DDMMMYYYY').toUpperCase() ===
+      today.format('DDMMMYYYY').toUpperCase()
     : false;
-  const isLastThursday = getLastThursdayOfCurrentMonth() === today.format('DDMMMYYYY').toUpperCase();
+  const isLastThursday =
+    getLastThursdayOfCurrentMonth() === today.format('DDMMMYYYY').toUpperCase();
 
-  const secondLastWednesday = lastWednesday ? lastWednesday.subtract(7, 'days') : null;
+  const secondLastWednesday = lastWednesday
+    ? lastWednesday.clone().subtract(7, 'days')
+    : null;
   let daysToNextWednesday = 3 - currentDay;
   if (daysToNextWednesday < 0) {
     daysToNextWednesday += 7;
@@ -189,7 +211,10 @@ export const getNextExpiry = () => {
     return today.add(1, 'days').format('DDMMMYYYY').toUpperCase();
   } else if (isWednesday) {
     return today.format('DDMMMYYYY').toUpperCase();
-  } else if (today.isBefore(lastWednesday) && today.isAfter(secondLastWednesday)) {
+  } else if (
+    today.isBefore(lastWednesday) &&
+    today.isAfter(secondLastWednesday)
+  ) {
     return getLastThursdayOfCurrentMonth();
   } else {
     const nextWednesday = today.add(daysToNextWednesday, 'days');
@@ -202,7 +227,10 @@ export const getNextExpiry = () => {
  * @param {number} target - The target price.
  * @returns {number} The nearest strike price.
  */
-export const findNearestStrike = (options: scripMasterResponse[], target: number) => {
+export const findNearestStrike = (
+  options: scripMasterResponse[],
+  target: number,
+) => {
   let nearestStrike = Infinity;
   let nearestDiff = Infinity;
   for (const option of options) {
@@ -254,10 +282,16 @@ export const getAtmStrikePrice = async () => {
  * @param {string} strike - The strike to check.
  * @returns {boolean} A boolean indicating if the strike is already traded.
  */
-export const checkStrike = (tradeDetails: Position[], strike: string): boolean => {
+export const checkStrike = (
+  tradeDetails: Position[],
+  strike: string,
+): boolean => {
   const expiry = OrderStore.getInstance().getPostData().EXPIRYDATE;
   for (const trade of tradeDetails) {
-    if (Number.parseInt(trade.strikeprice) === Number.parseInt(strike) && trade.expirydate === expiry) {
+    if (
+      Number.parseInt(trade.strikeprice) === Number.parseInt(strike) &&
+      trade.expirydate === expiry
+    ) {
       return true;
     }
   }
@@ -269,7 +303,10 @@ export const checkStrike = (tradeDetails: Position[], strike: string): boolean =
  * @param {string} strike - The strike to check.
  * @returns {BothPresent} An object indicating the presence of CE and PE options.
  */
-export const areBothOptionTypesPresentForStrike = (tradeDetails: Position[], strike: string): BothPresent => {
+export const areBothOptionTypesPresentForStrike = (
+  tradeDetails: Position[],
+  strike: string,
+): BothPresent => {
   const expirationDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   let cePresent = false;
   let pePresent = false;
@@ -302,7 +339,11 @@ export const getAllOpenPositions = (positions: Position[]): Position[] => {
       const netqty = Number.parseInt(position.netqty);
       const positionExpiryDate = position.expirydate;
       const symbolname = position.symbolname;
-      if (netqty != 0 && expiryDate === positionExpiryDate && symbolname === indexName) {
+      if (
+        netqty != 0 &&
+        expiryDate === positionExpiryDate &&
+        symbolname === indexName
+      ) {
         openPositions.push(position);
       }
     }
@@ -323,7 +364,11 @@ export const getOpenSellPositions = (positions: Position[]): Position[] => {
       const netqty = Number.parseInt(position.netqty);
       const positionExpiryDate = position.expirydate;
       const symbolname = position.symbolname;
-      if (netqty < 0 && expiryDate === positionExpiryDate && symbolname === indexName) {
+      if (
+        netqty < 0 &&
+        expiryDate === positionExpiryDate &&
+        symbolname === indexName
+      ) {
         openPositions.push(position);
       }
     }
@@ -335,7 +380,10 @@ export const getOpenSellPositions = (positions: Position[]): Position[] => {
  * @returns {boolean} A boolean indicating if the market is closed.
  */
 export const isMarketClosed = () => {
-  if (isCurrentTimeGreater({ hours: 9, minutes: 15 }) && !isCurrentTimeGreater({ hours: 15, minutes: 30 })) {
+  if (
+    isCurrentTimeGreater({ hours: 9, minutes: 15 }) &&
+    !isCurrentTimeGreater({ hours: 15, minutes: 30 })
+  ) {
     return false;
   } else {
     return true;
@@ -400,12 +448,16 @@ export const getStrikeVariance = (index: string) => {
 /**
  * Normalizes strikeprice string to integer — handles "25400.0" and "25400" both.
  */
-const normalizeStrike = (strikeprice: string): number => Math.round(Number(strikeprice));
+const normalizeStrike = (strikeprice: string): number =>
+  Math.round(Number(strikeprice));
 
 /**
  * Checks if there is an open position for a given ATM strike.
  */
-export const hasOpenPositionForStrike = (positions: Position[], atmStrike: number): boolean => {
+export const hasOpenPositionForStrike = (
+  positions: Position[],
+  atmStrike: number,
+): boolean => {
   return positions.some(p => normalizeStrike(p.strikeprice) === atmStrike);
 };
 
@@ -414,7 +466,9 @@ export const hasOpenPositionForStrike = (positions: Position[], atmStrike: numbe
  */
 export const countSellPairs = (positions: Position[]): number => {
   const sellPositions = positions.filter(p => Number.parseInt(p.netqty) < 0);
-  const uniqueStrikes = new Set(sellPositions.map(p => normalizeStrike(p.strikeprice)));
+  const uniqueStrikes = new Set(
+    sellPositions.map(p => normalizeStrike(p.strikeprice)),
+  );
   return uniqueStrikes.size;
 };
 
@@ -430,14 +484,16 @@ export const hasHedgePositions = (positions: Position[]): boolean => {
 
 // Simple Moving Average
 export const calculateSMA = (data: number[], period: number): number => {
-  if (data.length < period) throw new Error(`Not enough data for SMA(${period})`);
+  if (data.length < period)
+    throw new Error(`Not enough data for SMA(${period})`);
   const slice = data.slice(-period);
   return slice.reduce((sum, val) => sum + val, 0) / period;
 };
 
 // Exponential Moving Average
 export const calculateEMA = (data: number[], period: number): number => {
-  if (data.length < period) throw new Error(`Not enough data for EMA(${period})`);
+  if (data.length < period)
+    throw new Error(`Not enough data for EMA(${period})`);
 
   const k = 2 / (period + 1);
   let ema = data[0];
@@ -452,7 +508,9 @@ export const calculateEMA = (data: number[], period: number): number => {
 // RSI (Relative Strength Index)
 export const calculateRSI = (closes: number[], period: number = 14): number => {
   if (closes.length < period + 1) {
-    throw new Error(`Not enough data for RSI(${period}). Need at least ${period + 1} candles.`);
+    throw new Error(
+      `Not enough data for RSI(${period}). Need at least ${period + 1} candles.`,
+    );
   }
 
   let gains = 0;
@@ -480,7 +538,9 @@ export const calculateRSI = (closes: number[], period: number = 14): number => {
 };
 
 // MACD (Moving Average Convergence Divergence)
-export const calculateMACD = (closes: number[]): { macd: number; signal: number; histogram: number } => {
+export const calculateMACD = (
+  closes: number[],
+): { macd: number; signal: number; histogram: number } => {
   if (closes.length < 26) {
     throw new Error('Not enough data for MACD. Need at least 26 candles.');
   }

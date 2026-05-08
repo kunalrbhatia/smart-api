@@ -364,7 +364,7 @@ export type GetNearestStrike = {
  */
 export type GetCurrentTimeAndPastTimeType = {
   currentTime: string;
-  pastTime:string;
+  pastTime: string;
 };
 /**
  * Interface for data record.

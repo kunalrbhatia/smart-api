@@ -19,6 +19,7 @@
     "@babel/preset-flow": "^7.22.5",
     "@babel/preset-typescript": "^7.22.5",
     "@eslint/js": "^9.0.0",
+    "@types/body-parser": "^1.19.6",
     "@types/cors": "^2.8.12",
     "@types/dotenv": "^8.2.0",
     "@types/express": "^4.17.17",
@@ -26,7 +27,7 @@
     "@types/jest": "^29.5.3",
     "@types/lodash": "^4.14.195",
     "@types/moment-timezone": "^0.5.30",
-    "@types/node": "^18.16.19",
+    "@types/node": "^24.0.0",
     "@types/node-cron": "^3.0.8",
     "@types/supertest": "^2.0.12",
     "babel-plugin-transform-remove-console": "^6.9.4",
@@ -49,8 +50,8 @@
     "start": "node dist/server.js",
     "dev": "ts-node ./src/server.ts",
     "watch": "npm run build -- --watch",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test": "jest --maxWorkers=1",
+    "test:coverage": "jest --coverage --maxWorkers=1",
     "commit": "cz",
     "precommit": "lint-staged"
   },
@@ -61,7 +62,7 @@
   },
   "lint-staged": {
     "./**/*.{js,jsx,ts,tsx}": [
-      "prettier --single-quote --jsx-single-quote --arrow-parens avoid --write",
+      "prettier --write",
       "eslint --fix"
     ]
   },
@@ -69,5 +70,8 @@
     "commitizen": {
       "path": "./node_modules/cz-emoji-conventional"
     }
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }

@@ -39,7 +39,9 @@ export const shutdown = () => {
   });
 
   setTimeout(() => {
-    logger.error('Could not close connections in time, forcefully shutting down');
+    logger.error(
+      'Could not close connections in time, forcefully shutting down',
+    );
     process.exit(1);
   }, 10000);
 

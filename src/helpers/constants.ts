@@ -3,37 +3,44 @@
  * The URL for the Angel Broking streaming service.
  * @type {string}
  */
-export const STREAM_URL = 'wss://omnefeeds.angelbroking.com/NestHtml5Mobile/socket/stream';
+export const STREAM_URL =
+  'wss://omnefeeds.angelbroking.com/NestHtml5Mobile/socket/stream';
 /**
  * The API endpoint for getting margin details.
  * @type {string}
  */
-export const GET_MARGIN = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/user/v1/getRMS';
+export const GET_MARGIN =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/user/v1/getRMS';
 /**
  * The API endpoint for placing an order.
  * @type {string}
  */
-export const ORDER_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/placeOrder';
+export const ORDER_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/placeOrder';
 /**
  * The API endpoint for modifying an order.
  * @type {string}
  */
-export const MODIFY_ORDER_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/modifyOrder';
+export const MODIFY_ORDER_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/modifyOrder';
 /**
  * The API endpoint for cancelling an order.
  * @type {string}
  */
-export const CANCEL_ORDER_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/cancelOrder';
+export const CANCEL_ORDER_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/cancelOrder';
 /**
  * The API endpoint for getting the order book.
  * @type {string}
  */
-export const GET_ORDER_BOOK_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getOrderBook';
+export const GET_ORDER_BOOK_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getOrderBook';
 /**
  * The API endpoint for getting the trade book.
  * @type {string}
  */
-export const GET_TRAD_BOOK_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getTradeBook';
+export const GET_TRAD_BOOK_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getTradeBook';
 /**
  * The API endpoint for getting LTP data.
  * @type {string}
@@ -44,12 +51,14 @@ export const GET_LTP_DATA_API =
  * The URL for the scrip master file.
  * @type {string}
  */
-export const SCRIPMASTER = 'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json';
+export const SCRIPMASTER =
+  'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json';
 /**
  * The API endpoint for the order book.
  * @type {string}
  */
-export const ORDERBOOK_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getOrderBook';
+export const ORDERBOOK_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getOrderBook';
 /**
  * The variety type for a normal order.
  * @type {string}
@@ -114,7 +123,8 @@ export const ALGO = 'Algo';
  * The API endpoint for historical data.
  * @type {string}
  */
-export const HISTORIC_API = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/historical/v1/getCandleData';
+export const HISTORIC_API =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/historical/v1/getCandleData';
 /**
  * The date format used in the application.
  * @type {string}
@@ -134,11 +144,13 @@ export const LOTS = 1;
  * The API endpoint for searching scrips.
  * @type {string}
  */
-export const SEARCHSCRIPAPI = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/searchScrip';
+export const SEARCHSCRIPAPI =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/searchScrip';
 /**
  * The order status for pending orders.
  * @type {string}
  */
 export const PENDING_ORDER_STATUS = 'Pending';
 
-export const GET_POSITIONS = 'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getPosition';
+export const GET_POSITIONS =
+  'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getPosition';

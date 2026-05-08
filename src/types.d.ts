@@ -1,7 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare module 'smartapi-javascript' {
   export class SmartAPI {
     constructor(config: { api_key: string; totp?: string });
-    generateSession(client_code: string, client_pin: string, totp: string): Promise<any>;
+    generateSession(
+      client_code: string,
+      client_pin: string,
+      totp: string,
+    ): Promise<any>;
     generateToken(refreshToken: string): Promise<any>;
     getProfile(): Promise<any>;
     logout(): Promise<any>;
@@ -32,4 +37,24 @@ declare module 'totp-generator' {
 declare module 'public-ip' {
   export function v4(): Promise<string>;
   export function v6(): Promise<string>;
+}
+
+declare module 'krb-smart-api-module' {
+  export function delay(ms: number | { milliSeconds: number }): Promise<void>;
+  export function getCredentials(): any;
+  export function setCredentials(credentials: any): void;
+  export function isCurrentTimeGreater(
+    time: string | { hours: number; minutes: number },
+  ): boolean;
+  export function isTradingHoliday(): boolean;
+  export function getNearestStrike(
+    params:
+      | number
+      | { algoTrades: any[]; atmStrike: number; expirationDate: string },
+  ): number;
+  export function getLastThursdayOfCurrentMonth(): string;
+  export const DELAY: number;
+  export const INDICES: any;
+  export const CREDENTIALS: any;
+  export type CREDENTIALS = any;
 }

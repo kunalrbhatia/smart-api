@@ -17,9 +17,11 @@ if (!fs.existsSync(LOG_DIR)) {
  * Formats the log message with a timestamp.
  */
 const formatMessage = (level: string, message: any): string => {
-  const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const timestamp = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+  });
   let text = '';
-  
+
   if (typeof message === 'object') {
     try {
       text = JSON.stringify(message);
@@ -29,7 +31,7 @@ const formatMessage = (level: string, message: any): string => {
   } else {
     text = String(message);
   }
-  
+
   return `[${timestamp}] [${level}] ${text}\n`;
 };
 
@@ -45,15 +47,24 @@ const writeToFile = (formattedMessage: string) => {
   }
 };
 
+const safeStringify = (obj: any): string => {
+  if (typeof obj !== 'object' || obj === null) return String(obj);
+  try {
+    return JSON.stringify(obj);
+  } catch (e) {
+    return String(obj);
+  }
+};
+
 export const logger = {
   log: (...messages: any[]) => {
-    const combinedMessage = messages.map(m => (typeof m === 'object' ? JSON.stringify(m) : String(m))).join(' ');
+    const combinedMessage = messages.map(safeStringify).join(' ');
     const formatted = formatMessage('INFO', combinedMessage);
     console.log(...messages);
     writeToFile(formatted);
   },
   info: (...messages: any[]) => {
-    const combinedMessage = messages.map(m => (typeof m === 'object' ? JSON.stringify(m) : String(m))).join(' ');
+    const combinedMessage = messages.map(safeStringify).join(' ');
     const formatted = formatMessage('INFO', combinedMessage);
     console.info(...messages);
     writeToFile(formatted);
@@ -65,9 +76,9 @@ export const logger = {
     writeToFile(formatted);
   },
   warn: (...messages: any[]) => {
-    const combinedMessage = messages.map(m => (typeof m === 'object' ? JSON.stringify(m) : String(m))).join(' ');
+    const combinedMessage = messages.map(safeStringify).join(' ');
     const formatted = formatMessage('WARN', combinedMessage);
     console.warn(...messages);
     writeToFile(formatted);
-  }
+  },
 };

@@ -4,7 +4,9 @@ import { logger } from './logger';
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
     const error = await response.text();
-    logger.log(`${ALGO}: API request failed with status ${response.status} and message ${error}`);
+    logger.log(
+      `${ALGO}: API request failed with status ${response.status} and message ${error}`,
+    );
     throw new Error(error);
   }
   const contentType = response.headers.get('content-type');
