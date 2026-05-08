@@ -2,12 +2,9 @@
 /smart_api_client
 /target
 /dist
-package-lock.json
 .env
-*.json
 *.log
 coverage
-pnpm-lock.yaml
 pnpm-workspace.yaml
 smart-api-bruno
 algo-smart-api/short-straddle-algo.bru

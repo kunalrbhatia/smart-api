@@ -1,6 +1,10 @@
 import { config } from '../config/env';
 import { get } from './api';
-import { clearKillSwitch, isKillSwitchActive, setKillSwitch } from './killSwitch';
+import {
+  clearKillSwitch,
+  isKillSwitchActive,
+  setKillSwitch,
+} from './killSwitch';
 import { logger } from './logger';
 
 /**
@@ -12,7 +16,9 @@ export const sendTelegramMessage = async (message: string): Promise<void> => {
   const { telegramBotToken, telegramChatId } = config;
 
   if (!telegramBotToken || !telegramChatId) {
-    logger.warn('Telegram notifications are disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.');
+    logger.warn(
+      'Telegram notifications are disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.',
+    );
     return;
   }
 
@@ -37,7 +43,9 @@ export const startTelegramBotListener = async () => {
   const { telegramBotToken, telegramChatId } = config;
 
   if (!telegramBotToken || !telegramChatId) {
-    logger.warn('Telegram command listener disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.');
+    logger.warn(
+      'Telegram command listener disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.',
+    );
     return;
   }
 
@@ -46,8 +54,16 @@ export const startTelegramBotListener = async () => {
 
   // Initialize lastUpdateId to the latest update to avoid processing old messages on startup
   try {
-    const response: any = await get(`https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=-1`, {});
-    if (response && response.ok && response.result && response.result.length > 0) {
+    const response: any = await get(
+      `https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=-1`,
+      {},
+    );
+    if (
+      response &&
+      response.ok &&
+      response.result &&
+      response.result.length > 0
+    ) {
       lastUpdateId = response.result[0].update_id;
       logger.log(`🤖 Telegram: Starting from update ID ${lastUpdateId + 1}`);
     }
@@ -60,7 +76,12 @@ export const startTelegramBotListener = async () => {
       const url = `https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=${lastUpdateId + 1}&timeout=30`;
       const response: any = await get(url, {});
 
-      if (response && response.ok && response.result && response.result.length > 0) {
+      if (
+        response &&
+        response.ok &&
+        response.result &&
+        response.result.length > 0
+      ) {
         for (const update of response.result) {
           lastUpdateId = update.update_id;
 
@@ -69,19 +90,26 @@ export const startTelegramBotListener = async () => {
 
           // Security check: Only respond to the authorized Chat ID
           if (message.chat.id.toString() !== telegramChatId.toString()) {
-            logger.warn(`Unauthorized command attempt from Chat ID: ${message.chat.id}`);
+            logger.warn(
+              `Unauthorized command attempt from Chat ID: ${message.chat.id}`,
+            );
             continue;
           }
 
           const text = message.text.toLowerCase();
           if (text === '/kill') {
             setKillSwitch();
-            await sendTelegramMessage('🛑 *Kill Signal Received.* Initiating abrupt shutdown...');
+            await sendTelegramMessage(
+              '🛑 *Kill Signal Received.* Initiating abrupt shutdown...',
+            );
             logger.log('🛑 Telegram: Received /kill command. Shutting down...');
 
             // Confirm this update with Telegram to prevent loops on restart
             try {
-              await get(`https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=${lastUpdateId + 1}`, {});
+              await get(
+                `https://api.telegram.org/bot${telegramBotToken}/getUpdates?offset=${lastUpdateId + 1}`,
+                {},
+              );
             } catch (e) {
               // Ignore confirmation errors
             }
@@ -92,9 +120,13 @@ export const startTelegramBotListener = async () => {
             return; // Stop polling
           } else if (text === '/resume' || text === '/start') {
             clearKillSwitch();
-            await sendTelegramMessage('🚀 *Kill Switch Cleared.* Algo is now allowed to run.');
+            await sendTelegramMessage(
+              '🚀 *Kill Switch Cleared.* Algo is now allowed to run.',
+            );
           } else if (text === '/status') {
-            const status = isKillSwitchActive() ? '🛑 *Stopped (Kill Switch Active)*' : '✅ *Running*';
+            const status = isKillSwitchActive()
+              ? '🛑 *Stopped (Kill Switch Active)*'
+              : '✅ *Running*';
             await sendTelegramMessage(`${status}. Monitoring active.`);
           }
         }

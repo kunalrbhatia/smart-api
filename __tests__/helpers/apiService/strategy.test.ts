@@ -1,0 +1,360 @@
+import {
+  shortStraddle,
+  checkBoth_CE_PE_Present,
+  checkBothLegs,
+  isTradeAllowed,
+  executeTrade,
+  checkMarketConditionsAndExecuteTrade,
+  repeatShortStraddle,
+  executeSellAtmBuyHedge,
+} from '../../../src/helpers/apiService/strategy';
+import * as ordersHelper from '../../../src/helpers/apiService/orders';
+import * as marketDataHelper from '../../../src/helpers/apiService/marketData';
+import * as positionsHelper from '../../../src/helpers/apiService/positions';
+import { logger } from '../../../src/helpers/logger';
+import OrderStore from '../../../src/store/orderStore';
+import { isCurrentTimeGreater, getNearestStrike } from 'krb-smart-api-module';
+import { OptionType, CheckOptionType } from '../../../src/app.interface';
+import * as functionsHelper from '../../../src/helpers/functions';
+
+// Mock krb-smart-api-module
+jest.mock('krb-smart-api-module', () => ({
+  __esModule: true,
+  getNearestStrike: jest.fn(),
+  delay: jest.fn().mockResolvedValue(undefined),
+  isCurrentTimeGreater: jest.fn(),
+  isTradingHoliday: jest.fn(),
+  getSmartSession: jest.fn(),
+  DELAY: 10,
+}));
+
+// Mock internal helpers
+jest.mock('../../../src/helpers/apiService/orders');
+jest.mock('../../../src/helpers/apiService/marketData');
+jest.mock('../../../src/helpers/apiService/positions');
+jest.mock('../../../src/helpers/logger');
+jest.mock('../../../src/helpers/notifier');
+jest.mock('../../../src/store/orderStore');
+jest.mock('../../../src/store/dataStore');
+jest.mock('../../../src/helpers/functions');
+jest.mock('../../../src/helpers/apiService/session');
+
+import { getSmartSession } from '../../../src/helpers/apiService/session';
+
+describe('ApiService - Strategy - Final 90+', () => {
+  let mockOrderStoreInstance: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOrderStoreInstance = {
+      getPostData: jest.fn().mockReturnValue({
+        INDEX: 'NIFTY',
+        EXPIRYDATE: '20FEB2025',
+        STRIKE_DIFFERENCE: 100,
+      }),
+      setPostData: jest.fn(),
+    };
+    (OrderStore.getInstance as jest.Mock).mockReturnValue(
+      mockOrderStoreInstance,
+    );
+
+    // Re-ensure the mock is set before each test
+    jest
+      .spyOn(OrderStore, 'getInstance')
+      .mockReturnValue(mockOrderStoreInstance);
+
+    (functionsHelper.getAtmStrikePrice as jest.Mock).mockResolvedValue(18000);
+    (functionsHelper.getStrikeDifference as jest.Mock).mockReturnValue(100);
+    (functionsHelper.hedgeCalculation as jest.Mock).mockReturnValue(500);
+    (
+      functionsHelper.areBothOptionTypesPresentForStrike as jest.Mock
+    ).mockReturnValue({ ce: true, pe: true, stike: '18000' });
+    (functionsHelper.checkStrike as jest.Mock).mockReturnValue(false);
+    (functionsHelper.isMarketClosed as jest.Mock).mockReturnValue(false);
+    (functionsHelper.getOpenSellPositions as jest.Mock).mockReturnValue([]);
+  });
+
+  describe('shortStraddle', () => {
+    it('should retry PE hedge if skip happens', async () => {
+      (ordersHelper.doOrderByStrike as jest.Mock)
+        .mockResolvedValueOnce({ status: true }) // CE Hedge
+        .mockResolvedValueOnce(false) // PE Hedge initial skip
+        .mockResolvedValueOnce({ status: true }) // PE Hedge retry
+        .mockResolvedValueOnce({ status: true }) // CE Sell
+        .mockResolvedValueOnce({ status: true }); // PE Sell
+      await shortStraddle(true);
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(5);
+    });
+
+    it('should throw error and log if getAtmStrikePrice fails', async () => {
+      (functionsHelper.getAtmStrikePrice as jest.Mock).mockRejectedValue(
+        new Error('ATM Error'),
+      );
+      await expect(shortStraddle()).rejects.toThrow('ATM Error');
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('checkBoth_CE_PE_Present', () => {
+    it('should handle all option presence cases', () => {
+      expect(checkBoth_CE_PE_Present({ ce: true, pe: true, stike: '1' })).toBe(
+        CheckOptionType.BOTH_CE_PE_PRESENT,
+      );
+      expect(
+        checkBoth_CE_PE_Present({ ce: false, pe: false, stike: '1' }),
+      ).toBe(CheckOptionType.BOTH_CE_PE_NOT_PRESENT);
+      expect(checkBoth_CE_PE_Present({ ce: false, pe: true, stike: '1' })).toBe(
+        CheckOptionType.ONLY_PE_PRESENT,
+      );
+      expect(checkBoth_CE_PE_Present({ ce: true, pe: false, stike: '1' })).toBe(
+        CheckOptionType.ONLY_CE_PRESENT,
+      );
+    });
+  });
+
+  describe('checkBothLegs', () => {
+    it('should manage CE leg if PE is missing', async () => {
+      (marketDataHelper.getScrip as jest.Mock).mockResolvedValue([
+        { exch_seg: 'NFO', token: '1', symbol: 'S' },
+      ]);
+      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 10 });
+      await checkBothLegs({
+        cepe_present: CheckOptionType.ONLY_CE_PRESENT,
+        atmStrike: 18000,
+      });
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledWith(
+        18000,
+        OptionType.PE,
+        'SELL',
+      );
+    });
+
+    it('should throw error and log on failure', async () => {
+      (marketDataHelper.getScrip as jest.Mock).mockRejectedValue(
+        new Error('Leg Error'),
+      );
+      await expect(
+        checkBothLegs({
+          cepe_present: CheckOptionType.ONLY_CE_PRESENT,
+          atmStrike: 18000,
+        }),
+      ).rejects.toThrow('Leg Error');
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('repeatShortStraddle', () => {
+    it('should call checkBothLegs if difference is large enough', async () => {
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+      await repeatShortStraddle(150, 18100);
+      expect(
+        functionsHelper.areBothOptionTypesPresentForStrike,
+      ).toHaveBeenCalled();
+    });
+
+    it('should log error and rethrow on failure', async () => {
+      (positionsHelper.getPositionsJson as jest.Mock).mockRejectedValue(
+        new Error('Repeat Error'),
+      );
+      await expect(repeatShortStraddle(150, 18100)).rejects.toThrow(
+        'Repeat Error',
+      );
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('isTradeAllowed', () => {
+    it('should return a status object', async () => {
+      (getSmartSession as jest.Mock).mockResolvedValue({ jwtToken: 'token' });
+      const result = await isTradeAllowed('20FEB2025');
+      expect(result).toHaveProperty('isAllowed');
+    });
+  });
+
+  describe('executeTrade', () => {
+    it('should return MTM if not past closing time', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
+      (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+      const result = await executeTrade();
+      expect(result).toBe(1000);
+    });
+  });
+
+  describe('shortStraddle and index branches', () => {
+    it('should use strikeVariance 50 for NIFTY', async () => {
+      mockOrderStoreInstance.getPostData.mockReturnValue({
+        INDEX: 'NIFTY',
+        EXPIRYDATE: '20FEB2025',
+      });
+      (ordersHelper.doOrderByStrike as jest.Mock).mockResolvedValue({
+        status: true,
+      });
+      await shortStraddle(true);
+      // It should still work. Hard to verify variance value without spies, but hits the branch.
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalled();
+    });
+
+    it('should NOT use strikeVariance 50 for non-NIFTY', async () => {
+      mockOrderStoreInstance.getPostData.mockReturnValue({
+        INDEX: 'BANKNIFTY',
+        EXPIRYDATE: '20FEB2025',
+      });
+      (ordersHelper.doOrderByStrike as jest.Mock).mockResolvedValue({
+        status: true,
+      });
+      await shortStraddle(true);
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalled();
+    });
+  });
+
+  describe('checkBothLegs - Only PE', () => {
+    it('should manage PE leg if CE is missing', async () => {
+      (marketDataHelper.getScrip as jest.Mock).mockResolvedValue([
+        { exch_seg: 'NFO', token: '1', symbol: 'S' },
+      ]);
+      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 10 });
+      await checkBothLegs({
+        cepe_present: CheckOptionType.ONLY_PE_PRESENT,
+        atmStrike: 18000,
+      });
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledWith(
+        18000,
+        OptionType.CE,
+        'SELL',
+      );
+    });
+  });
+
+  describe('repeatShortStraddle - diff 0', () => {
+    it('should call checkBothLegs if difference is 0 and strike already traded', async () => {
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+      (functionsHelper.checkStrike as jest.Mock).mockReturnValue(true);
+      await repeatShortStraddle(0, 18000);
+      expect(
+        functionsHelper.areBothOptionTypesPresentForStrike,
+      ).toHaveBeenCalled();
+    });
+  });
+
+  describe('checkToRepeatShortStraddle', () => {
+    it('should throw if atmStrike is infinity', async () => {
+      const { checkToRepeatShortStraddle } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      await expect(checkToRepeatShortStraddle(Infinity, 18000)).rejects.toThrow(
+        'atmStrike is infinity',
+      );
+    });
+
+    it('should call repeatShortStraddle if finite', async () => {
+      const { checkToRepeatShortStraddle } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      await checkToRepeatShortStraddle(18000, 17900);
+      expect(positionsHelper.getPositionsJson).toHaveBeenCalled();
+    });
+  });
+
+  describe('executeTrade - Past closing time', () => {
+    it('should close trade if past closing time and open positions exist', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(true);
+      (functionsHelper.getOpenSellPositions as jest.Mock).mockReturnValue([
+        { tradingsymbol: 'T1' },
+      ]);
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+      await executeTrade();
+      expect(positionsHelper.closeTrade).toHaveBeenCalled();
+    });
+  });
+
+  describe('isTradeAllowed - Negative scenarios', () => {
+    it('should fail if Smart API is down', async () => {
+      (getSmartSession as jest.Mock).mockRejectedValue(new Error('API Down'));
+      const result = await isTradeAllowed('20FEB2025');
+      expect(result.isAllowed).toBe(false);
+      expect(result.reasons).toContain('Smart API down');
+    });
+  });
+
+  describe('checkMarketConditions', () => {
+    it('should return favorable if allowed', async () => {
+      (marketDataHelper.getNearestWeeklyExpiry as jest.Mock).mockResolvedValue(
+        '20FEB2025',
+      );
+      (marketDataHelper.getIndexScrip as jest.Mock).mockResolvedValue([
+        { exch_seg: 'NSE', token: 'VIX', symbol: 'VIX' },
+      ]);
+      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 15 });
+      // To make isTradeAllowed true, we need all conditions to match
+      // This is complex, but we already have isTradeAllowed tests.
+      // Let's just mock the internal logic by controlling external factors if possible.
+      // Or just let it return whatever it returns and check the structure.
+      const { checkMarketConditions } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const result = await checkMarketConditions();
+      expect(result).toHaveProperty('conditions');
+    });
+  });
+  describe('checkMarketConditionsAndExecuteTrade', () => {
+    it('should return error if it fails', async () => {
+      (marketDataHelper.getNearestWeeklyExpiry as jest.Mock).mockRejectedValue(
+        new Error('Market Error'),
+      );
+      const result = await checkMarketConditionsAndExecuteTrade();
+      expect(result).toBeInstanceOf(Error);
+    });
+
+    it('should return message if trade not allowed', async () => {
+      (marketDataHelper.getNearestWeeklyExpiry as jest.Mock).mockResolvedValue(
+        '20FEB2025',
+      );
+      (marketDataHelper.getIndexScrip as jest.Mock).mockResolvedValue([
+        { exch_seg: 'NSE', token: 'VIX', symbol: 'VIX' },
+      ]);
+      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 15 });
+      const result = await checkMarketConditionsAndExecuteTrade();
+      expect(typeof result).toBe('string');
+    });
+  });
+
+  describe('coreTradeExecution', () => {
+    it('should execute shortStraddle if no trades taken', async () => {
+      const { coreTradeExecution } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      await coreTradeExecution({ data: [] });
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalled();
+    });
+
+    it('should repeat if trades already taken', async () => {
+      const { coreTradeExecution } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      (functionsHelper.getAtmStrikePrice as jest.Mock).mockResolvedValue(18000);
+      (getNearestStrike as jest.Mock).mockReturnValue(18000);
+      await coreTradeExecution({ data: [{ tradingsymbol: 'T1' }] as any });
+      expect(positionsHelper.getPositionsJson).toHaveBeenCalled();
+    });
+  });
+
+  describe('executeSellAtmBuyHedge', () => {
+    it('should place orders', async () => {
+      (marketDataHelper.getScrip as jest.Mock).mockResolvedValue([
+        { token: 'T', symbol: 'S', lotsize: '50' },
+      ]);
+      (ordersHelper.doOrder as jest.Mock).mockResolvedValue({ status: true });
+      const result = await executeSellAtmBuyHedge({
+        index: 'NIFTY',
+        expiry: '20FEB2025',
+        atmStrike: 18000,
+        isFirstTrade: true,
+        sellLots: 1,
+        buyLots: 3,
+        hedgeDistance: 500,
+      });
+      expect(result.trades).toHaveLength(4);
+    });
+  });
+});

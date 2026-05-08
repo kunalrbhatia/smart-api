@@ -1,4 +1,10 @@
-// __mocks__/smartapi-javascript.ts
-export default {
-  SmartAPI: jest.fn(),
-};
+export const SmartAPI = jest.fn().mockImplementation(() => ({
+  generateSession: jest.fn().mockResolvedValue({
+    status: true,
+    data: {
+      jwtToken: 'fake-jwt',
+      refreshToken: 'fake-refresh',
+      feedToken: 'fake-feed',
+    },
+  }),
+}));

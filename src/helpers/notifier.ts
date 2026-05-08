@@ -7,10 +7,10 @@ import { ALGO } from './constants';
  */
 export const notify = async (message: string): Promise<void> => {
   const formattedMessage = `*${ALGO} Notification*\n\n${message}`;
-  
+
   // Log to console as well
   console.log(`${ALGO}: ${message}`);
-  
+
   // Send to Telegram
   await sendTelegramMessage(formattedMessage);
 };

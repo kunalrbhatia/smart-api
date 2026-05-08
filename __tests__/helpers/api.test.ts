@@ -47,7 +47,9 @@ describe('api', () => {
         text: async () => 'Internal Server Error',
       });
 
-      await expect(get('https://example.com/data', {})).rejects.toThrow('Internal Server Error');
+      await expect(get('https://example.com/data', {})).rejects.toThrow(
+        'Internal Server Error',
+      );
     });
   });
 
@@ -78,7 +80,9 @@ describe('api', () => {
         text: async () => 'Bad Request',
       });
 
-      await expect(post('https://example.com/data', requestBody, {})).rejects.toThrow('Bad Request');
+      await expect(
+        post('https://example.com/data', requestBody, {}),
+      ).rejects.toThrow('Bad Request');
     });
   });
 });

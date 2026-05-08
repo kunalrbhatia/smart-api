@@ -58,8 +58,6 @@ The server will start on the port specified in your `.env` file (default is 3000
 
 For detailed API endpoint documentation, please refer to [ENDPOINTS.md](ENDPOINTS.md).
 
-
-
 ## Disclaimer
 
 Trading involves risks, and past performance is not indicative of future results. Kunal encourages users to thoroughly understand the algorithm, backtest it, and use it responsibly.

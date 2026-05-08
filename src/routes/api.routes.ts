@@ -157,13 +157,15 @@ router.post('/placeOrder', async (req: Request, res: Response) => {
     // Validate required fields
     if (!tradingsymbol || !symboltoken || !transactionType) {
       return res.status(400).json({
-        error: 'Missing required fields: tradingsymbol, symboltoken, and transactionType are required',
+        error:
+          'Missing required fields: tradingsymbol, symboltoken, and transactionType are required',
       });
     }
 
     if (!quantity && (!lotSize || lotSize <= 0)) {
       return res.status(400).json({
-        error: 'Either quantity or lotSize (and optionally lots) must be provided',
+        error:
+          'Either quantity or lotSize (and optionally lots) must be provided',
       });
     }
 
@@ -186,7 +188,9 @@ router.post('/placeOrder', async (req: Request, res: Response) => {
     res.status(200).json({ data: orderResponse });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to place order' });
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed to place order',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -210,7 +214,8 @@ router.post('/getLtp', async (req: Request, res: Response) => {
     // Validate required fields
     if (!exchange || !tradingsymbol || !symboltoken) {
       return res.status(400).json({
-        error: 'Missing required fields: exchange, tradingsymbol, and symboltoken are required',
+        error:
+          'Missing required fields: exchange, tradingsymbol, and symboltoken are required',
       });
     }
 
@@ -223,7 +228,9 @@ router.post('/getLtp', async (req: Request, res: Response) => {
     res.status(200).json({ data: ltpData });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch LTP data' });
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed to fetch LTP data',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -256,7 +263,9 @@ router.post('/searchScrip', async (req: Request, res: Response) => {
     res.status(200).json({ data: searchResults });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to search scrip' });
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed to search scrip',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -269,7 +278,9 @@ router.post('/searchScrip', async (req: Request, res: Response) => {
 router.post('/getAtmStrike', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
@@ -293,7 +304,10 @@ router.post('/getAtmStrike', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error(`${ALGO}: /getAtmStrike error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to get ATM strike price' });
+    res.status(500).json({
+      error:
+        err instanceof Error ? err.message : 'Failed to get ATM strike price',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -306,7 +320,9 @@ router.post('/getAtmStrike', async (req: Request, res: Response) => {
 router.post('/checkAtmPosition', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
@@ -356,7 +372,10 @@ router.post('/checkAtmPosition', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error(`${ALGO}: /checkAtmPosition error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to check ATM position' });
+    res.status(500).json({
+      error:
+        err instanceof Error ? err.message : 'Failed to check ATM position',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -369,7 +388,9 @@ router.post('/checkAtmPosition', async (req: Request, res: Response) => {
 router.post('/getOpenPositions', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
@@ -402,7 +423,10 @@ router.post('/getOpenPositions', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error(`${ALGO}: /getOpenPositions error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch open positions' });
+    res.status(500).json({
+      error:
+        err instanceof Error ? err.message : 'Failed to fetch open positions',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -415,19 +439,24 @@ router.post('/getOpenPositions', async (req: Request, res: Response) => {
 router.post('/executeTrade', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
     // Required fields
     const atmStrike = Number(req.body.atmStrike);
-    const isFirstTrade = req.body.isFirstTrade === true || req.body.isFirstTrade === 'true';
+    const isFirstTrade =
+      req.body.isFirstTrade === true || req.body.isFirstTrade === 'true';
 
     if (!atmStrike || Number.isNaN(atmStrike)) {
       return res.status(400).json({ error: 'Missing or invalid: atmStrike' });
     }
     if (req.body.isFirstTrade === undefined) {
-      return res.status(400).json({ error: 'Missing required field: isFirstTrade' });
+      return res
+        .status(400)
+        .json({ error: 'Missing required field: isFirstTrade' });
     }
 
     const index: string = req.body.index || 'NIFTY';
@@ -453,7 +482,9 @@ router.post('/executeTrade', async (req: Request, res: Response) => {
     res.status(200).json({ data: result });
   } catch (err) {
     console.error(`${ALGO}: /executeTrade error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to execute trade' });
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed to execute trade',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -465,7 +496,9 @@ router.post('/executeTrade', async (req: Request, res: Response) => {
 router.post('/shouldExecuteTrade', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
@@ -554,7 +587,12 @@ router.post('/shouldExecuteTrade', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error(`${ALGO}: /shouldExecuteTrade error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to evaluate trade conditions' });
+    res.status(500).json({
+      error:
+        err instanceof Error
+          ? err.message
+          : 'Failed to evaluate trade conditions',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -566,7 +604,9 @@ router.post('/shouldExecuteTrade', async (req: Request, res: Response) => {
 router.post('/placeStoploss', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
@@ -588,7 +628,10 @@ router.post('/placeStoploss', async (req: Request, res: Response) => {
     res.status(200).json({ data: result });
   } catch (err) {
     console.error(`${ALGO}: /placeStoploss error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to place stoploss orders' });
+    res.status(500).json({
+      error:
+        err instanceof Error ? err.message : 'Failed to place stoploss orders',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -600,7 +643,9 @@ router.post('/placeStoploss', async (req: Request, res: Response) => {
 router.post('/getTechnicalSignal', async (req: Request, res: Response) => {
   console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`);
   try {
-    const istTz = new Date().toLocaleString('default', { timeZone: 'Asia/Kolkata' });
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
     console.log(`${ALGO}: time, ${istTz}`);
     setCred(req);
 
@@ -694,7 +739,10 @@ router.post('/getTechnicalSignal', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error(`${ALGO}: /getTechnicalSignal error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to get technical signal' });
+    res.status(500).json({
+      error:
+        err instanceof Error ? err.message : 'Failed to get technical signal',
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
@@ -760,7 +808,10 @@ router.post('/debugCandles', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error(`${ALGO}: /debugCandles error`, err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed', details: err });
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed',
+      details: err,
+    });
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
