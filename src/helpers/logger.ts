@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { isPaperMode } from './paperTrade';
 
 const LOG_DIR = path.join(process.cwd(), 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'app.log');
@@ -32,7 +33,8 @@ const formatMessage = (level: string, message: any): string => {
     text = String(message);
   }
 
-  return `[${timestamp}] [${level}] ${text}\n`;
+  const paperPrefix = isPaperMode() ? '[PAPER] ' : '';
+  return `[${timestamp}] [${level}] ${paperPrefix}${text}\n`;
 };
 
 /**

@@ -36,6 +36,7 @@ import {
 } from './marketData';
 import { doOrderByStrike, placeStopLossOnAllTrades } from './orders';
 import { getPositionsJson, closeTrade, getMtm } from './positions';
+import { checkAndFillPaperOrders, isPaperMode } from '../paperTrade';
 
 /**
  * Creates a short straddle position.
@@ -258,6 +259,9 @@ export const coreTradeExecution = async ({ data }: { data: Position[] }) => {
  * Executes the main trading logic for the day.
  */
 export const executeTrade = async () => {
+  if (isPaperMode()) {
+    await checkAndFillPaperOrders();
+  }
   let resp: number | string = `${ALGO}: Trade Closed`;
   const isPastClosingTime = isCurrentTimeGreater({ hours: 15, minutes: 17 });
   const mtmData = await getMtm();

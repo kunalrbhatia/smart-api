@@ -3,6 +3,7 @@ import totp from 'totp-generator';
 import { Credentails, ISmartApiData } from '../app.interface';
 import { ALGO } from './constants';
 import { logger } from './logger';
+import { isPaperMode } from './paperTrade';
 
 /**
  * Generates a SmartAPI session using the provided credentials.
@@ -13,8 +14,16 @@ import { logger } from './logger';
 export const loginToSmartApi = async (
   creds: Credentails,
 ): Promise<ISmartApiData> => {
+  if (isPaperMode()) {
+    logger.info('[PAPER] Mocking SmartAPI Login');
+    return {
+      jwtToken: 'paper-jwt',
+      refreshToken: 'paper-refresh',
+      feedToken: 'paper-feed',
+    };
+  }
   try {
-    // If the provided pin is exactly 6 digits, assume it's already a TOTP code.
+    // ... (rest of the function)
     // Otherwise, assume it's a secret and generate the TOTP.
     let totpCode = creds.CLIENT_TOTP_PIN;
     if (totpCode && totpCode.length > 6) {

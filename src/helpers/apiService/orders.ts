@@ -24,6 +24,7 @@ import OrderStore from '../../store/orderStore';
 import { getAuthHeaders } from './session';
 import { getScrip, getLtpData, searchScrip } from './marketData';
 import { fetchOpenPositionsByExpiry, getPositionsJson } from './positions';
+import { isPaperMode, mockOrderPlacement, getPaperOrders } from '../paperTrade';
 
 /**
  * Places an order.
@@ -63,6 +64,23 @@ export const doOrder = async ({
   } else {
     quantity = Math.abs(providedQuantity);
   }
+
+  if (isPaperMode()) {
+    return await mockOrderPlacement({
+      tradingsymbol,
+      transactionType,
+      symboltoken,
+      productType,
+      lotSize: lotSize || 0,
+      variety,
+      ordertype,
+      price,
+      triggerprice,
+      isHedge,
+      quantity,
+    });
+  }
+
   const data = {
     exchange,
     tradingsymbol,
@@ -166,6 +184,9 @@ export const doOrderByStrike = async (
 export const getPendingOrders = async (): Promise<
   Record<string, unknown>[]
 > => {
+  if (isPaperMode()) {
+    return getPaperOrders();
+  }
   try {
     const headers = await getAuthHeaders();
     const response = await get(GET_ORDER_BOOK_API, headers);

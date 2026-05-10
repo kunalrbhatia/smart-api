@@ -2,8 +2,10 @@
 import fs from 'fs';
 
 import { logger } from '../../src/helpers/logger';
+import * as paperTrade from '../../src/helpers/paperTrade';
 
 jest.mock('fs');
+jest.mock('../../src/helpers/paperTrade');
 
 describe('logger helper', () => {
   beforeEach(() => {
@@ -16,6 +18,7 @@ describe('logger helper', () => {
     (fs.appendFileSync as jest.Mock).mockImplementation(() => {});
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
     (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (paperTrade.isPaperMode as jest.Mock).mockReturnValue(false);
   });
 
   afterEach(() => {

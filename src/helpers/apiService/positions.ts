@@ -23,6 +23,11 @@ import {
 import OrderStore from '../../store/orderStore';
 import { getAuthHeaders, getSmartSession } from './session';
 import { doOrder } from './orders';
+import {
+  isPaperMode,
+  getPaperPositions,
+  savePaperPositions,
+} from '../paperTrade';
 
 export const getPositions = async (
   smartSession: ISmartApiData,
@@ -30,7 +35,42 @@ export const getPositions = async (
   maxRetries: number = 5,
   delayMs: number = 1000,
 ): Promise<Position[]> => {
+  if (isPaperMode()) {
+    const paperPositions = getPaperPositions();
+    // Update LTP for paper positions
+    const { getLtpData } = await import('./marketData');
+    for (const pos of paperPositions) {
+      try {
+        const ltpData = await getLtpData({
+          exchange: pos.exchange,
+          symboltoken: pos.symboltoken,
+          tradingsymbol: pos.tradingsymbol,
+        });
+        if (ltpData && ltpData.ltp) {
+          pos.ltp = ltpData.ltp.toString();
+          const netQty = Number.parseInt(pos.netqty);
+          const buyVal = Number.parseFloat(pos.totalbuyvalue);
+          const sellVal = Number.parseFloat(pos.totalsellvalue);
+          // Simple unrealised P&L: (netQty * LTP) + (sellVal - buyVal)
+          // Actually: (Total Sell Value - Total Buy Value) + (Net Quantity * Current Price)
+          pos.unrealised = (sellVal - buyVal + netQty * ltpData.ltp).toFixed(2);
+          pos.pnl = (
+            Number.parseFloat(pos.realised) + Number.parseFloat(pos.unrealised)
+          ).toFixed(2);
+        }
+      } catch (e) {
+        logger.error(
+          `[PAPER] Failed to update LTP for ${pos.tradingsymbol}`,
+          e,
+        );
+      }
+    }
+    savePaperPositions(paperPositions);
+    return paperPositions;
+  }
+
   const headers = await getAuthHeaders();
+  // ... (rest of the function)
 
   let attempt = 0;
 

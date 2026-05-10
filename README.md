@@ -14,8 +14,8 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 
 - 🔐 **Automated Smart Login**: Hands-free authentication with automated 6-digit TOTP generation.
 - 📡 **Compliance Ready**: Automatic resolution of Public IP, Local IP, and MAC addresses for secure API header requirements.
-- 📊 **Short Straddle Strategy**: Precision execution for index options with dynamic strike selection.
-- 📉 **Real-time Risk Management**: Active MTM (Mark-to-Market) tracking with customizable stop-loss and target criteria.
+- 📉 **Real-time Risk Management**: Active MTM tracking with automated stop-loss placement (150% factor) for all sell positions.
+- 🧪 **Paper Trading Mode**: High-fidelity simulation mode to test strategies against live market data without financial risk.
 - 🏗️ **Modular Architecture**: Clean, domain-driven design for high maintainability and testability.
 - 🛡️ **High Test Coverage**: Robust test suite with **86.2% branch coverage** ensuring reliable execution.
 - 🐳 **Docker Ready**: Fully containerized for consistent deployment across environments.
@@ -37,18 +37,22 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 ## 📥 Installation
 
 ### Prerequisites
+
 - **Node.js v24+**
 - **pnpm** (recommended) or npm
 - **SmartAPI Credentials**: API Key and 16-character TOTP Secret.
 
 ### Setup
+
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/kunalrbhatia/smart-api.git
    cd smart-api
    ```
 
 2. **Install dependencies**:
+
    ```bash
    pnpm install
    ```
@@ -57,31 +61,51 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
    ```bash
    cp .env.example .env
    ```
-   *Edit `.env` and fill in your `API_KEY`, `CLIENT_ID`, `CLIENT_PASSWORD`, and `CLIENT_TOTP_PIN` (16-character secret).*
+   _Edit `.env` and fill in your `API_KEY`, `CLIENT_ID`, `CLIENT_PASSWORD`, and `CLIENT_TOTP_PIN` (16-character secret)._
 
 ---
 
 ## 🚀 Usage
 
 ### Development Mode
+
 Run with hot-reloading:
+
 ```bash
 pnpm run dev
 ```
 
 ### Production Build
+
 Compile and start:
+
 ```bash
 pnpm run build
 pnpm start
 ```
 
 ### Testing
+
 Run the comprehensive test suite:
+
 ```bash
 pnpm test
 pnpm run test:coverage # Generate coverage report
 ```
+
+---
+
+## 🤖 Telegram Remote Control
+
+The bot includes a built-in Telegram listener for remote monitoring and control. Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in your `.env` file to use these commands:
+
+| Command              | Description                                                           |
+| -------------------- | --------------------------------------------------------------------- |
+| `/status`            | Get current algo status (Running/Stopped) and trading mode.           |
+| `/paper-on`          | Enable **Paper Trading Mode** (trades are mocked locally).            |
+| `/paper-off`         | Enable **Live Trading Mode** (trades execute on your broker account). |
+| `/kill`              | Emergency shutdown of the server.                                     |
+| `/resume` / `/start` | Clear the kill switch to allow the algo to resume operations.         |
 
 ---
 
@@ -121,4 +145,4 @@ Contributions are welcome! Please ensure that any new features include correspon
 ---
 
 **Developed with ❤️ by [Kunal](https://github.com/kunalrbhatia)**  
-*Full-stack Developer | Stock Market Trader*
+_Full-stack Developer | Stock Market Trader_

@@ -6,6 +6,7 @@ import {
   setKillSwitch,
 } from './killSwitch';
 import { logger } from './logger';
+import { isPaperMode, setPaperMode } from './paperTrade';
 
 /**
  * Sends a message to a Telegram chat.
@@ -127,7 +128,16 @@ export const startTelegramBotListener = async () => {
             const status = isKillSwitchActive()
               ? '🛑 *Stopped (Kill Switch Active)*'
               : '✅ *Running*';
-            await sendTelegramMessage(`${status}. Monitoring active.`);
+            const mode = isPaperMode() ? '📝 *PAPER MODE*' : '💰 *LIVE MODE*';
+            await sendTelegramMessage(
+              `${status}. Monitoring active.\nMode: ${mode}`,
+            );
+          } else if (text === '/paper-on') {
+            setPaperMode(true);
+            await sendTelegramMessage('📝 *Paper Trading Mode ENABLED.*');
+          } else if (text === '/paper-off') {
+            setPaperMode(false);
+            await sendTelegramMessage('💰 *Live Trading Mode ENABLED.*');
           }
         }
       }
