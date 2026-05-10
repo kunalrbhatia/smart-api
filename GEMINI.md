@@ -71,13 +71,16 @@ npm run dev
 
 - **Verification:** Before pushing any changes, you MUST always run a full verification suite to ensure no regressions. This includes typechecking, linting, formatting, testing, and building:
   ```powershell
-  npx prettier --write .; npx eslint .; npx tsc --noEmit; npm test; npm run build
+  pnpm format; pnpm lint; pnpm typecheck; pnpm test; pnpm build
   ```
 
 ### Commits
 
-- This project follows **Conventional Commits** using emojis.
-- Use `npm run commit` to use the interactive Commitizen CLI (`cz-emoji-conventional`).
+- This project follows **Conventional Commits**.
+- **MANDATORY RULE:** Commit subjects MUST start with a lowercase letter and must not contain emojis in the header (e.g., `feat: add new feature`).
+- Use `pnpm commit` to use the interactive Commitizen CLI which is configured to use the standard semantic adapter.
+- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- Pattern: `^(\w*)(?:\(([\w\$\.\-\* ]*)\))?\: (.*)$`
 
 ### Testing Practices
 

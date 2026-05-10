@@ -31,6 +31,7 @@
     "@types/node-cron": "^3.0.8",
     "@types/supertest": "^2.0.12",
     "babel-plugin-transform-remove-console": "^6.9.4",
+    "cz-conventional-changelog": "^3.3.0",
     "cz-emoji-conventional": "^1.0.2",
     "eslint": "^8.57.0",
     "globals": "^15.0.0",
@@ -50,6 +51,10 @@
     "start": "node dist/server.js",
     "dev": "ts-node ./src/server.ts",
     "watch": "npm run build -- --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "jest --maxWorkers=1",
     "test:coverage": "jest --coverage --maxWorkers=1",
     "commit": "cz",
@@ -68,7 +73,7 @@
   },
   "config": {
     "commitizen": {
-      "path": "./node_modules/cz-emoji-conventional"
+      "path": "./node_modules/cz-conventional-changelog"
     }
   },
   "engines": {
