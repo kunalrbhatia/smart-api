@@ -10,7 +10,7 @@ import {
   isKillSwitchActive,
 } from '../../src/helpers/killSwitch';
 import { logger } from '../../src/helpers/logger';
-import { isPaperMode, setPaperMode } from '../../src/helpers/paperTrade';
+import { setPaperMode } from '../../src/helpers/paperTrade';
 
 jest.mock('../../src/helpers/api');
 jest.mock('../../src/config/env', () => ({
