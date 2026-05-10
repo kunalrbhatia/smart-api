@@ -76,8 +76,11 @@ npm run dev
 
 ### Commits
 
-- This project follows **Conventional Commits** using emojis.
-- Use `npm run commit` to use the interactive Commitizen CLI (`cz-emoji-conventional`).
+- This project follows **Conventional Commits**.
+- **MANDATORY RULE:** Commit subjects MUST start with a lowercase letter and must not contain emojis in the header (e.g., `feat: add new feature`).
+- Use `pnpm commit` to use the interactive Commitizen CLI which is configured to use the standard semantic adapter.
+- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- Pattern: `^(\w*)(?:\(([\w\$\.\-\* ]*)\))?\: (.*)$`
 
 ### Testing Practices
 
