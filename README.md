@@ -101,7 +101,7 @@ The bot includes a built-in Telegram listener for remote monitoring and control.
 
 | Command              | Description                                                           |
 | -------------------- | --------------------------------------------------------------------- |
-| `/status`            | Get current algo status (Running/Stopped) and trading mode.           |
+| `/status-smart-api`  | Get current algo status (Running/Stopped) and trading mode.           |
 | `/paper-on`          | Enable **Paper Trading Mode** (trades are mocked locally).            |
 | `/paper-off`         | Enable **Live Trading Mode** (trades execute on your broker account). |
 | `/kill`              | Emergency shutdown of the server.                                     |

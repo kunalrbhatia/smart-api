@@ -195,7 +195,10 @@ describe('telegram helper', () => {
           result: [
             {
               update_id: 101,
-              message: { chat: { id: 'test_chat_id' }, text: '/status' },
+              message: {
+                chat: { id: 'test_chat_id' },
+                text: '/status-smart-api',
+              },
             },
           ],
         })
@@ -218,7 +221,10 @@ describe('telegram helper', () => {
           result: [
             {
               update_id: 101,
-              message: { chat: { id: 'test_chat_id' }, text: '/status' },
+              message: {
+                chat: { id: 'test_chat_id' },
+                text: '/status-smart-api',
+              },
             },
           ],
         })

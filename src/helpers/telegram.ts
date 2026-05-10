@@ -124,7 +124,7 @@ export const startTelegramBotListener = async () => {
             await sendTelegramMessage(
               '🚀 *Kill Switch Cleared.* Algo is now allowed to run.',
             );
-          } else if (text === '/status') {
+          } else if (text === '/status-smart-api') {
             const status = isKillSwitchActive()
               ? '🛑 *Stopped (Kill Switch Active)*'
               : '✅ *Running*';
