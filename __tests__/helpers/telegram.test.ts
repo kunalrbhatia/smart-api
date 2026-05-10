@@ -10,6 +10,7 @@ import {
   isKillSwitchActive,
 } from '../../src/helpers/killSwitch';
 import { logger } from '../../src/helpers/logger';
+import { isPaperMode, setPaperMode } from '../../src/helpers/paperTrade';
 
 jest.mock('../../src/helpers/api');
 jest.mock('../../src/config/env', () => ({
@@ -21,6 +22,7 @@ jest.mock('../../src/config/env', () => ({
 }));
 jest.mock('../../src/helpers/killSwitch');
 jest.mock('../../src/helpers/logger');
+jest.mock('../../src/helpers/paperTrade');
 
 describe('telegram helper', () => {
   beforeEach(() => {
@@ -197,7 +199,7 @@ describe('telegram helper', () => {
               update_id: 101,
               message: {
                 chat: { id: 'test_chat_id' },
-                text: '/status-smart-api',
+                text: '/status',
               },
             },
           ],
@@ -223,7 +225,7 @@ describe('telegram helper', () => {
               update_id: 101,
               message: {
                 chat: { id: 'test_chat_id' },
-                text: '/status-smart-api',
+                text: '/status',
               },
             },
           ],
@@ -236,6 +238,56 @@ describe('telegram helper', () => {
       await Promise.resolve(); // sendMessage
 
       expect(get).toHaveBeenCalledWith(expect.stringContaining('Running'), {});
+    });
+
+    it('should process /paperon command', async () => {
+      (get as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, result: [] })
+        .mockResolvedValueOnce({
+          ok: true,
+          result: [
+            {
+              update_id: 101,
+              message: {
+                chat: { id: 'test_chat_id' },
+                text: '/paperon',
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ ok: true }); // sendMessage
+
+      await startTelegramBotListener();
+      await Promise.resolve(); // init
+      await Promise.resolve(); // poll
+      await Promise.resolve(); // sendMessage
+
+      expect(setPaperMode).toHaveBeenCalledWith(true);
+    });
+
+    it('should process /paperoff command', async () => {
+      (get as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, result: [] })
+        .mockResolvedValueOnce({
+          ok: true,
+          result: [
+            {
+              update_id: 101,
+              message: {
+                chat: { id: 'test_chat_id' },
+                text: '/paperoff',
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ ok: true }); // sendMessage
+
+      await startTelegramBotListener();
+      await Promise.resolve(); // init
+      await Promise.resolve(); // poll
+      await Promise.resolve(); // sendMessage
+
+      expect(setPaperMode).toHaveBeenCalledWith(false);
     });
 
     it('should handle poll error gracefully', async () => {

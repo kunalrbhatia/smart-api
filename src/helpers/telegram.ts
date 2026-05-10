@@ -124,7 +124,7 @@ export const startTelegramBotListener = async () => {
             await sendTelegramMessage(
               '🚀 *Kill Switch Cleared.* Algo is now allowed to run.',
             );
-          } else if (text === '/status-smart-api') {
+          } else if (text === '/status') {
             const status = isKillSwitchActive()
               ? '🛑 *Stopped (Kill Switch Active)*'
               : '✅ *Running*';
@@ -132,10 +132,10 @@ export const startTelegramBotListener = async () => {
             await sendTelegramMessage(
               `${status}. Monitoring active.\nMode: ${mode}`,
             );
-          } else if (text === '/paper-on') {
+          } else if (text === '/paperon') {
             setPaperMode(true);
             await sendTelegramMessage('📝 *Paper Trading Mode ENABLED.*');
-          } else if (text === '/paper-off') {
+          } else if (text === '/paperoff') {
             setPaperMode(false);
             await sendTelegramMessage('💰 *Live Trading Mode ENABLED.*');
           }
