@@ -71,7 +71,7 @@ npm run dev
 
 - **Verification:** Before pushing any changes, you MUST always run a full verification suite to ensure no regressions. This includes typechecking, linting, formatting, testing, and building:
   ```powershell
-  npx prettier --write .; npx eslint .; npx tsc --noEmit; npm test; npm run build
+  pnpm format; pnpm lint; pnpm typecheck; pnpm test; pnpm build
   ```
 
 ### Commits
