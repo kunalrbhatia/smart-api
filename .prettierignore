@@ -4,3 +4,5 @@ node_modules/
 coverage/
 *.log
 package.json
+README.md
+.github/workflows/deploy.yml
