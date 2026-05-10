@@ -72,10 +72,11 @@
     ]
   },
   "config": {
-  "commitizen": {
-    "path": "./node_modules/cz-conventional-changelog"
-  }
-  },  "engines": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "engines": {
     "node": ">=22.0.0"
   }
 }
