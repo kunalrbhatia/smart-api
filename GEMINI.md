@@ -69,9 +69,9 @@ npm run dev
 
 ### Push Requirements
 
-- **Verification:** Before pushing any changes, you MUST always run a full typecheck and build to ensure no regressions:
+- **Verification:** Before pushing any changes, you MUST always run a full verification suite to ensure no regressions. This includes typechecking, linting, formatting, testing, and building:
   ```powershell
-  npx tsc --noEmit; npm run build
+  npx prettier --write .; npx eslint .; npx tsc --noEmit; npm test; npm run build
   ```
 
 ### Commits
