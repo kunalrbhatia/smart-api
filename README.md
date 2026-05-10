@@ -109,6 +109,36 @@ The bot includes a built-in Telegram listener for remote monitoring and control.
 
 ---
 
+## 🚀 Deployment
+
+The project is configured for automated deployment to **Oracle Cloud** via GitHub Actions.
+
+### Automated Workflow
+The [deploy.yml](.github/workflows/deploy.yml) workflow triggers on every push to the `development` branch. It performs the following on the target server:
+1. Pulls the latest code.
+2. Installs dependencies using `pnpm`.
+3. Builds the project (`babel` transpilation).
+4. Generates the `.env` file from GitHub Secrets.
+5. Restarts the application using **PM2** via `ecosystem.config.cjs`.
+
+### Required GitHub Secrets
+To use the deployment workflow, add the following secrets in your repository settings (**Settings > Secrets and variables > Actions**):
+
+| Secret Name | Description |
+|-------------|-------------|
+| `ORACLE_HOST` | Public IP of your Oracle Cloud instance. |
+| `ORACLE_USER` | SSH username (e.g., `ubuntu`). |
+| `ORACLE_SSH_KEY` | Your private SSH key (`.key` or `.pem` content). |
+| `PORT` | The port the app should run on (default: `3000`). |
+| `API_KEY` | Your SmartAPI Key. |
+| `CLIENT_CODE` | Your SmartAPI Client Code. |
+| `CLIENT_PIN` | Your SmartAPI Client Pin. |
+| `CLIENT_TOTP_PIN` | Your 16-character TOTP Secret Key. |
+| `TELEGRAM_BOT_TOKEN` | Your Telegram Bot Token. |
+| `TELEGRAM_CHAT_ID` | Your Telegram Chat ID. |
+
+---
+
 ## 📂 Project Structure
 
 ```
