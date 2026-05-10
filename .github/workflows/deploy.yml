@@ -1,0 +1,48 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy using ssh
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            # Check if directory exists, if not clone it
+            if [ ! -d "~/smart-api" ]; then
+              git clone https://github.com/kunalrbhatia/smart-api.git ~/smart-api
+            fi
+            
+            cd ~/smart-api
+            git fetch origin development
+            git reset --hard origin/development
+            
+            # Install pnpm if not present
+            if ! command -v pnpm &> /dev/null; then
+                sudo npm install -g pnpm
+            fi
+            
+            pnpm install --frozen-lockfile
+            pnpm build
+            
+            # Create/Update .env file from secrets
+            echo "PORT=${{ secrets.PORT || 3000 }}" > .env
+            echo "NODE_ENV=production" >> .env
+            echo "API_KEY=${{ secrets.API_KEY }}" >> .env
+            echo "CLIENT_CODE=${{ secrets.CLIENT_CODE }}" >> .env
+            echo "CLIENT_PIN=${{ secrets.CLIENT_PIN }}" >> .env
+            echo "CLIENT_TOTP_PIN=${{ secrets.CLIENT_TOTP_PIN }}" >> .env
+            echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+            echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
+            
+            # Restart with PM2
+            pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
+            pm2 save
