@@ -1,11 +1,11 @@
 import { ALGO } from './constants';
 import { logger } from './logger';
 
-const handleResponse = async (response: Response) => {
+const handleResponse = async (response: Response, url: string) => {
   if (!response.ok) {
     const error = await response.text();
     logger.log(
-      `${ALGO}: API request failed with status ${response.status} and message ${error}`,
+      `${ALGO}: API request to ${url} failed with status ${response.status} and message ${error}`,
     );
     throw new Error(error);
   }
@@ -22,7 +22,7 @@ export const post = async (url: string, data: any, headers: any) => {
     headers,
     body: JSON.stringify(data),
   });
-  return handleResponse(response);
+  return handleResponse(response, url);
 };
 
 export const get = async (url: string, headers: any) => {
@@ -30,5 +30,5 @@ export const get = async (url: string, headers: any) => {
     method: 'GET',
     headers,
   });
-  return handleResponse(response);
+  return handleResponse(response, url);
 };
