@@ -2,7 +2,8 @@
 /smart_api_client
 /target
 /dist
-.env
+.env*
+!.env.example
 *.log
 coverage
 pnpm-workspace.yaml
