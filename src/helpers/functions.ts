@@ -1,9 +1,4 @@
-import {
-  getIndexScrip,
-  getLtpData,
-  getLtpWithRetry,
-  getScrip,
-} from './apiService';
+import { getIndexScrip, getLtpWithRetry, getScrip } from './apiService';
 import {
   BothPresent,
   Credentails,
@@ -258,7 +253,7 @@ export const getAtmStrikePrice = async () => {
     const bnfScrip = await getIndexScrip({
       scriptName: OrderStore.getInstance().getPostData().INDEX,
     });
-    const ltp = await getLtpData({
+    const ltp = await getLtpWithRetry({
       exchange: bnfScrip[0].exch_seg,
       tradingsymbol: bnfScrip[0].symbol,
       symboltoken: bnfScrip[0].token,

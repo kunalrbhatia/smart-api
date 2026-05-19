@@ -106,6 +106,15 @@ export const getLtpData = async ({
   const headers = await getAuthHeaders();
   try {
     const response = await post(GET_LTP_DATA_API, data, headers);
+
+    if (response?.status === false) {
+      logger.error(
+        `${ALGO}: GET_LTP_DATA_API returned status false for ${tradingsymbol}:`,
+        response.message,
+      );
+      throw new Error(response.message || 'API returned status false');
+    }
+
     const responseData = _get(response, 'data', null);
 
     // Safety: handle both response shapes

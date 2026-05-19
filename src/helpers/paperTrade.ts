@@ -224,13 +224,13 @@ export const checkAndFillPaperOrders = async (): Promise<void> => {
   const pendingOrders = orders.filter(o => o.status === 'Pending');
   if (pendingOrders.length === 0) return;
 
-  const { getLtpData } = await import('./apiService/marketData');
+  const { getLtpWithRetry } = await import('./apiService/marketData');
   const updatedOrders = [...orders];
   let positionsChanged = false;
 
   for (const order of pendingOrders) {
     try {
-      const ltpData = await getLtpData({
+      const ltpData = await getLtpWithRetry({
         exchange: order.exchange || 'NFO',
         symboltoken: order.symboltoken,
         tradingsymbol: order.tradingsymbol,

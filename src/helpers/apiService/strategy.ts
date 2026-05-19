@@ -30,7 +30,7 @@ import OrderStore from '../../store/orderStore';
 import { getSmartSession } from './session';
 import {
   getNearestWeeklyExpiry,
-  getLtpData,
+  getLtpWithRetry,
   getScrip,
   getIndexScrip,
 } from './marketData';
@@ -128,7 +128,7 @@ export const checkBothLegs = async ({
         optionType: OptionType.PE,
         strikePrice: atmStrike.toString(),
       });
-      const ltpData = await getLtpData({
+      const ltpData = await getLtpWithRetry({
         exchange: token[0].exch_seg,
         symboltoken: token[0].token,
         tradingsymbol: token[0].symbol,
@@ -143,7 +143,7 @@ export const checkBothLegs = async ({
         optionType: OptionType.CE,
         strikePrice: atmStrike.toString(),
       });
-      const ltpData = await getLtpData({
+      const ltpData = await getLtpWithRetry({
         exchange: token[0].exch_seg,
         symboltoken: token[0].token,
         tradingsymbol: token[0].symbol,
@@ -326,7 +326,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
   try {
     const expiryDate = await getNearestWeeklyExpiry('NIFTY');
     const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
-    const indiaVixLtp = await getLtpData({
+    const indiaVixLtp = await getLtpWithRetry({
       exchange: indiaVix[0].exch_seg,
       symboltoken: indiaVix[0].token,
       tradingsymbol: indiaVix[0].symbol,
@@ -357,7 +357,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
 export const checkMarketConditions = async () => {
   const expiryDate = await getNearestWeeklyExpiry('NIFTY');
   const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
-  const indiaVixLtp = await getLtpData({
+  const indiaVixLtp = await getLtpWithRetry({
     exchange: indiaVix[0].exch_seg,
     symboltoken: indiaVix[0].token,
     tradingsymbol: indiaVix[0].symbol,

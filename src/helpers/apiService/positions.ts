@@ -38,10 +38,10 @@ export const getPositions = async (
   if (isPaperMode()) {
     const paperPositions = getPaperPositions();
     // Update LTP for paper positions
-    const { getLtpData } = await import('./marketData');
+    const { getLtpWithRetry } = await import('./marketData');
     for (const pos of paperPositions) {
       try {
-        const ltpData = await getLtpData({
+        const ltpData = await getLtpWithRetry({
           exchange: pos.exchange,
           symboltoken: pos.symboltoken,
           tradingsymbol: pos.tradingsymbol,
@@ -203,13 +203,13 @@ export const closeAllTrades = async (isAbrupt = false) => {
     if (!Array.isArray(positions) || positions.length === 0) return;
 
     // Import marketData at the start of the function, not inside the loop
-    const { getLtpData } = await import('./marketData');
+    const { getLtpWithRetry } = await import('./marketData');
 
     for (const position of positions) {
       if (isAbrupt && Number.parseInt(position.netqty) !== 0) {
         await closeParticularTrade({ trade: position });
       } else if (!isAbrupt) {
-        const ltpData = await getLtpData({
+        const ltpData = await getLtpWithRetry({
           exchange: position.exchange,
           tradingsymbol: position.tradingsymbol,
           symboltoken: position.symboltoken,
