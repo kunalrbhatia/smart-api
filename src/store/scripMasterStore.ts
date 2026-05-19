@@ -19,6 +19,12 @@ class ScripMasterStore {
    */
   private postData: ScripMasterStoreDataType;
   /**
+   * The timestamp when the data was last set.
+   * @private
+   * @type {number}
+   */
+  private lastSetTimestamp: number;
+  /**
    * The private constructor to create a new instance of the ScripMasterStore.
    * @private
    */
@@ -27,6 +33,7 @@ class ScripMasterStore {
     this.postData = {
       SCRIP_MASTER_JSON: [],
     };
+    this.lastSetTimestamp = 0;
   }
   /**
    * Gets the singleton instance of the ScripMasterStore.
@@ -45,6 +52,7 @@ class ScripMasterStore {
    */
   setPostData(data: ScripMasterStoreDataType) {
     this.postData = data;
+    this.lastSetTimestamp = Date.now();
   }
   /**
    * Gets the scrip master data.
@@ -52,6 +60,15 @@ class ScripMasterStore {
    */
   getPostData() {
     return this.postData;
+  }
+  /**
+   * Checks if the stored data is expired (more than 24 hours old).
+   * @returns {boolean} True if expired, false otherwise.
+   */
+  isExpired() {
+    if (this.lastSetTimestamp === 0) return true;
+    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+    return Date.now() - this.lastSetTimestamp > twentyFourHoursInMs;
   }
 }
 
