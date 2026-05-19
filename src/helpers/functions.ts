@@ -1,6 +1,5 @@
 import {
   getIndexScrip,
-  getLtpData,
   getLtpWithRetry,
   getScrip,
 } from './apiService';

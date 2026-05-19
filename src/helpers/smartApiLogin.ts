@@ -3,7 +3,6 @@ import totp from 'totp-generator';
 import { Credentails, ISmartApiData } from '../app.interface';
 import { ALGO } from './constants';
 import { logger } from './logger';
-import { isPaperMode } from './paperTrade';
 
 /**
  * Generates a SmartAPI session using the provided credentials.

@@ -30,7 +30,6 @@ import OrderStore from '../../store/orderStore';
 import { getSmartSession } from './session';
 import {
   getNearestWeeklyExpiry,
-  getLtpData,
   getLtpWithRetry,
   getScrip,
   getIndexScrip,
