@@ -1,7 +1,3 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 /**
  * Application configuration.
  */
@@ -25,3 +21,14 @@ export const config = {
    */
   telegramChatId: process.env.TELEGRAM_CHAT_ID,
 };
+
+// Diagnostic logging
+if (!config.telegramBotToken || !config.telegramChatId) {
+  console.warn(
+    `[ENV] Telegram configuration missing in process.env. TOKEN: ${config.telegramBotToken ? 'Present' : 'Missing'}, CHAT_ID: ${config.telegramChatId ? 'Present' : 'Missing'}`,
+  );
+} else {
+  console.log(
+    `[ENV] Telegram configuration loaded. TOKEN: ${config.telegramBotToken.substring(0, 5)}..., CHAT_ID: ${config.telegramChatId}`,
+  );
+}

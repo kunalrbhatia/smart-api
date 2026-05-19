@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { Server, createServer } from 'http';
 import { Socket } from 'net';
 import app from './app';
