@@ -24,8 +24,10 @@ import { getAuthHeaders } from './session';
  * @returns {Promise<scripMasterResponse[]>} A promise that resolves with the scrip master data.
  */
 export const fetchData = async (): Promise<scripMasterResponse[]> => {
-  const data = ScripMasterStore.getInstance().getPostData().SCRIP_MASTER_JSON;
-  if (data.length > 0) {
+  const store = ScripMasterStore.getInstance();
+  const data = store.getPostData().SCRIP_MASTER_JSON;
+
+  if (data.length > 0 && !store.isExpired()) {
     return data as scripMasterResponse[];
   } else {
     try {

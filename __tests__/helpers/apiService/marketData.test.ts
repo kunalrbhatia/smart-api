@@ -32,6 +32,7 @@ describe('ApiService - MarketData', () => {
     mockScripMasterStoreInstance = {
       getPostData: jest.fn().mockReturnValue({ SCRIP_MASTER_JSON: [] }),
       setPostData: jest.fn(),
+      isExpired: jest.fn().mockReturnValue(false),
     };
     (ScripMasterStore.getInstance as jest.Mock).mockReturnValue(
       mockScripMasterStoreInstance,
