@@ -159,7 +159,7 @@ describe('ApiService - Positions - Final', () => {
         });
 
       (ordersHelper.doOrder as jest.Mock).mockResolvedValue({ status: true });
-      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 10 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 10 });
 
       await closeTrade();
 
@@ -243,7 +243,7 @@ describe('ApiService - Positions - Final', () => {
         },
       ];
       mockFetchSuccess(positions);
-      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 4 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 4 });
 
       await closeAllTrades(false);
       expect(ordersHelper.doOrder).not.toHaveBeenCalled();
@@ -263,7 +263,7 @@ describe('ApiService - Positions - Final', () => {
       // Always return active positions to keep loop going
       mockFetchSuccess(positions);
       (ordersHelper.doOrder as jest.Mock).mockResolvedValue({ status: true });
-      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 10 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 10 });
 
       await closeTrade();
       expect(logger.error).toHaveBeenCalledWith(

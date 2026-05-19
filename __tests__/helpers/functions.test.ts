@@ -309,7 +309,7 @@ describe('functions helper', () => {
       (apiService.getIndexScrip as jest.Mock).mockResolvedValue([
         { exch_seg: 'NSE', symbol: 'NIFTY', token: '123' },
       ]);
-      (apiService.getLtpData as jest.Mock).mockResolvedValue({ ltp: 25010 });
+      (apiService.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 25010 });
 
       const result = await getAtmStrikePrice();
       expect(result).toBe(25000);
@@ -325,7 +325,7 @@ describe('functions helper', () => {
       (apiService.getIndexScrip as jest.Mock).mockResolvedValue([
         { exch_seg: 'NSE', symbol: 'NIFTY', token: '123' },
       ]);
-      (apiService.getLtpData as jest.Mock).mockResolvedValue({
+      (apiService.getLtpWithRetry as jest.Mock).mockResolvedValue({
         ltp: 'invalid',
       });
 

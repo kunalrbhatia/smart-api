@@ -14,14 +14,6 @@ import { isPaperMode } from './paperTrade';
 export const loginToSmartApi = async (
   creds: Credentails,
 ): Promise<ISmartApiData> => {
-  if (isPaperMode()) {
-    logger.info('[PAPER] Mocking SmartAPI Login');
-    return {
-      jwtToken: 'paper-jwt',
-      refreshToken: 'paper-refresh',
-      feedToken: 'paper-feed',
-    };
-  }
   try {
     // ... (rest of the function)
     // Otherwise, assume it's a secret and generate the TOTP.

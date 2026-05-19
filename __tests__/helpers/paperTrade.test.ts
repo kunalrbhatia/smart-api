@@ -196,7 +196,7 @@ describe('paperTrade helper', () => {
       );
 
       // Mock LTP below trigger
-      jest.spyOn(marketData, 'getLtpData').mockResolvedValue({
+      jest.spyOn(marketData, 'getLtpWithRetry').mockResolvedValue({
         ltp: 85,
         exchange: 'NFO',
         tradingsymbol: 'T',

@@ -22,7 +22,7 @@ import {
 } from '../../app.interface';
 import OrderStore from '../../store/orderStore';
 import { getAuthHeaders } from './session';
-import { getScrip, getLtpData, searchScrip } from './marketData';
+import { getScrip, getLtpWithRetry, searchScrip } from './marketData';
 import { fetchOpenPositionsByExpiry, getPositionsJson } from './positions';
 import { isPaperMode, mockOrderPlacement, getPaperOrders } from '../paperTrade';
 
@@ -135,7 +135,7 @@ export const doOrderByStrike = async (
       strikePrice: strike.toString(),
     });
 
-    const ltpData = await getLtpData({
+    const ltpData = await getLtpWithRetry({
       exchange: _get(token, '0.exch_seg', ''),
       symboltoken: _get(token, '0.token', ''),
       tradingsymbol: _get(token, '0.symbol', ''),

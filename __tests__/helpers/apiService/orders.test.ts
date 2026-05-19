@@ -158,7 +158,7 @@ describe('ApiService - Orders', () => {
       (marketDataHelper.getScrip as jest.Mock).mockResolvedValue([
         { symbol: 'NIFTY-CE', token: '1', lotsize: '50', exch_seg: 'NFO' },
       ]);
-      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
         ltp: 100,
       });
       (api.post as jest.Mock).mockResolvedValue({ status: true });
@@ -173,7 +173,7 @@ describe('ApiService - Orders', () => {
       (marketDataHelper.getScrip as jest.Mock).mockResolvedValue([
         { symbol: 'NIFTY-CE', token: '1', lotsize: '50' },
       ]);
-      (marketDataHelper.getLtpData as jest.Mock).mockResolvedValue({ ltp: 5 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 5 });
 
       const result = await doOrderByStrike(18000, OptionType.CE, 'BUY', true);
 
