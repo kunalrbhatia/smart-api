@@ -157,8 +157,9 @@ export const getLtpWithRetry = async ({
       });
 
       if (
-        ltpData?.ltp !== undefined &&
-        ltpData?.ltp !== null &&
+        ltpData &&
+        typeof ltpData.ltp === 'number' &&
+        !Number.isNaN(ltpData.ltp) &&
         ltpData.ltp > 0
       ) {
         return ltpData;
