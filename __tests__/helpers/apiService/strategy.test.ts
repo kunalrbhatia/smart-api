@@ -117,7 +117,9 @@ describe('ApiService - Strategy - Final 90+', () => {
       (marketDataHelper.getScrip as jest.Mock).mockResolvedValue([
         { exch_seg: 'NFO', token: '1', symbol: 'S' },
       ]);
-      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 10 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 10,
+      });
       await checkBothLegs({
         cepe_present: CheckOptionType.ONLY_CE_PRESENT,
         atmStrike: 18000,
@@ -213,7 +215,9 @@ describe('ApiService - Strategy - Final 90+', () => {
       (marketDataHelper.getScrip as jest.Mock).mockResolvedValue([
         { exch_seg: 'NFO', token: '1', symbol: 'S' },
       ]);
-      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 10 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 10,
+      });
       await checkBothLegs({
         cepe_present: CheckOptionType.ONLY_PE_PRESENT,
         atmStrike: 18000,
@@ -285,7 +289,9 @@ describe('ApiService - Strategy - Final 90+', () => {
       (marketDataHelper.getIndexScrip as jest.Mock).mockResolvedValue([
         { exch_seg: 'NSE', token: 'VIX', symbol: 'VIX' },
       ]);
-      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 15 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 15,
+      });
       // To make isTradeAllowed true, we need all conditions to match
       // This is complex, but we already have isTradeAllowed tests.
       // Let's just mock the internal logic by controlling external factors if possible.
@@ -313,7 +319,9 @@ describe('ApiService - Strategy - Final 90+', () => {
       (marketDataHelper.getIndexScrip as jest.Mock).mockResolvedValue([
         { exch_seg: 'NSE', token: 'VIX', symbol: 'VIX' },
       ]);
-      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({ ltp: 15 });
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 15,
+      });
       const result = await checkMarketConditionsAndExecuteTrade();
       expect(typeof result).toBe('string');
     });

@@ -1,8 +1,4 @@
-import {
-  getIndexScrip,
-  getLtpWithRetry,
-  getScrip,
-} from './apiService';
+import { getIndexScrip, getLtpWithRetry, getScrip } from './apiService';
 import {
   BothPresent,
   Credentails,
