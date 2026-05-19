@@ -1,5 +1,3 @@
-import { logger } from '../helpers/logger';
-
 /**
  * Application configuration.
  */
@@ -26,11 +24,11 @@ export const config = {
 
 // Diagnostic logging
 if (!config.telegramBotToken || !config.telegramChatId) {
-  logger.warn(
+  console.warn(
     `[ENV] Telegram configuration missing in process.env. TOKEN: ${config.telegramBotToken ? 'Present' : 'Missing'}, CHAT_ID: ${config.telegramChatId ? 'Present' : 'Missing'}`,
   );
 } else {
-  logger.log(
+  console.log(
     `[ENV] Telegram configuration loaded. TOKEN: ${config.telegramBotToken.substring(0, 5)}..., CHAT_ID: ${config.telegramChatId}`,
   );
 }
