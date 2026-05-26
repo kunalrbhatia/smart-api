@@ -222,7 +222,7 @@ export const getScrip = async ({
       const _symbol: string = _get(scrip, 'symbol', '') || '';
       const _expiry: string = _get(scrip, 'expiry', '') || '';
       return (
-        (_scripName.includes(scriptName) || _scripName === scriptName) &&
+        _scripName === scriptName &&
         _get(scrip, 'exch_seg') === 'NFO' &&
         _get(scrip, 'instrumenttype') === 'OPTIDX' &&
         (strikePrice === undefined || _symbol.includes(strikePrice)) &&
