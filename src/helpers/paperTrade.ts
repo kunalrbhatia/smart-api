@@ -89,7 +89,7 @@ export const savePaperOrders = (orders: any[]): void => {
  * Mocks an order placement and updates local paper state.
  */
 export const mockOrderPlacement = async (
-  params: doOrderType & { quantity: number; ltp?: number },
+  params: doOrderType & { quantity: number; ltp?: number; exchange?: string },
 ): Promise<doOrderResponse> => {
   const paperId = `PAPER-${Date.now()}`;
   logger.info(`[PAPER] Mocking order: ${paperId} for ${params.tradingsymbol}`);
@@ -111,9 +111,31 @@ export const mockOrderPlacement = async (
       p => p.symboltoken === params.symboltoken,
     );
 
-    const qty =
-      params.transactionType === 'BUY' ? params.quantity : -params.quantity;
-    const price = params.price || params.ltp || 0;
+    const quantity = params.quantity || 0;
+    const qty = params.transactionType === 'BUY' ? quantity : -quantity;
+    let price = params.price || params.ltp || 0;
+
+    if (price === 0) {
+      try {
+        const { getLtpWithRetry } = await import('./apiService/marketData');
+        const ltpData = await getLtpWithRetry({
+          exchange: params.exchange || 'NFO',
+          symboltoken: params.symboltoken,
+          tradingsymbol: params.tradingsymbol,
+        });
+        if (ltpData && ltpData.ltp) {
+          price = ltpData.ltp;
+          logger.info(
+            `[PAPER] Fetched live LTP for ${params.tradingsymbol}: ${price}`,
+          );
+        }
+      } catch (err) {
+        logger.error(
+          `[PAPER] Failed to fetch live LTP for ${params.tradingsymbol} during mock order placement:`,
+          err,
+        );
+      }
+    }
 
     if (existingIdx >= 0) {
       const p = positions[existingIdx];
@@ -124,16 +146,16 @@ export const mockOrderPlacement = async (
       if (params.transactionType === 'BUY') {
         const oldBuyQty = Number.parseInt(p.buyqty);
         const oldBuyVal = Number.parseFloat(p.totalbuyvalue);
-        p.buyqty = (oldBuyQty + params.quantity).toString();
-        p.totalbuyvalue = (oldBuyVal + params.quantity * price).toString();
+        p.buyqty = (oldBuyQty + quantity).toString();
+        p.totalbuyvalue = (oldBuyVal + quantity * price).toString();
         p.buyavgprice = (
           Number.parseFloat(p.totalbuyvalue) / Number.parseInt(p.buyqty)
         ).toString();
       } else {
         const oldSellQty = Number.parseInt(p.sellqty);
         const oldSellVal = Number.parseFloat(p.totalsellvalue);
-        p.sellqty = (oldSellQty + params.quantity).toString();
-        p.totalsellvalue = (oldSellVal + params.quantity * price).toString();
+        p.sellqty = (oldSellQty + quantity).toString();
+        p.totalsellvalue = (oldSellVal + quantity * price).toString();
         p.sellavgprice = (
           Number.parseFloat(p.totalsellvalue) / Number.parseInt(p.sellqty)
         ).toString();
@@ -171,24 +193,22 @@ export const mockOrderPlacement = async (
         expirydate: postData.EXPIRYDATE,
         exchange: 'NFO',
         netqty: qty.toString(),
-        buyqty:
-          params.transactionType === 'BUY' ? params.quantity.toString() : '0',
-        sellqty:
-          params.transactionType === 'SELL' ? params.quantity.toString() : '0',
+        buyqty: params.transactionType === 'BUY' ? quantity.toString() : '0',
+        sellqty: params.transactionType === 'SELL' ? quantity.toString() : '0',
         totalbuyvalue:
           params.transactionType === 'BUY'
-            ? (params.quantity * price).toString()
+            ? (quantity * price).toString()
             : '0',
         totalsellvalue:
           params.transactionType === 'SELL'
-            ? (params.quantity * price).toString()
+            ? (quantity * price).toString()
             : '0',
         buyavgprice: params.transactionType === 'BUY' ? price.toString() : '0',
         sellavgprice:
           params.transactionType === 'SELL' ? price.toString() : '0',
         netvalue: (params.transactionType === 'BUY'
-          ? params.quantity * price
-          : -(params.quantity * price)
+          ? quantity * price
+          : -(quantity * price)
         ).toString(),
         realised: '0',
         unrealised: '0',

@@ -78,6 +78,7 @@ export const doOrder = async ({
       triggerprice,
       isHedge,
       quantity,
+      exchange,
     });
   }
 
