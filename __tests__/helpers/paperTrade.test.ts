@@ -170,6 +170,40 @@ describe('paperTrade helper', () => {
       // Verify realised profit calculation
       // 50 units bought at 100, sold at 110 = 500 profit
     });
+
+    it('should fetch live LTP if price is 0 or not provided for market order', async () => {
+      const getLtpSpy = jest
+        .spyOn(marketData, 'getLtpWithRetry')
+        .mockResolvedValue({
+          ltp: 120,
+          exchange: 'NFO',
+          tradingsymbol: 'T',
+          symboltoken: 'T1',
+          open: 100,
+          high: 130,
+          low: 90,
+          close: 110,
+        });
+
+      const params = {
+        tradingsymbol: 'T',
+        transactionType: 'BUY',
+        variety: 'NORMAL',
+        ordertype: 'MARKET',
+        quantity: 50,
+        symboltoken: 'T1',
+        price: 0,
+      } as any;
+
+      const result = await mockOrderPlacement(params);
+      expect(result.status).toBe(true);
+      expect(getLtpSpy).toHaveBeenCalledWith({
+        exchange: 'NFO',
+        symboltoken: 'T1',
+        tradingsymbol: 'T',
+      });
+      getLtpSpy.mockRestore();
+    });
   });
 
   describe('checkAndFillPaperOrders', () => {
