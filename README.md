@@ -99,13 +99,14 @@ pnpm run test:coverage # Generate coverage report
 
 The bot includes a built-in Telegram listener for remote monitoring and control. Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in your `.env` file to use these commands:
 
-| Command              | Description                                                           |
-| -------------------- | --------------------------------------------------------------------- |
-| `/status`            | Get current algo status (Running/Stopped) and trading mode.           |
-| `/paperOn`           | Enable **Paper Trading Mode** (trades are mocked locally).            |
-| `/paperOff`          | Enable **Live Trading Mode** (trades execute on your broker account). |
-| `/kill`              | Emergency shutdown of the server.                                     |
-| `/resume` / `/start` | Clear the kill switch to allow the algo to resume operations.         |
+| Command              | Description                                                                       |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `/status`            | Get current algo status (Running/Stopped) and trading mode.                       |
+| `/paperon`           | Enable **Paper Trading Mode** (trades are mocked locally).                        |
+| `/paperoff`          | Enable **Live Trading Mode** (trades execute on your broker account).              |
+| `/logs`              | Retrieve the last 20 lines of application logs (via PM2 or local log file).       |
+| `/kill`              | Emergency shutdown of the server.                                                 |
+| `/resume` / `/start` | Clear the kill switch to allow the algo to resume operations.                     |
 
 ---
 
