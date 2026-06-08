@@ -24,12 +24,13 @@ The **smart-api** project is an intraday trading algorithm developed in Node.js,
 
 The application includes a Telegram bot listener for remote control and monitoring. Supported commands include:
 
-- `/kill`: Initiates an abrupt shutdown of the algorithm.
-- `/resume` / `/start`: Clears the kill switch and allows the algorithm to run.
-- `/status`: Returns the current running status and mode (Paper/Live).
-- `/paperon`: Enables Paper Trading mode.
-- `/paperoff`: Enables Live Trading mode.
-- `/logs`: Retrieves the last 20 lines of application logs (via PM2 or local log file).
+- \`kill\`: Initiates an abrupt shutdown of the algorithm.
+- \`resume\` / \`start\`: Clears the kill switch and allows the algorithm to run.
+- \`status\`: Returns the current running status and mode (Paper/Live).
+- \`paperon\`: Enables Paper Trading mode.
+- \`paperoff\`: Enables Live Trading mode.
+- \`logs\`: Retrieves the last 20 lines of application logs (via PM2 or local log file).
+
 
 # Building and Running
 
