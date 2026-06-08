@@ -11,6 +11,8 @@ import {
 } from '../../src/helpers/killSwitch';
 import { logger } from '../../src/helpers/logger';
 import { setPaperMode } from '../../src/helpers/paperTrade';
+import { exec } from 'child_process';
+import fs from 'fs';
 
 jest.mock('../../src/helpers/api');
 jest.mock('../../src/config/env', () => ({
@@ -23,6 +25,14 @@ jest.mock('../../src/config/env', () => ({
 jest.mock('../../src/helpers/killSwitch');
 jest.mock('../../src/helpers/logger');
 jest.mock('../../src/helpers/paperTrade');
+jest.mock('child_process', () => ({
+  exec: jest.fn(),
+}));
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+  existsSync: jest.fn(),
+  readFileSync: jest.fn(),
+}));
 
 describe('telegram helper', () => {
   beforeEach(() => {
@@ -288,6 +298,139 @@ describe('telegram helper', () => {
       await Promise.resolve(); // sendMessage
 
       expect(setPaperMode).toHaveBeenCalledWith(false);
+    });
+
+    it('should process /logs command (PM2 success)', async () => {
+      const pm2Logs = 'PM2 log output';
+      (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
+        callback(null, { stdout: pm2Logs });
+      });
+
+      (get as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, result: [] }) // init
+        .mockResolvedValueOnce({
+          ok: true,
+          result: [
+            {
+              update_id: 101,
+              message: { chat: { id: 'test_chat_id' }, text: '/logs' },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ ok: true }); // sendMessage
+
+      await startTelegramBotListener();
+      await Promise.resolve(); // init
+      await Promise.resolve(); // poll
+      await Promise.resolve(); // fetchLogs
+      await Promise.resolve(); // sendMessage
+
+      expect(get).toHaveBeenCalledWith(
+        expect.stringContaining(
+          encodeURIComponent('```\n' + pm2Logs + '\n```'),
+        ),
+        {},
+      );
+    });
+
+    it('should process /logs command (PM2 fail, fallback to file)', async () => {
+      (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
+        callback(new Error('PM2 not found'), { stdout: '' });
+      });
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        'file log output line 1\nline 2',
+      );
+
+      (get as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, result: [] }) // init
+        .mockResolvedValueOnce({
+          ok: true,
+          result: [
+            {
+              update_id: 101,
+              message: { chat: { id: 'test_chat_id' }, text: '/logs' },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ ok: true }); // sendMessage
+
+      await startTelegramBotListener();
+      await Promise.resolve(); // init
+      await Promise.resolve(); // poll
+      await Promise.resolve(); // fetchLogs
+      await Promise.resolve(); // sendMessage
+
+      expect(get).toHaveBeenCalledWith(
+        expect.stringContaining(
+          encodeURIComponent('```\nfile log output line 1\nline 2\n```'),
+        ),
+        {},
+      );
+    });
+
+    it('should truncate logs if they are too long', async () => {
+      const longLogs = 'A'.repeat(5000);
+      (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
+        callback(null, { stdout: longLogs });
+      });
+
+      (get as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, result: [] })
+        .mockResolvedValueOnce({
+          ok: true,
+          result: [
+            {
+              update_id: 101,
+              message: { chat: { id: 'test_chat_id' }, text: '/logs' },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ ok: true });
+
+      await startTelegramBotListener();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const callWithSendMessage = (get as jest.Mock).mock.calls.find(call =>
+        call[0].includes('sendMessage'),
+      );
+      const url = decodeURIComponent(callWithSendMessage[0]);
+      expect(url).toContain('...');
+      expect(url.length).toBeLessThan(4200);
+    });
+
+    it('should return "No logs found." if output is empty', async () => {
+      (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
+        callback(null, { stdout: '' });
+      });
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+
+      (get as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, result: [] })
+        .mockResolvedValueOnce({
+          ok: true,
+          result: [
+            {
+              update_id: 101,
+              message: { chat: { id: 'test_chat_id' }, text: '/logs' },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ ok: true });
+
+      await startTelegramBotListener();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(get).toHaveBeenCalledWith(
+        expect.stringContaining(encodeURIComponent('No logs found.')),
+        {},
+      );
     });
 
     it('should handle poll error gracefully', async () => {

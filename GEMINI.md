@@ -20,6 +20,17 @@ The **smart-api** project is an intraday trading algorithm developed in Node.js,
 - **Middlewares:** Custom middlewares like `errorHandler.ts` in `src/middlewares/`.
 - **Helpers:** Utility functions and constants in `src/helpers/`.
 
+### Telegram Bot Commands
+
+The application includes a Telegram bot listener for remote control and monitoring. Supported commands include:
+
+- \`kill\`: Initiates an abrupt shutdown of the algorithm.
+- \`resume\` / \`start\`: Clears the kill switch and allows the algorithm to run.
+- \`status\`: Returns the current running status and mode (Paper/Live).
+- \`paperon\`: Enables Paper Trading mode.
+- \`paperoff\`: Enables Live Trading mode.
+- \`logs\`: Retrieves the last 20 lines of application logs (via PM2 or local log file).
+
 # Building and Running
 
 ### Development
@@ -62,6 +73,7 @@ npm run dev
 
 ### Coding Style & Linting
 
+- **Formatting Preference:** Use backticks (backquotes) `` ` `` instead of forward `/` or backward `\` slashes for commands, file paths, and code snippets in documentation and PRs to ensure better Markdown rendering.
 - **Linting:** ESLint is used for code quality.
 - **Formatting:** Prettier is used for consistent code styling.
 - **Configuration:** Managed via `eslint.config.mjs`, `.babelrc`, and settings in `package.json`.
