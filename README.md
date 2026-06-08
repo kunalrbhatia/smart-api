@@ -101,12 +101,12 @@ The bot includes a built-in Telegram listener for remote monitoring and control.
 
 | Command              | Description                                                                       |
 | -------------------- | --------------------------------------------------------------------------------- |
-| \`status\`           | Get current algo status (Running/Stopped) and trading mode.                       |
-| \`paperon\`          | Enable **Paper Trading Mode** (trades are mocked locally).                        |
-| \`paperoff\`         | Enable **Live Trading Mode** (trades execute on your broker account).              |
-| \`logs\`             | Retrieve the last 20 lines of application logs (via PM2 or local log file).       |
-| \`kill\`             | Emergency shutdown of the server.                                                 |
-| \`resume\` / \`start\` | Clear the kill switch to allow the algo to resume operations.                     |
+| `/status`            | Get current algo status (Running/Stopped) and trading mode.                       |
+| `/paperon`           | Enable **Paper Trading Mode** (trades are mocked locally).                        |
+| `/paperoff`          | Enable **Live Trading Mode** (trades execute on your broker account).              |
+| `/logs`              | Retrieve the last 20 lines of application logs (via PM2 or local log file).       |
+| `/kill`              | Emergency shutdown of the server.                                                 |
+| `/resume` / `/start` | Clear the kill switch to allow the algo to resume operations.                     |
 
 ---
 
