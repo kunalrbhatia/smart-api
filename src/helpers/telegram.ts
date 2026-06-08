@@ -1,3 +1,7 @@
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
 import { config } from '../config/env';
 import { get } from './api';
 import {
@@ -7,6 +11,45 @@ import {
 } from './killSwitch';
 import { logger } from './logger';
 import { isPaperMode, setPaperMode } from './paperTrade';
+
+const execAsync = promisify(exec);
+const MAX_TELEGRAM_MESSAGE_LENGTH = 4000;
+
+/**
+ * Fetches the last 20 lines of logs.
+ * Tries PM2 first, then falls back to the local log file.
+ */
+const fetchLogs = async (): Promise<string> => {
+  let logOutput = '';
+  try {
+    const { stdout } = await execAsync(
+      'pm2 logs smart-api --lines 20 --nostream',
+    );
+    logOutput = stdout;
+  } catch (error) {
+    // Fallback to local log file
+    const logFilePath = path.join(process.cwd(), 'logs', 'app.log');
+    if (fs.existsSync(logFilePath)) {
+      try {
+        const logs = fs.readFileSync(logFilePath, 'utf8');
+        const lines = logs.trim().split('\n');
+        logOutput = lines.slice(-20).join('\n');
+      } catch (readError) {
+        logOutput = 'Error reading local log file.';
+      }
+    } else {
+      logOutput = 'PM2 logs failed and local log file not found.';
+    }
+  }
+
+  if (!logOutput || logOutput.trim() === '') return 'No logs found.';
+
+  if (logOutput.length > MAX_TELEGRAM_MESSAGE_LENGTH) {
+    logOutput = '...' + logOutput.slice(-MAX_TELEGRAM_MESSAGE_LENGTH);
+  }
+
+  return `\`\`\`\n${logOutput}\n\`\`\``;
+};
 
 /**
  * Sends a message to a Telegram chat.
@@ -138,6 +181,9 @@ export const startTelegramBotListener = async () => {
           } else if (text === '/paperoff') {
             setPaperMode(false);
             await sendTelegramMessage('💰 *Live Trading Mode ENABLED.*');
+          } else if (text === '/logs') {
+            const logs = await fetchLogs();
+            await sendTelegramMessage(logs);
           }
         }
       }
