@@ -31,7 +31,6 @@ The application includes a Telegram bot listener for remote control and monitori
 - \`paperoff\`: Enables Live Trading mode.
 - \`logs\`: Retrieves the last 20 lines of application logs (via PM2 or local log file).
 
-
 # Building and Running
 
 ### Development
