@@ -74,6 +74,7 @@ npm run dev
 
 ### Coding Style & Linting
 
+- **Formatting Preference:** Use backticks (backquotes) `` ` `` instead of forward `/` or backward `\` slashes for commands, file paths, and code snippets in documentation and PRs to ensure better Markdown rendering.
 - **Linting:** ESLint is used for code quality.
 - **Formatting:** Prettier is used for consistent code styling.
 - **Configuration:** Managed via `eslint.config.mjs`, `.babelrc`, and settings in `package.json`.
