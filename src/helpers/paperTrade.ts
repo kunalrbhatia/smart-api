@@ -94,11 +94,23 @@ export const mockOrderPlacement = async (
   const paperId = `PAPER-${Date.now()}`;
   logger.info(`[PAPER] Mocking order: ${paperId} for ${params.tradingsymbol}`);
 
+  // Extract strikeprice and optiontype from tradingsymbol (e.g. NIFTY09JUN2623200CE)
+  let strikeprice = '0';
+  let optiontype: 'CE' | 'PE' = 'CE';
+  const symbolRegex = /^([A-Z]+)(\d{2}[A-Z]{3}\d{2})(\d+\.?\d*)([CP]E)$/;
+  const match = params.tradingsymbol.match(symbolRegex);
+  if (match) {
+    strikeprice = match[3];
+    optiontype = match[4] as 'CE' | 'PE';
+  }
+
   if (params.variety === 'STOPLOSS' || params.ordertype.includes('STOPLOSS')) {
     // Store as pending order
     const orders = getPaperOrders();
     orders.push({
       ...params,
+      strikeprice,
+      optiontype,
       orderid: paperId,
       status: 'Pending',
       orderstatus: 'Pending',
@@ -184,16 +196,6 @@ export const mockOrderPlacement = async (
     } else {
       // Create new position
       const postData = OrderStore.getInstance().getPostData();
-
-      // Extract strikeprice and optiontype from tradingsymbol (e.g. NIFTY09JUN2623200CE)
-      let strikeprice = '0';
-      let optiontype: 'CE' | 'PE' = 'CE';
-      const symbolRegex = /^([A-Z]+)(\d{2}[A-Z]{3}\d{2})(\d+\.?\d*)([CP]E)$/;
-      const match = params.tradingsymbol.match(symbolRegex);
-      if (match) {
-        strikeprice = match[3];
-        optiontype = match[4] as 'CE' | 'PE';
-      }
 
       const newPos: Partial<Position> = {
         symboltoken: params.symboltoken,
