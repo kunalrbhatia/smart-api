@@ -141,6 +141,11 @@ export const LOSSPERLOT = 3500;
  */
 export const LOTS = 1;
 /**
+ * The multiplier for hedge lots.
+ * @type {number}
+ */
+export const HEDGE_LOT_MULTIPLIER = 5;
+/**
  * The API endpoint for searching scrips.
  * @type {string}
  */

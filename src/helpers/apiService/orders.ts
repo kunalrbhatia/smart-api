@@ -12,6 +12,7 @@ import {
   VARIETY_STOPLOSS,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
+  HEDGE_LOT_MULTIPLIER,
 } from '../constants';
 import {
   doOrderResponse,
@@ -57,7 +58,7 @@ export const doOrder = async ({
     }
     const storedLots =
       lots || OrderStore.getInstance().getPostData().QUANTITY || 1;
-    const hedgeQuantity = storedLots * 5;
+    const hedgeQuantity = storedLots * HEDGE_LOT_MULTIPLIER;
     const lotsCalc = isHedge ? hedgeQuantity : storedLots;
     logger.log(`${ALGO}: doOrder — isHedge: ${isHedge}, lots: ${lotsCalc}`);
     quantity = Math.abs(lotSize * lotsCalc);
