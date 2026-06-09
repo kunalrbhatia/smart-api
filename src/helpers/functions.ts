@@ -26,6 +26,28 @@ import {
 import { logger } from './logger';
 
 /**
+ * Normalizes strikeprice string to integer — handles "25400.0" and "25400" both.
+ */
+const normalizeStrike = (strikeprice: string): number =>
+  Math.round(Number(strikeprice));
+
+/**
+ * Checks if two expiry dates are the same by parsing them with moment.
+ * Supports both DDMMMYYYY and DDMMMYY formats.
+ */
+export const isSameExpiry = (date1: string, date2: string): boolean => {
+  if (!date1 || !date2) return false;
+  // If exactly the same string, return true immediately
+  if (date1.toUpperCase() === date2.toUpperCase()) return true;
+
+  const formats = ['DDMMMYYYY', 'DDMMMYY', 'YYYY-MM-DD'];
+  const m1 = moment(date1, formats);
+  const m2 = moment(date2, formats);
+
+  return m1.isValid() && m2.isValid() && m1.isSame(m2, 'day');
+};
+
+/**
  * Gets all open positions filtered by index and expiry date — standalone, no OrderStore dependency.
  * @param {Position[]} positions - Raw positions from SmartAPI
  * @param {string} index - Index name e.g. 'NIFTY', 'BANKNIFTY'
@@ -43,11 +65,11 @@ export const getOpenPositionsByExpiry = (
 
   return positions.filter(position => {
     const netqty = Number.parseInt(position.netqty);
-    const isSameExpiry = position.expirydate === expiryDate;
+    const isSameExp = isSameExpiry(position.expirydate, expiryDate);
     const isSameIndex = position.symbolname === index;
     const isOpen = netqty !== 0;
 
-    if (!isSameExpiry || !isSameIndex || !isOpen) return false;
+    if (!isSameExp || !isSameIndex || !isOpen) return false;
 
     if (type === 'SELL') return netqty < 0;
     if (type === 'BUY') return netqty > 0;
@@ -285,7 +307,7 @@ export const checkStrike = (
   for (const trade of tradeDetails) {
     if (
       Number.parseInt(trade.strikeprice) === Number.parseInt(strike) &&
-      trade.expirydate === expiry
+      isSameExpiry(trade.expirydate, expiry)
     ) {
       return true;
     }
@@ -306,7 +328,7 @@ export const areBothOptionTypesPresentForStrike = (
   let cePresent = false;
   let pePresent = false;
   tradeDetails
-    .filter(trade => trade.expirydate === expirationDate)
+    .filter(trade => isSameExpiry(trade.expirydate, expirationDate))
     .forEach(trade => {
       const tradedStrike = Number.parseInt(trade.strikeprice);
       const compareStrike = Number.parseInt(strike);
@@ -336,7 +358,7 @@ export const getAllOpenPositions = (positions: Position[]): Position[] => {
       const symbolname = position.symbolname;
       if (
         netqty != 0 &&
-        expiryDate === positionExpiryDate &&
+        isSameExpiry(positionExpiryDate, expiryDate) &&
         symbolname === indexName
       ) {
         openPositions.push(position);
@@ -361,7 +383,7 @@ export const getOpenSellPositions = (positions: Position[]): Position[] => {
       const symbolname = position.symbolname;
       if (
         netqty < 0 &&
-        expiryDate === positionExpiryDate &&
+        isSameExpiry(positionExpiryDate, expiryDate) &&
         symbolname === indexName
       ) {
         openPositions.push(position);
@@ -439,12 +461,6 @@ export const getStrikeVariance = (index: string) => {
       return 0;
   }
 };
-
-/**
- * Normalizes strikeprice string to integer — handles "25400.0" and "25400" both.
- */
-const normalizeStrike = (strikeprice: string): number =>
-  Math.round(Number(strikeprice));
 
 /**
  * Checks if there is an open position for a given ATM strike.
