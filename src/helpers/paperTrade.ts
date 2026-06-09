@@ -184,6 +184,17 @@ export const mockOrderPlacement = async (
     } else {
       // Create new position
       const postData = OrderStore.getInstance().getPostData();
+
+      // Extract strikeprice and optiontype from tradingsymbol (e.g. NIFTY09JUN2623200CE)
+      let strikeprice = '0';
+      let optiontype: 'CE' | 'PE' = 'CE';
+      const symbolRegex = /^([A-Z]+)(\d{2}[A-Z]{3}\d{2})(\d+\.?\d*)([CP]E)$/;
+      const match = params.tradingsymbol.match(symbolRegex);
+      if (match) {
+        strikeprice = match[3];
+        optiontype = match[4] as 'CE' | 'PE';
+      }
+
       const newPos: Partial<Position> = {
         symboltoken: params.symboltoken,
         tradingsymbol: params.tradingsymbol,
@@ -192,6 +203,8 @@ export const mockOrderPlacement = async (
           (params.tradingsymbol.includes('BANKNIFTY') ? 'BANKNIFTY' : 'NIFTY'),
         expirydate: postData.EXPIRYDATE,
         exchange: 'NFO',
+        strikeprice,
+        optiontype,
         netqty: qty.toString(),
         buyqty: params.transactionType === 'BUY' ? quantity.toString() : '0',
         sellqty: params.transactionType === 'SELL' ? quantity.toString() : '0',
