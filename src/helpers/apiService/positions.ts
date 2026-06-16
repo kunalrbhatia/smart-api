@@ -14,6 +14,7 @@ import {
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
   ME,
+  GET_POSITIONS,
 } from '../constants';
 import { Position, ISmartApiData, CheckPosition } from '../../app.interface';
 import {
@@ -92,11 +93,16 @@ export const getPositions = async (
   const headers = await getAuthHeaders();
 
   try {
-    const responseJson = await get(
-      'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getPositions',
-      headers,
-    );
-    const positions = _get(responseJson, 'data', []) as Position[];
+    const responseJson = await get(GET_POSITIONS, headers);
+    const positions = _get(responseJson, 'data', null);
+
+    if (positions === null) {
+      logger.warn(
+        `${ALGO}: getPositions — 'data' field missing in response. Full response:`,
+        responseJson,
+      );
+      return [];
+    }
 
     if (Array.isArray(positions)) {
       logger.log(
