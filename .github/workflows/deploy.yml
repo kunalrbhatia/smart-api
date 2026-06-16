@@ -25,12 +25,10 @@ jobs:
             git fetch origin development
             git reset --hard origin/development
             
-            # Install pnpm if not present
-            if ! command -v pnpm &> /dev/null; then
-                sudo npm install -g pnpm
-            fi
+            # Ensure pnpm is installed and up-to-date
+            sudo npm install -g pnpm@latest
             
-            pnpm install --frozen-lockfile
+            pnpm install --no-frozen-lockfile
             pnpm build
             
             # Create/Update .env file from secrets
