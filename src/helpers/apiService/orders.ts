@@ -194,14 +194,37 @@ export const getPendingOrders = async (): Promise<
   }
   try {
     const headers = await getAuthHeaders();
-    const response = await get(GET_ORDER_BOOK_API, headers);
-    const orders = _get(response, 'data', []);
+    const responseJson = await get(GET_ORDER_BOOK_API, headers);
+    const orders = _get(responseJson, 'data', null);
+    
+    if (orders === null) {
+      logger.warn(
+        `${ALGO}: getPendingOrders — 'data' field missing in response. Full response:`,
+        responseJson,
+      );
+      return [];
+    }
+
+    if (Array.isArray(orders) && orders.length > 0) {
+      logger.log(`${ALGO}: Raw orders in book:`, orders.map((o: any) => ({ orderstatus: o.orderstatus, status: o.status, variety: o.variety, ordertype: o.ordertype, tradingsymbol: o.tradingsymbol, text: o.text })));
+    } else {
+      logger.log(`${ALGO}: Order book is empty! Response:`, responseJson);
+    }
+
     // Filter for pending stop loss orders
     const pendingOrders = Array.isArray(orders)
       ? orders.filter(
-          (order: Record<string, unknown>) =>
-            _get(order, 'status', '') === PENDING_ORDER_STATUS &&
-            _get(order, 'variety', '') === VARIETY_STOPLOSS,
+          (order: Record<string, unknown>) => {
+            const orderStatus = (_get(order, 'orderstatus', '') as string).toLowerCase();
+            const status = (_get(order, 'status', '') as string).toLowerCase();
+            const isPending = orderStatus.includes('pending') || orderStatus === 'open' || status.includes('pending') || status === 'open';
+            
+            const variety = _get(order, 'variety', '');
+            const orderType = _get(order, 'ordertype', '');
+            const isStopLoss = variety === VARIETY_STOPLOSS || orderType.includes('STOPLOSS');
+
+            return isPending && isStopLoss;
+          }
         )
       : [];
     return pendingOrders;
@@ -396,11 +419,24 @@ export const placeStoplossForAllSells = async ({
   try {
     const response = await get(GET_ORDER_BOOK_API, headers);
     const orders = _get(response, 'data', []);
+    if (Array.isArray(orders) && orders.length > 0) {
+      logger.log(`${ALGO}: closeAllTrades - Raw orders:`, orders.map((o: any) => ({ status: o.status, variety: o.variety, ordertype: o.ordertype, tradingsymbol: o.tradingsymbol })));
+    } else {
+      logger.log(`${ALGO}: closeAllTrades - Order book empty. Response:`, response);
+    }
     pendingOrders = Array.isArray(orders)
       ? orders.filter(
-          (order: Record<string, unknown>) =>
-            _get(order, 'status', '') === PENDING_ORDER_STATUS &&
-            _get(order, 'variety', '') === VARIETY_STOPLOSS,
+          (order: Record<string, unknown>) => {
+            const orderStatus = (_get(order, 'orderstatus', '') as string).toLowerCase();
+            const status = (_get(order, 'status', '') as string).toLowerCase();
+            const isPending = orderStatus.includes('pending') || orderStatus === 'open' || status.includes('pending') || status === 'open';
+            
+            const variety = _get(order, 'variety', '');
+            const orderType = _get(order, 'ordertype', '');
+            const isStopLoss = variety === VARIETY_STOPLOSS || orderType.includes('STOPLOSS');
+
+            return isPending && isStopLoss;
+          }
         )
       : [];
   } catch (error) {
