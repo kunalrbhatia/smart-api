@@ -256,8 +256,13 @@ export const placeStopLossOrder = async (
       const stoplossPrice =
         entryPrice + entryPrice * (stoplossPercentage / 100);
 
+      // Round to nearest 0.05
+      const triggerPriceRounded = Math.round(stoplossPrice * 20) / 20;
+      // Add a 5% buffer for the limit price to ensure execution
+      const limitPriceRounded = Math.round(stoplossPrice * 1.05 * 20) / 20;
+
       logger.log(
-        `${ALGO}: placeStopLossOrder for ${tradingsymbol} - entry price: ${entryPrice}, stoploss price: ${stoplossPrice}`,
+        `${ALGO}: placeStopLossOrder for ${tradingsymbol} - entry price: ${entryPrice}, trigger price: ${triggerPriceRounded}, limit price: ${limitPriceRounded}`,
       );
 
       const stoplossStatus = await doOrder({
@@ -266,9 +271,9 @@ export const placeStopLossOrder = async (
         symboltoken,
         lotSize,
         variety: VARIETY_STOPLOSS,
-        ordertype: 'STOPLOSS_MARKET',
-        price: stoplossPrice,
-        triggerprice: stoplossPrice,
+        ordertype: 'STOPLOSS_LIMIT',
+        price: limitPriceRounded,
+        triggerprice: triggerPriceRounded,
       });
       logger.log(
         `${ALGO}: placeStopLossOrder status for ${tradingsymbol}:`,
@@ -276,7 +281,7 @@ export const placeStopLossOrder = async (
       );
       if (stoplossStatus.status) {
         await notify(
-          `Stop Loss order placed for ${tradingsymbol} at ${stoplossPrice.toFixed(2)}`,
+          `Stop Loss order placed for ${tradingsymbol} at Trigger: ${triggerPriceRounded.toFixed(2)}, Limit: ${limitPriceRounded.toFixed(2)}`,
         );
       }
       return stoplossStatus;
@@ -440,6 +445,10 @@ export const placeStoplossForAllSells = async ({
     }
 
     const stoplossPrice = sellavgprice + sellavgprice * stoplossFactor;
+    // Round to nearest 0.05
+    const triggerPriceRounded = Math.round(stoplossPrice * 20) / 20;
+    // Add a 5% buffer for the limit price to ensure execution
+    const limitPriceRounded = Math.round(stoplossPrice * 1.05 * 20) / 20;
     const quantity = Math.abs(netqty);
 
     try {
@@ -451,10 +460,10 @@ export const placeStoplossForAllSells = async ({
         exchange: 'NFO',
         quantity,
         variety: VARIETY_STOPLOSS as 'STOPLOSS',
-        ordertype: 'STOPLOSS_MARKET' as const,
+        ordertype: 'STOPLOSS_LIMIT' as const,
         productType: 'CARRYFORWARD' as const,
-        price: stoplossPrice,
-        triggerprice: stoplossPrice,
+        price: limitPriceRounded,
+        triggerprice: triggerPriceRounded,
       });
 
       stoplossOrders.push({
