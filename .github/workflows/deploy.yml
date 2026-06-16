@@ -17,16 +17,20 @@ jobs:
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
             # Check if directory exists, if not clone it
-            if [ ! -d "~/smart-api" ]; then
-              git clone https://github.com/kunalrbhatia/smart-api.git ~/smart-api
+            if [ ! -d "$HOME/smart-api" ]; then
+              git clone https://github.com/kunalrbhatia/smart-api.git "$HOME/smart-api"
             fi
             
-            cd ~/smart-api
+            cd "$HOME/smart-api"
             git fetch origin development
             git reset --hard origin/development
             
             # Ensure pnpm is installed and up-to-date
             sudo npm install -g pnpm@latest
+            
+            # Fix: Set CI=true to avoid TTY issues when pnpm needs to remove node_modules
+            export CI=true
+            pnpm config set confirmModulesPurge false
             
             pnpm install --no-frozen-lockfile
             pnpm build
