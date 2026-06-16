@@ -102,6 +102,17 @@ export const getPositions = async (
       logger.log(
         `${ALGO}: getPositions — Success. Total positions: ${positions.length}`,
       );
+      if (positions.length > 0) {
+        logger.log(
+          `${ALGO}: Raw positions detail:`,
+          positions.map(p => ({
+            symbol: p.tradingsymbol,
+            symbolname: p.symbolname,
+            qty: p.netqty,
+            expiry: p.expirydate,
+          })),
+        );
+      }
       return positions;
     }
     return [];

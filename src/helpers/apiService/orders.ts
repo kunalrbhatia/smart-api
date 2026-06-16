@@ -60,7 +60,9 @@ export const doOrder = async ({
       lots || OrderStore.getInstance().getPostData().QUANTITY || 1;
     const hedgeQuantity = storedLots * HEDGE_LOT_MULTIPLIER;
     const lotsCalc = isHedge ? hedgeQuantity : storedLots;
-    logger.log(`${ALGO}: doOrder — isHedge: ${isHedge}, lots: ${lotsCalc}`);
+    logger.log(
+      `${ALGO}: doOrder — isHedge: ${isHedge}, lots: ${lotsCalc}, lotSize: ${lotSize}`,
+    );
     quantity = Math.abs(lotSize * lotsCalc);
   } else {
     quantity = Math.abs(providedQuantity);
@@ -103,6 +105,7 @@ export const doOrder = async ({
   const headers = await getAuthHeaders();
   try {
     const response = await post(ORDER_API, data, headers);
+    logger.log(`${ALGO}: doOrder response for ${tradingsymbol}:`, response);
     return response;
   } catch (error) {
     logger.error(`${ALGO}: doOrder failed for ${tradingsymbol}:`, error);
