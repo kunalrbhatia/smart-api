@@ -6,6 +6,7 @@ import {
   CREDENTIALS,
 } from 'krb-smart-api-module';
 
+import { get } from '../api';
 import { logger } from '../logger';
 import { notify } from '../notifier';
 import {
@@ -30,88 +31,84 @@ import {
 } from '../paperTrade';
 
 export const getPositions = async (
-  smartSession: ISmartApiData,
-  cred: CREDENTIALS,
-  maxRetries: number = 5,
-  delayMs: number = 1000,
+  _smartSession: ISmartApiData,
+  _cred: CREDENTIALS,
 ): Promise<Position[]> => {
   if (isPaperMode()) {
     const paperPositions = getPaperPositions();
     // Update LTP for paper positions
     const { getLtpWithRetry } = await import('./marketData');
     for (const pos of paperPositions) {
-      try {
-        const ltpData = await getLtpWithRetry({
-          exchange: pos.exchange,
-          symboltoken: pos.symboltoken,
-          tradingsymbol: pos.tradingsymbol,
-        });
-        if (ltpData && ltpData.ltp) {
-          pos.ltp = ltpData.ltp.toString();
-          const netQty = Number.parseInt(pos.netqty);
-          const buyVal = Number.parseFloat(pos.totalbuyvalue);
-          const sellVal = Number.parseFloat(pos.totalsellvalue);
-          // Simple unrealised P&L: (netQty * LTP) + (sellVal - buyVal)
-          // Actually: (Total Sell Value - Total Buy Value) + (Net Quantity * Current Price)
-          pos.unrealised = (sellVal - buyVal + netQty * ltpData.ltp).toFixed(2);
-          pos.pnl = (
-            Number.parseFloat(pos.realised) + Number.parseFloat(pos.unrealised)
-          ).toFixed(2);
+      let retryAttempt = 0;
+      const MAX_LTP_RETRIES = 3;
+      let success = false;
+
+      while (retryAttempt < MAX_LTP_RETRIES && !success) {
+        try {
+          const ltpData = await getLtpWithRetry({
+            exchange: pos.exchange,
+            symboltoken: pos.symboltoken,
+            tradingsymbol: pos.tradingsymbol,
+            maxRetries: 1, // We handle retries here with exponential backoff
+          });
+
+          if (ltpData && ltpData.ltp) {
+            pos.ltp = ltpData.ltp.toString();
+            const netQty = Number.parseInt(pos.netqty);
+            const buyVal = Number.parseFloat(pos.totalbuyvalue);
+            const sellVal = Number.parseFloat(pos.totalsellvalue);
+            pos.unrealised = (sellVal - buyVal + netQty * ltpData.ltp).toFixed(
+              2,
+            );
+            pos.pnl = (
+              Number.parseFloat(pos.realised) +
+              Number.parseFloat(pos.unrealised)
+            ).toFixed(2);
+            success = true;
+          }
+        } catch (e: any) {
+          retryAttempt++;
+          if (retryAttempt >= MAX_LTP_RETRIES) {
+            logger.error(
+              `[PAPER] Failed to update LTP for ${pos.tradingsymbol} after ${MAX_LTP_RETRIES} attempts`,
+              e,
+            );
+          } else {
+            const backoffDelay = 3000 * Math.pow(2, retryAttempt - 1);
+            logger.warn(
+              `[PAPER] Rate limit or error for ${pos.tradingsymbol}. Retrying in ${backoffDelay}ms (Attempt ${retryAttempt}/${MAX_LTP_RETRIES})`,
+            );
+            await delay({ milliSeconds: backoffDelay });
+          }
         }
-      } catch (e) {
-        logger.error(
-          `[PAPER] Failed to update LTP for ${pos.tradingsymbol}`,
-          e,
-        );
       }
+      // Fixed small delay between different positions to stay under rate limits
+      await delay({ milliSeconds: 350 });
     }
     savePaperPositions(paperPositions);
     return paperPositions;
   }
 
   const headers = await getAuthHeaders();
-  // ... (rest of the function)
 
-  let attempt = 0;
+  try {
+    const responseJson = await get(
+      'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getPositions',
+      headers,
+    );
+    const positions = _get(responseJson, 'data', []) as Position[];
 
-  while (attempt < maxRetries) {
-    try {
-      const response = await fetch(
-        'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/getPositions',
-        {
-          method: 'get',
-          headers,
-        },
+    if (Array.isArray(positions)) {
+      logger.log(
+        `${ALGO}: getPositions — Success. Total positions: ${positions.length}`,
       );
-      await delay({ milliSeconds: DELAY });
-      const responseJson = await response.json();
-
-      if (response.status >= 200 && response.status < 300) {
-        const positions = _get(responseJson, 'data', []) as Position[];
-
-        if (Array.isArray(positions)) {
-          logger.log(
-            `${ALGO}: getPositions — Success on attempt ${attempt + 1}. Total positions: ${positions.length}`,
-          );
-          return positions;
-        }
-      }
-    } catch (error) {
-      logger.error(
-        `${ALGO}: getPositions — Error on attempt ${attempt + 1}/${maxRetries}:`,
-        error,
-      );
-      if (attempt + 1 >= maxRetries) throw error;
+      return positions;
     }
-
-    const backoffMs = delayMs * Math.pow(2, attempt);
-    await delay({ milliSeconds: backoffMs });
-    attempt++;
+    return [];
+  } catch (error) {
+    logger.error(`${ALGO}: getPositions failed:`, error);
+    throw error;
   }
-
-  throw new Error(
-    `${ALGO}: getPositions — Failed to get valid positions after ${maxRetries} attempts`,
-  );
 };
 
 /**
@@ -232,15 +229,20 @@ export const closeAllTrades = async (isAbrupt = false) => {
 /**
  * Calculates the Mark-to-Market (MTM) for the traded positions.
  */
-export const getMtm = async () => {
-  const smartSession = await getSmartSession();
-  const cred = getCredentials();
-  await delay({ milliSeconds: DELAY });
-  const tradedPositions: Position[] = await getPositions(smartSession, cred);
+export const getMtm = async (positions?: Position[]) => {
+  let tradedPositions: Position[] = [];
+  if (positions) {
+    tradedPositions = positions;
+  } else {
+    const smartSession = await getSmartSession();
+    const cred = getCredentials();
+    await delay({ milliSeconds: DELAY });
+    tradedPositions = await getPositions(smartSession, cred);
+  }
   const tradedExpiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   const tradedIndex = OrderStore.getInstance().getPostData().INDEX;
   let mtm = 0;
-  if (tradedPositions !== null) {
+  if (tradedPositions !== null && Array.isArray(tradedPositions)) {
     for (const position of tradedPositions) {
       const isSameExpiryDate = position.expirydate === tradedExpiryDate;
       const isSameIndex = position.symbolname === tradedIndex;

@@ -25,6 +25,7 @@ jest.mock('krb-smart-api-module', () => ({
   isCurrentTimeGreater: jest.fn(),
   isTradingHoliday: jest.fn(),
   getSmartSession: jest.fn(),
+  getCredentials: jest.fn(() => ({})),
   DELAY: 10,
 }));
 

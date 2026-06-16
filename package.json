@@ -57,6 +57,7 @@
     "format:check": "prettier --check .",
     "test": "jest --maxWorkers=1",
     "test:coverage": "jest --coverage --maxWorkers=1",
+    "verify": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "commit": "cz",
     "precommit": "lint-staged"
   },
