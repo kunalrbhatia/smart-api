@@ -14,6 +14,7 @@ import {
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
   ME,
+  GET_POSITIONS,
 } from '../constants';
 import { Position, ISmartApiData, CheckPosition } from '../../app.interface';
 import {
