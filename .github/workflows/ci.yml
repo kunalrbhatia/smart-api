@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -117,3 +117,48 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Build
         run: pnpm run build
+
+  deploy:
+    if: github.ref == 'refs/heads/development' && github.event_name == 'push'
+    needs: [lint, typecheck, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy using ssh
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            # Check if directory exists, if not clone it
+            if [ ! -d "$HOME/smart-api" ]; then
+              git clone https://github.com/kunalrbhatia/smart-api.git "$HOME/smart-api"
+            fi
+            
+            cd "$HOME/smart-api"
+            git fetch origin development
+            git reset --hard origin/development
+            
+            # Ensure pnpm is installed and up-to-date
+            sudo npm install -g pnpm@latest
+            
+            # Fix: Set CI=true to avoid TTY issues when pnpm needs to remove node_modules
+            export CI=true
+            pnpm config set confirmModulesPurge false
+            
+            pnpm install --no-frozen-lockfile
+            pnpm build
+            
+            # Create/Update .env file from secrets
+            echo "PORT=${{ secrets.PORT || 3000 }}" > .env
+            echo "NODE_ENV=production" >> .env
+            echo "API_KEY=${{ secrets.API_KEY }}" >> .env
+            echo "CLIENT_CODE=${{ secrets.CLIENT_CODE }}" >> .env
+            echo "CLIENT_PIN=${{ secrets.CLIENT_PIN }}" >> .env
+            echo "CLIENT_TOTP_PIN=${{ secrets.CLIENT_TOTP_PIN }}" >> .env
+            echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+            echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
+            
+            # Restart with PM2
+            pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
+            pm2 save
