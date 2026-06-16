@@ -291,6 +291,7 @@ export const placeStopLossOrder = async (
  */
 export const placeStopLossOnAllTrades = async (
   stoplossPercentage: number = 125,
+  positions?: Position[],
 ): Promise<void> => {
   try {
     logger.log(
@@ -304,10 +305,19 @@ export const placeStopLossOnAllTrades = async (
     );
 
     // Get open positions (only sell positions)
-    const positions = await getPositionsJson(false);
-    logger.log(`${ALGO}: Found ${positions.length} open sell positions`);
+    let openSellPositions: Position[] = [];
+    if (positions) {
+      const { getOpenSellPositions } = await import('../functions');
+      openSellPositions = getOpenSellPositions(positions);
+    } else {
+      openSellPositions = await getPositionsJson(false);
+    }
 
-    if (!Array.isArray(positions) || positions.length === 0) {
+    logger.log(
+      `${ALGO}: Found ${openSellPositions.length} open sell positions`,
+    );
+
+    if (!Array.isArray(openSellPositions) || openSellPositions.length === 0) {
       logger.log(
         `${ALGO}: No open positions found, nothing to place stop loss orders for`,
       );
@@ -315,12 +325,12 @@ export const placeStopLossOnAllTrades = async (
     }
 
     // Filter positions that don't have a stop loss order yet
-    const positionsWithoutStopLoss = positions.filter(
+    const positionsWithoutStopLoss = openSellPositions.filter(
       (position: Position) =>
         !hasStopLossOrderForPosition(position, pendingOrders),
     );
     logger.log(
-      `${ALGO}: ${positionsWithoutStopLoss.length} positions need stop loss orders (${positions.length - positionsWithoutStopLoss.length} already have them)`,
+      `${ALGO}: ${positionsWithoutStopLoss.length} positions need stop loss orders (${openSellPositions.length - positionsWithoutStopLoss.length} already have them)`,
     );
 
     // Place stop loss orders for positions without them

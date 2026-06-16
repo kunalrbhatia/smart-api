@@ -6,6 +6,7 @@ import {
   isCurrentTimeGreater,
   isTradingHoliday,
   getNearestStrike,
+  getCredentials,
 } from 'krb-smart-api-module';
 import { logger } from '../logger';
 import { notify } from '../notifier';
@@ -35,7 +36,12 @@ import {
   getIndexScrip,
 } from './marketData';
 import { doOrderByStrike, placeStopLossOnAllTrades } from './orders';
-import { getPositionsJson, closeTrade, getMtm } from './positions';
+import {
+  getPositions,
+  getPositionsJson,
+  closeTrade,
+  getMtm,
+} from './positions';
 import { checkAndFillPaperOrders, isPaperMode } from '../paperTrade';
 
 /**
@@ -264,15 +270,19 @@ export const executeTrade = async () => {
   }
   let resp: number | string = `${ALGO}: Trade Closed`;
   const isPastClosingTime = isCurrentTimeGreater({ hours: 15, minutes: 17 });
-  const mtmData = await getMtm();
-  const data = await getPositionsJson();
+
+  const smartSession = await getSmartSession();
+  const cred = getCredentials();
+  const allPositions = await getPositions(smartSession, cred);
+  const openSellPositions = getOpenSellPositions(allPositions);
+  const mtmData = await getMtm(allPositions);
 
   if (isPastClosingTime === false) {
-    await coreTradeExecution({ data });
-    await placeStopLossOnAllTrades();
+    await coreTradeExecution({ data: openSellPositions });
+    await placeStopLossOnAllTrades(125, allPositions);
     resp = mtmData;
   }
-  if (isPastClosingTime && getOpenSellPositions(data).length > 0)
+  if (isPastClosingTime && openSellPositions.length > 0)
     await closeTrade(false);
   return resp;
 };

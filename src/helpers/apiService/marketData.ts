@@ -137,8 +137,8 @@ export const getLtpWithRetry = async ({
   exchange,
   symboltoken,
   tradingsymbol,
-  maxRetries = 5,
-  delayMs = 1000,
+  maxRetries = 3,
+  delayMs = 3000,
 }: {
   exchange: string;
   symboltoken: string;
@@ -169,16 +169,16 @@ export const getLtpWithRetry = async ({
         `${ALGO}: getLtpWithRetry — Invalid LTP for ${tradingsymbol} on attempt ${attempt + 1}/${maxRetries}: ${ltpData?.ltp}`,
       );
     } catch (error) {
+      // Global retry in 'post' will have already tried 3 times for network/status errors.
+      // We only catch here to log and potentially retry if it was a business logic failure (invalid LTP).
       logger.error(
         `${ALGO}: getLtpWithRetry — Error on attempt ${attempt + 1}/${maxRetries}:`,
         error,
       );
 
-      // Rethrow immediately on last attempt
       if (attempt + 1 >= maxRetries) throw error;
     }
 
-    // ── Exponential backoff: 1s → 2s → 4s → 8s → 16s ──
     const backoffMs = delayMs * Math.pow(2, attempt);
     logger.warn(
       `${ALGO}: getLtpWithRetry — Retrying ${tradingsymbol} in ${backoffMs}ms (Attempt ${attempt + 1}/${maxRetries})`,
