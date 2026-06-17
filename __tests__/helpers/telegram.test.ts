@@ -37,11 +37,24 @@ jest.mock('fs', () => ({
 describe('telegram helper', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
+    // Set a date after the regional outage (June 23, 2026) to enable tests
+    jest.useFakeTimers({ now: new Date('2026-06-25T10:00:00Z') });
   });
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  describe('isTelegramPaused', () => {
+    it('should return true if the current date is before June 23, 2026', async () => {
+      // Set a date during the outage
+      jest.useFakeTimers({ now: new Date('2026-06-16T10:00:00Z') });
+      await sendTelegramMessage('test');
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining('suppressed as services are paused'),
+      );
+      expect(get).not.toHaveBeenCalled();
+    });
   });
 
   describe('sendTelegramMessage', () => {
