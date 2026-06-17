@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
+import moment from 'moment-timezone';
 import { config } from '../config/env';
 import { get } from './api';
 import {
@@ -14,6 +15,16 @@ import { isPaperMode, setPaperMode } from './paperTrade';
 
 const execAsync = promisify(exec);
 const MAX_TELEGRAM_MESSAGE_LENGTH = 4000;
+
+/**
+ * Checks if Telegram services should be paused due to regional outage.
+ * Telegram is down in India until 22 June, restored back on 23 June 2026.
+ */
+const isTelegramPaused = (): boolean => {
+  const restorationDate = moment.tz('2026-06-23', 'Asia/Kolkata');
+  const now = moment().tz('Asia/Kolkata');
+  return now.isBefore(restorationDate);
+};
 
 /**
  * Fetches the last 20 lines of logs.
@@ -57,6 +68,13 @@ const fetchLogs = async (): Promise<string> => {
  * @returns {Promise<void>}
  */
 export const sendTelegramMessage = async (message: string): Promise<void> => {
+  if (isTelegramPaused()) {
+    logger.log(
+      'Telegram: Message suppressed as services are paused until June 23, 2026.',
+    );
+    return;
+  }
+
   const { telegramBotToken, telegramChatId } = config;
 
   if (!telegramBotToken || !telegramChatId) {
@@ -84,6 +102,13 @@ export const sendTelegramMessage = async (message: string): Promise<void> => {
  * Polls for new Telegram messages to handle remote commands.
  */
 export const startTelegramBotListener = async () => {
+  if (isTelegramPaused()) {
+    logger.log(
+      '🤖 Telegram: Bot listener disabled as services are paused until June 23, 2026.',
+    );
+    return;
+  }
+
   const { telegramBotToken, telegramChatId } = config;
 
   if (!telegramBotToken || !telegramChatId) {
