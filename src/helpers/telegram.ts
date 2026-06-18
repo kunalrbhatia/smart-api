@@ -39,7 +39,8 @@ export const fetchLogs = async (): Promise<string> => {
     logOutput = stdout;
   } catch (error) {
     // Fallback to local log file
-    const logFilePath = path.join(process.cwd(), 'logs', 'app.log');
+    const dateStr = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
+    const logFilePath = path.join(process.cwd(), 'logs', `app-${dateStr}.log`);
     if (fs.existsSync(logFilePath)) {
       try {
         const logs = fs.readFileSync(logFilePath, 'utf8');
