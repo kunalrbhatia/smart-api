@@ -23,15 +23,42 @@ export const config = {
    * Telegram Chat ID to send notifications to.
    */
   telegramChatId: process.env.TELEGRAM_CHAT_ID,
+  /**
+   * Whether to use Telegram for notifications.
+   */
+  useTelegram: process.env.USE_TELEGRAM === 'true',
+  /**
+   * Whether to use Slack for notifications.
+   */
+  useSlack: process.env.USE_SLACK === 'true',
+  /**
+   * Slack Webhook URL for notifications.
+   */
+  slackWebhookUrl: process.env.SLACK_WEBHOOK_URL,
 };
 
 // Diagnostic logging
-if (!config.telegramBotToken || !config.telegramChatId) {
+const isTelegramConfigured = !!(
+  config.telegramBotToken && config.telegramChatId
+);
+const isSlackConfigured = !!config.slackWebhookUrl;
+
+if (config.useTelegram && !isTelegramConfigured) {
   console.warn(
-    `[ENV] Telegram configuration missing in process.env. TOKEN: ${config.telegramBotToken ? 'Present' : 'Missing'}, CHAT_ID: ${config.telegramChatId ? 'Present' : 'Missing'}`,
+    `[ENV] Telegram is enabled but configuration is missing. TOKEN: ${config.telegramBotToken ? 'Present' : 'Missing'}, CHAT_ID: ${config.telegramChatId ? 'Present' : 'Missing'}`,
   );
-} else {
+}
+
+if (config.useSlack && !isSlackConfigured) {
+  console.warn('[ENV] Slack is enabled but SLACK_WEBHOOK_URL is missing.');
+}
+
+if (config.useTelegram) {
   console.log(
-    `[ENV] Telegram configuration loaded. TOKEN: ${config.telegramBotToken.substring(0, 5)}..., CHAT_ID: ${config.telegramChatId}`,
+    `[ENV] Telegram notifications enabled. TOKEN: ${config.telegramBotToken?.substring(0, 5)}..., CHAT_ID: ${config.telegramChatId}`,
   );
+} else if (config.useSlack) {
+  console.log('[ENV] Slack notifications enabled.');
+} else {
+  console.log('[ENV] No notification channel enabled.');
 }
