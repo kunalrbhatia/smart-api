@@ -24,6 +24,9 @@ import {
 import { ALGO } from '../helpers/constants';
 import { delay, INDICES } from 'krb-smart-api-module';
 import moment from 'moment-timezone';
+import { isKillSwitchActive } from '../helpers/killSwitch';
+import { isPaperMode } from '../helpers/paperTrade';
+import { verifySlackSignature } from '../middlewares/slackVerify';
 interface IndexData {
   exchange: string;
   tradingsymbol: string;
@@ -430,6 +433,37 @@ router.post('/getOpenPositions', async (req: Request, res: Response) => {
   }
   console.log(`${ALGO}: -----------------------------------`);
 });
+
+/**
+ * @route   POST /api/api/slack/commands
+ * @desc    Handle Slack slash commands
+ * @access  Public (Verified by Slack Signature)
+ */
+router.post(
+  '/slack/commands',
+  verifySlackSignature,
+  async (req: Request, res: Response) => {
+    const { command } = req.body;
+
+    if (command === '/check' || command === '/status') {
+      const status = isKillSwitchActive()
+        ? '🛑 *Stopped (Kill Switch Active)*'
+        : '✅ *Running*';
+      const mode = isPaperMode() ? '📝 *PAPER MODE*' : '💰 *LIVE MODE*';
+
+      return res.json({
+        response_type: 'ephemeral',
+        text: `${status}. Monitoring active.\nMode: ${mode}`,
+      });
+    }
+
+    return res.json({
+      response_type: 'ephemeral',
+      text: `Unknown command: ${command}`,
+    });
+  },
+);
+
 /**
  * @route   POST /api/api/executeTrade
  * @desc    Pure execution — places orders only. No decision logic.
