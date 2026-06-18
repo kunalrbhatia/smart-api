@@ -24,9 +24,17 @@ import {
 import { ALGO } from '../helpers/constants';
 import { delay, INDICES } from 'krb-smart-api-module';
 import moment from 'moment-timezone';
-import { isKillSwitchActive } from '../helpers/killSwitch';
-import { isPaperMode } from '../helpers/paperTrade';
+import {
+  isKillSwitchActive,
+  setKillSwitch,
+  clearKillSwitch,
+} from '../helpers/killSwitch';
+import { isPaperMode, setPaperMode } from '../helpers/paperTrade';
 import { verifySlackSignature } from '../middlewares/slackVerify';
+import { fetchLogs } from '../helpers/telegram';
+import { get } from '../helpers/api';
+import { config } from '../config/env';
+
 interface IndexData {
   exchange: string;
   tradingsymbol: string;
@@ -444,8 +452,9 @@ router.post(
   verifySlackSignature,
   async (req: Request, res: Response) => {
     const { command } = req.body;
+    const cmd = command ? command.toLowerCase() : '';
 
-    if (command === '/check' || command === '/status') {
+    if (cmd === '/check' || cmd === '/status') {
       const status = isKillSwitchActive()
         ? '🛑 *Stopped (Kill Switch Active)*'
         : '✅ *Running*';
@@ -454,6 +463,50 @@ router.post(
       return res.json({
         response_type: 'ephemeral',
         text: `${status}. Monitoring active.\nMode: ${mode}`,
+      });
+    }
+
+    if (cmd === '/kill') {
+      setKillSwitch();
+      const port = config.port || 8080;
+      // Trigger the server's kill route locally without waiting
+      get(`http://localhost:${port}/kill`, {}).catch(() => {});
+
+      return res.json({
+        response_type: 'in_channel', // Broadcast the kill signal to the channel
+        text: '🛑 *Kill Signal Received.* Initiating abrupt shutdown...',
+      });
+    }
+
+    if (cmd === '/resume' || cmd === '/start') {
+      clearKillSwitch();
+      return res.json({
+        response_type: 'in_channel',
+        text: '🚀 *Kill Switch Cleared.* Algo is now allowed to run.',
+      });
+    }
+
+    if (cmd === '/paperon') {
+      setPaperMode(true);
+      return res.json({
+        response_type: 'in_channel',
+        text: '📝 *Paper Trading Mode ENABLED.*',
+      });
+    }
+
+    if (cmd === '/paperoff') {
+      setPaperMode(false);
+      return res.json({
+        response_type: 'in_channel',
+        text: '💰 *Live Trading Mode ENABLED.*',
+      });
+    }
+
+    if (cmd === '/logs') {
+      const logs = await fetchLogs();
+      return res.json({
+        response_type: 'ephemeral',
+        text: `\`\`\`${logs}\`\`\``,
       });
     }
 

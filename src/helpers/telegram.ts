@@ -30,7 +30,7 @@ const isTelegramPaused = (): boolean => {
  * Fetches the last 20 lines of logs.
  * Tries PM2 first, then falls back to the local log file.
  */
-const fetchLogs = async (): Promise<string> => {
+export const fetchLogs = async (): Promise<string> => {
   let logOutput = '';
   try {
     const { stdout } = await execAsync(
