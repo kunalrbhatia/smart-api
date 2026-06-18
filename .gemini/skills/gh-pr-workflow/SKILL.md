@@ -10,6 +10,7 @@ This skill automates the process of moving code from your local environment to a
 ## Workflow
 
 ### 1. Automated Branch, Push, and PR
+
 Use this command sequence to handle the entire flow in one turn:
 
 ```powershell
@@ -21,7 +22,7 @@ git checkout -b <branch-name>; git add .; git commit -m "<conventional-commit-ms
 - **Branch Naming**: Use `feat/`, `fix/`, or `docs/` prefixes (e.g., `feat/new-api-endpoint`).
 - **Commit Messages**: Always use **Conventional Commits** (e.g., `feat: add slack command listener`).
 - **PR Titles**: Match the commit message or use a clear descriptive title.
-- **PR Body**: 
+- **PR Body**:
   - **Description**: What does this PR do?
   - **Changes**: Bulleted list of technical modifications.
   - **Verification**: Summarize test results, linting, and manual checks.
@@ -29,19 +30,24 @@ git checkout -b <branch-name>; git add .; git commit -m "<conventional-commit-ms
 ## Examples
 
 ### Feature Implementation
+
 **Branch**: `feat/user-auth`
 **PR Title**: `feat: implement jwt-based user authentication`
-**PR Body**: 
+**PR Body**:
+
 ```markdown
 ### Description
+
 Implements JWT authentication and protected routes.
 
 ### Changes
+
 - Added auth middleware.
 - Created login/register routes.
 - Integrated bcrypt for password hashing.
 
 ### Verification
+
 - `npm test` passed.
 - Manual login verification successful.
 ```
