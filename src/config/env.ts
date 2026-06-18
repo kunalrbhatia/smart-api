@@ -35,6 +35,10 @@ export const config = {
    * Slack Webhook URL for notifications.
    */
   slackWebhookUrl: process.env.SLACK_WEBHOOK_URL,
+  /**
+   * Slack Signing Secret for verifying slash commands.
+   */
+  slackSigningSecret: process.env.SLACK_SIGNING_SECRET,
 };
 
 // Diagnostic logging
@@ -42,6 +46,7 @@ const isTelegramConfigured = !!(
   config.telegramBotToken && config.telegramChatId
 );
 const isSlackConfigured = !!config.slackWebhookUrl;
+const isSlackSigningSecretConfigured = !!config.slackSigningSecret;
 
 if (config.useTelegram && !isTelegramConfigured) {
   console.warn(
@@ -51,6 +56,12 @@ if (config.useTelegram && !isTelegramConfigured) {
 
 if (config.useSlack && !isSlackConfigured) {
   console.warn('[ENV] Slack is enabled but SLACK_WEBHOOK_URL is missing.');
+}
+
+if (!isSlackSigningSecretConfigured) {
+  console.warn(
+    '[ENV] SLACK_SIGNING_SECRET is missing. Slack slash commands will not be verified.',
+  );
 }
 
 if (config.useTelegram) {
