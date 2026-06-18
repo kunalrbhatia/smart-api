@@ -59,7 +59,8 @@
     "test:coverage": "jest --coverage --maxWorkers=1",
     "verify": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "commit": "cz",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "clean:logs": "node scripts/clean-logs.js"
   },
   "husky": {
     "hooks": {

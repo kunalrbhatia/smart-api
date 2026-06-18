@@ -29,7 +29,7 @@ describe('logger helper', () => {
     logger.log('test log', { key: 'value' });
     expect(console.log).toHaveBeenCalledWith('test log', { key: 'value' });
     expect(fs.appendFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('app.log'),
+      expect.stringMatching(/app-\d{4}-\d{2}-\d{2}\.log$/),
       expect.stringContaining('[INFO] test log {"key":"value"}'),
     );
   });
@@ -38,7 +38,7 @@ describe('logger helper', () => {
     logger.info('test info');
     expect(console.info).toHaveBeenCalledWith('test info');
     expect(fs.appendFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('app.log'),
+      expect.stringMatching(/app-\d{4}-\d{2}-\d{2}\.log$/),
       expect.stringContaining('[INFO] test info'),
     );
   });
@@ -47,7 +47,7 @@ describe('logger helper', () => {
     logger.warn('test warn');
     expect(console.warn).toHaveBeenCalledWith('test warn');
     expect(fs.appendFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('app.log'),
+      expect.stringMatching(/app-\d{4}-\d{2}-\d{2}\.log$/),
       expect.stringContaining('[WARN] test warn'),
     );
   });
@@ -57,8 +57,17 @@ describe('logger helper', () => {
     logger.error('test error', error);
     expect(console.error).toHaveBeenCalledWith('test error', error);
     expect(fs.appendFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('app.log'),
+      expect.stringMatching(/app-\d{4}-\d{2}-\d{2}\.log$/),
       expect.stringContaining('[ERROR] test error - boom'),
+    );
+  });
+
+  it('logger.mtm should call console.log and write to mtm log file', () => {
+    logger.mtm('test mtm', 1500);
+    expect(console.log).toHaveBeenCalledWith('[MTM]', 'test mtm', 1500);
+    expect(fs.appendFileSync).toHaveBeenCalledWith(
+      expect.stringMatching(/mtm-\d{4}-\d{2}-\d{2}\.log$/),
+      expect.stringContaining('[INFO] test mtm 1500'),
     );
   });
 
@@ -75,7 +84,7 @@ describe('logger helper', () => {
     circular.self = circular;
     logger.log(circular);
     expect(fs.appendFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('app.log'),
+      expect.stringMatching(/app-\d{4}-\d{2}-\d{2}\.log$/),
       expect.stringContaining('[INFO] [object Object]'),
     );
   });

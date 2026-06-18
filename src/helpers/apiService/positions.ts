@@ -270,6 +270,7 @@ export const getMtm = async (positions?: Position[]) => {
       }
     }
   }
+  logger.mtm(`${tradedIndex || 'ALGO'}: MTM = ${mtm}`);
   return mtm;
 };
 
@@ -306,7 +307,7 @@ export const closeTrade = async (isAbrupt = false) => {
   logger.log(`${ALGO}: All trades confirmed closed.`);
   const mtm = await getMtm();
   await notify(`All trades closed. Final MTM: ${mtm}`);
-  logger.log(`${ALGO}: Final MTM: ${mtm}`);
+  logger.mtm(`${ALGO}: Final MTM: ${mtm}`);
 };
 
 /**

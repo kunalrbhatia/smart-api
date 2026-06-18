@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import moment from 'moment-timezone';
 import { isPaperMode } from './paperTrade';
 
 const LOG_DIR = path.join(process.cwd(), 'logs');
-const LOG_FILE = path.join(LOG_DIR, 'app.log');
 
 // Ensure logs directory exists
 if (!fs.existsSync(LOG_DIR)) {
@@ -38,14 +38,22 @@ const formatMessage = (level: string, message: any): string => {
 };
 
 /**
- * Writes the message to the log file.
+ * Dynamically resolves the log file path based on the current date in Asia/Kolkata timezone.
  */
-const writeToFile = (formattedMessage: string) => {
+const getLogFilePath = (type: 'app' | 'mtm'): string => {
+  const dateStr = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
+  return path.join(LOG_DIR, `${type}-${dateStr}.log`);
+};
+
+/**
+ * Writes the message to the dynamic datewise log file.
+ */
+const writeToFile = (type: 'app' | 'mtm', formattedMessage: string) => {
   try {
-    fs.appendFileSync(LOG_FILE, formattedMessage);
+    fs.appendFileSync(getLogFilePath(type), formattedMessage);
   } catch (err) {
     // Fallback to console if file write fails
-    console.error('Failed to write to log file:', err);
+    console.error(`Failed to write to ${type} log file:`, err);
   }
 };
 
@@ -63,24 +71,30 @@ export const logger = {
     const combinedMessage = messages.map(safeStringify).join(' ');
     const formatted = formatMessage('INFO', combinedMessage);
     console.log(...messages);
-    writeToFile(formatted);
+    writeToFile('app', formatted);
   },
   info: (...messages: any[]) => {
     const combinedMessage = messages.map(safeStringify).join(' ');
     const formatted = formatMessage('INFO', combinedMessage);
     console.info(...messages);
-    writeToFile(formatted);
+    writeToFile('app', formatted);
   },
   error: (message: any, error?: any) => {
     const msg = error ? `${message} - ${error.message || error}` : message;
     const formatted = formatMessage('ERROR', msg);
     console.error(message, error || '');
-    writeToFile(formatted);
+    writeToFile('app', formatted);
   },
   warn: (...messages: any[]) => {
     const combinedMessage = messages.map(safeStringify).join(' ');
     const formatted = formatMessage('WARN', combinedMessage);
     console.warn(...messages);
-    writeToFile(formatted);
+    writeToFile('app', formatted);
+  },
+  mtm: (...messages: any[]) => {
+    const combinedMessage = messages.map(safeStringify).join(' ');
+    const formatted = formatMessage('INFO', combinedMessage);
+    console.log('[MTM]', ...messages);
+    writeToFile('mtm', formatted);
   },
 };
