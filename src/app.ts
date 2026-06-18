@@ -13,7 +13,14 @@ import { logger } from './helpers/logger';
 const app: Application = express();
 
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(
+  bodyParser.urlencoded({
+    extended: true,
+    verify: (req: any, res, buf) => {
+      req.rawBody = buf.toString();
+    },
+  }),
+);
 app.use(cors());
 
 // Request logging middleware

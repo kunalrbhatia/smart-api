@@ -33,13 +33,9 @@ export const verifySlackSignature = (
     return res.status(401).send('Unauthorized');
   }
 
-  // Re-constructing url-encoded body from req.body
-
-  const sigBasestring = `v0:${timestamp}:${Object.keys(req.body)
-    .map(
-      key => `${encodeURIComponent(key)}=${encodeURIComponent(req.body[key])}`,
-    )
-    .join('&')}`;
+  // Use the raw body captured by bodyParser if available
+  const rawBody = (req as any).rawBody || '';
+  const sigBasestring = `v0:${timestamp}:${rawBody}`;
 
   const hmac = crypto
     .createHmac('sha256', slackSigningSecret)
