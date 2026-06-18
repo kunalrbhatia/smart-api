@@ -158,6 +158,10 @@ jobs:
             echo "CLIENT_TOTP_PIN=${{ secrets.CLIENT_TOTP_PIN }}" >> .env
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
             echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
+            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" >> .env
+            echo "USE_SLACK=${{ secrets.USE_SLACK }}" >> .env
+            echo "USE_TELEGRAM=${{ secrets.USE_TELEGRAM }}" >> .env
+            echo "SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}" >> .env
 
             # Restart with PM2
             pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
