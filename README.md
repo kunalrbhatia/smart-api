@@ -16,6 +16,9 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 - 📡 **Compliance Ready**: Automatic resolution of Public IP, Local IP, and MAC addresses for secure API header requirements.
 - 📉 **Real-time Risk Management**: Active MTM tracking with automated stop-loss placement (150% factor) for all sell positions.
 - 🧪 **Paper Trading Mode**: High-fidelity simulation mode to test strategies against live market data without financial risk.
+- 💬 **Multi-Channel Remote Control**: Dual support for Telegram and Slack interactive commands to monitor and control the algorithm remotely.
+- 📅 **Datewise Logging & Retention**: Dynamically logs application status and MTM metrics daily, with automated script-based log retention cleanup.
+- 🧩 **Developer Agent Customizations**: Integrated workspace agent skills (`.agents/skills`) to automate PR creation, git cleanup, and description validation.
 - 🏗️ **Modular Architecture**: Clean, domain-driven design for high maintainability and testability.
 - 🛡️ **High Test Coverage**: Robust test suite with **86.2% branch coverage** ensuring reliable execution.
 - 🐳 **Docker Ready**: Fully containerized for consistent deployment across environments.
@@ -93,20 +96,40 @@ pnpm test
 pnpm run test:coverage # Generate coverage report
 ```
 
+### Log Clean-up
+
+The algorithm generates daily date-wise log files (`app-YYYY-MM-DD.log` and `mtm-YYYY-MM-DD.log`). To delete logs older than 30 days, run:
+
+```bash
+node scripts/clean-logs.js
+```
+
 ---
 
-## 🤖 Telegram Remote Control
+## 🤖 Remote Control (Telegram & Slack)
 
-The bot includes a built-in Telegram listener for remote monitoring and control. Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in your `.env` file to use these commands:
+The application supports remote monitoring and control via both **Telegram** and **Slack**. 
 
-| Command              | Description                                                                       |
-| -------------------- | --------------------------------------------------------------------------------- |
-| `/status`            | Get current algo status (Running/Stopped) and trading mode.                       |
-| `/paperon`           | Enable **Paper Trading Mode** (trades are mocked locally).                        |
-| `/paperoff`          | Enable **Live Trading Mode** (trades execute on your broker account).              |
-| `/logs`              | Retrieve the last 20 lines of application logs (via PM2 or local log file).       |
-| `/kill`              | Emergency shutdown of the server.                                                 |
-| `/resume` / `/start` | Clear the kill switch to allow the algo to resume operations.                     |
+### Configuration
+
+In your `.env` file, configure the following:
+* **Telegram:** Set `USE_TELEGRAM=true`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID`.
+* **Slack:** Set `USE_SLACK=true`, `SLACK_WEBHOOK_URL` (for outbound notifications), and `SLACK_SIGNING_SECRET` (to verify slash commands).
+
+Point your Slack App's Slash Commands endpoint to: `https://<your-domain>/api/api/slack/commands`.
+
+### Supported Commands
+
+These commands can be sent as messages on Telegram or run as slash commands in Slack (e.g., `/status`):
+
+| Command / Slack Slash | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `/status` or `/check` | Get current algo status (Running/Stopped) and trading mode.                       |
+| `/paperon`            | Enable **Paper Trading Mode** (trades are mocked locally).                        |
+| `/paperoff`           | Enable **Live Trading Mode** (trades execute on your broker account).              |
+| `/logs`               | Retrieve the last 20 lines of application logs (via PM2 or local log file).       |
+| `/kill`               | Emergency shutdown of the server.                                                 |
+| `/resume` / `/start`  | Clear the kill switch to allow the algo to resume operations.                     |
 
 ---
 
@@ -135,8 +158,12 @@ To use the deployment workflow, add the following secrets in your repository set
 | `CLIENT_CODE` | Your SmartAPI Client Code. |
 | `CLIENT_PIN` | Your SmartAPI Client Pin. |
 | `CLIENT_TOTP_PIN` | Your 16-character TOTP Secret Key. |
+| `USE_TELEGRAM` | Set to `true` to enable Telegram notifications. |
 | `TELEGRAM_BOT_TOKEN` | Your Telegram Bot Token. |
 | `TELEGRAM_CHAT_ID` | Your Telegram Chat ID. |
+| `USE_SLACK` | Set to `true` to enable Slack notifications. |
+| `SLACK_WEBHOOK_URL` | Your Slack Webhook URL. |
+| `SLACK_SIGNING_SECRET` | Your Slack App Signing Secret. |
 
 ---
 
@@ -154,6 +181,16 @@ smart-api/
 ├── __tests__/              # High-coverage test suite
 └── jest.config.js          # Testing configuration
 ```
+
+---
+
+## 🧩 Developer Agent Skills
+
+For AI developers using AI agents (like Antigravity), workspace customization skills are configured under `.agents/skills/`:
+
+* **[gh-pr-workflow](file:///.agents/skills/gh-pr-workflow/SKILL.md)**: Automates branching, staging, committing (Conventional Commits), pushing, and opening GitHub Pull Requests.
+* **[git-cleanup-sync](file:///.agents/skills/git-cleanup-sync/SKILL.md)**: Cleans up local feature branches, switches back to `development`, and pulls the latest changes.
+* **[pr-description-check](file:///.agents/skills/pr-description-check/SKILL.md)**: Validates PR descriptions to ensure paths, commands, and code snippets are wrapped in backticks (e.g., \`src/app.ts\`).
 
 ---
 

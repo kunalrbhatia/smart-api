@@ -1,0 +1,16 @@
+node_modules
+dist
+logs
+.env
+.git
+.github
+.agents
+.gemini
+__tests__
+__mocks__
+Dockerfile
+.dockerignore
+pnpm-workspace.yaml
+*.log
+*.zip
+*.skill
