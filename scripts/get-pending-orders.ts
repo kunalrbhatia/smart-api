@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/triple-slash-reference */
 /// <reference path="../src/types.d.ts" />
 import dotenv from 'dotenv';
 import _ from 'lodash';
