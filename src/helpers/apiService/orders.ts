@@ -205,17 +205,17 @@ export const getPendingOrders = async (): Promise<
     }
 
     if (Array.isArray(orders) && orders.length > 0) {
-      logger.log(
-        `${ALGO}: Raw orders in book:`,
-        orders.map((o: any) => ({
-          orderstatus: o.orderstatus,
-          status: o.status,
-          variety: o.variety,
-          ordertype: o.ordertype,
-          tradingsymbol: o.tradingsymbol,
-          text: o.text,
-        })),
-      );
+      // logger.log(
+      //   `${ALGO}: Raw orders in book:`,
+      //   orders.map((o: any) => ({
+      //     orderstatus: o.orderstatus,
+      //     status: o.status,
+      //     variety: o.variety,
+      //     ordertype: o.ordertype,
+      //     tradingsymbol: o.tradingsymbol,
+      //     text: o.text,
+      //   })),
+      // );
     } else {
       logger.log(`${ALGO}: Order book is empty! Response:`, responseJson);
     }
