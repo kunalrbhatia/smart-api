@@ -70,6 +70,10 @@ export const fetchLogs = async (): Promise<string> => {
  * @returns {Promise<void>}
  */
 export const sendTelegramMessage = async (message: string): Promise<void> => {
+  if (!config.useTelegram) {
+    return;
+  }
+
   if (isTelegramPaused()) {
     logger.log(
       'Telegram: Message suppressed as services are paused until June 23, 2026.',
@@ -104,6 +108,13 @@ export const sendTelegramMessage = async (message: string): Promise<void> => {
  * Polls for new Telegram messages to handle remote commands.
  */
 export const startTelegramBotListener = async () => {
+  if (!config.useTelegram) {
+    logger.log(
+      '🤖 Telegram: Bot listener disabled as Telegram is not the active notification channel.',
+    );
+    return;
+  }
+
   if (isTelegramPaused()) {
     logger.log(
       '🤖 Telegram: Bot listener disabled as services are paused until June 23, 2026.',

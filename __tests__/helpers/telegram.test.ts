@@ -20,6 +20,7 @@ jest.mock('../../src/config/env', () => ({
     telegramBotToken: 'test_token',
     telegramChatId: 'test_chat_id',
     port: 8080,
+    useTelegram: true,
   },
 }));
 jest.mock('../../src/helpers/killSwitch');
