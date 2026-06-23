@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import algoRoutes from './algo.routes';
 import apiRouter from './api.routes';
-import { shutdown } from '../server';
+import { shutdownEmitter } from '../helpers/shutdownEmitter';
+
 const router = Router();
 
 /**
@@ -13,7 +14,7 @@ router.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok', lastUpdated: '2026-02-05, 13:59:00' });
 });
 router.get('/kill', (req: Request, res: Response) => {
-  setTimeout(shutdown, 1000);
+  setTimeout(() => shutdownEmitter.emit('trigger'), 1000);
   res.send("Execution of the 'Kill Algo' command has been initiated.");
 });
 router.use('/api', apiRouter);

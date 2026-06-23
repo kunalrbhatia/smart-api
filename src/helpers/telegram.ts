@@ -12,6 +12,7 @@ import {
 } from './killSwitch';
 import { logger } from './logger';
 import { isPaperMode, setPaperMode } from './paperTrade';
+import { shutdownEmitter } from './shutdownEmitter';
 
 const execAsync = promisify(exec);
 const MAX_TELEGRAM_MESSAGE_LENGTH = 4000;
@@ -184,9 +185,19 @@ export const startTelegramBotListener = async () => {
               // Ignore confirmation errors
             }
 
-            // Trigger the server's kill route locally
+            // Trigger the server's kill route locally (with catch to prevent crashing/blocking)
             const port = config.port || 8080;
-            await get(`http://localhost:${port}/kill`, {});
+            try {
+              await get(`http://localhost:${port}/kill`, {});
+            } catch (e) {
+              logger.error(
+                'Failed to call kill route via HTTP in Telegram listener:',
+                e,
+              );
+            }
+
+            // Directly trigger shutdown using emitter to be robust against localhost request failures
+            setTimeout(() => shutdownEmitter.emit('trigger'), 1000);
             return; // Stop polling
           } else if (text === '/resume' || text === '/start') {
             clearKillSwitch();

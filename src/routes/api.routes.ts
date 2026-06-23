@@ -34,6 +34,7 @@ import { verifySlackSignature } from '../middlewares/slackVerify';
 import { fetchLogs } from '../helpers/telegram';
 import { get } from '../helpers/api';
 import { config } from '../config/env';
+import { shutdownEmitter } from '../helpers/shutdownEmitter';
 
 interface IndexData {
   exchange: string;
@@ -471,6 +472,9 @@ router.post(
       const port = config.port || 8080;
       // Trigger the server's kill route locally without waiting
       get(`http://localhost:${port}/kill`, {}).catch(() => {});
+
+      // Directly trigger shutdown using emitter to be robust against localhost request failures
+      setTimeout(() => shutdownEmitter.emit('trigger'), 1000);
 
       return res.json({
         response_type: 'in_channel', // Broadcast the kill signal to the channel
