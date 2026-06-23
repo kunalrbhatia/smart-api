@@ -36,7 +36,7 @@ export const loginToSmartApi = async (
       totpCode,
     );
 
-    if (!sessionData || !sessionData.status) {
+    if (!sessionData || sessionData.status !== true) {
       throw new Error(sessionData?.message || 'Failed to generate session');
     }
 
