@@ -119,6 +119,7 @@ export const startTelegramBotListener = async () => {
     logger.log(
       '🤖 Telegram: Bot listener disabled as services are paused until June 23, 2026.',
     );
+    setTimeout(startTelegramBotListener, 60000);
     return;
   }
 
@@ -178,8 +179,14 @@ export const startTelegramBotListener = async () => {
             continue;
           }
 
-          const text = message.text.toLowerCase();
-          if (text === '/kill') {
+          const rawText = message.text.trim();
+          if (!rawText.startsWith('/')) continue;
+
+          // Extract the command (e.g. /kill from /kill@bot_name or /kill args)
+          const firstWord = rawText.split(/\s+/)[0];
+          const cmd = firstWord.split('@')[0].toLowerCase();
+
+          if (cmd === '/kill') {
             setKillSwitch();
             await sendTelegramMessage(
               '🛑 *Kill Signal Received.* Initiating abrupt shutdown...',
@@ -196,26 +203,33 @@ export const startTelegramBotListener = async () => {
               // Ignore confirmation errors
             }
 
-            // Trigger the server's kill route locally (with catch to prevent crashing/blocking)
+            // Trigger the server's kill route locally
             const port = config.port || 8080;
             try {
               await get(`http://localhost:${port}/kill`, {});
             } catch (e) {
               logger.error(
-                'Failed to call kill route via HTTP in Telegram listener:',
+                'Failed to call kill route via HTTP in Telegram listener, trying direct closure:',
                 e,
               );
+              try {
+                const { closeTrade } = await import('./apiService/positions');
+                await closeTrade(true);
+              } catch (closeErr) {
+                logger.error(
+                  'Failed to close trades directly in Telegram listener:',
+                  closeErr,
+                );
+              }
+              shutdownEmitter.emit('trigger');
             }
-
-            // Directly trigger shutdown using emitter to be robust against localhost request failures
-            setTimeout(() => shutdownEmitter.emit('trigger'), 1000);
             return; // Stop polling
-          } else if (text === '/resume' || text === '/start') {
+          } else if (cmd === '/resume' || cmd === '/start') {
             clearKillSwitch();
             await sendTelegramMessage(
               '🚀 *Kill Switch Cleared.* Algo is now allowed to run.',
             );
-          } else if (text === '/status') {
+          } else if (cmd === '/status') {
             const status = isKillSwitchActive()
               ? '🛑 *Stopped (Kill Switch Active)*'
               : '✅ *Running*';
@@ -223,13 +237,13 @@ export const startTelegramBotListener = async () => {
             await sendTelegramMessage(
               `${status}. Monitoring active.\nMode: ${mode}`,
             );
-          } else if (text === '/paperon') {
+          } else if (cmd === '/paperon') {
             setPaperMode(true);
             await sendTelegramMessage('📝 *Paper Trading Mode ENABLED.*');
-          } else if (text === '/paperoff') {
+          } else if (cmd === '/paperoff') {
             setPaperMode(false);
             await sendTelegramMessage('💰 *Live Trading Mode ENABLED.*');
-          } else if (text === '/logs') {
+          } else if (cmd === '/logs') {
             const logs = await fetchLogs();
             await sendTelegramMessage(logs);
           }

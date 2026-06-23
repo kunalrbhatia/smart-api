@@ -35,6 +35,7 @@ import { fetchLogs } from '../helpers/telegram';
 import { get } from '../helpers/api';
 import { config } from '../config/env';
 import { shutdownEmitter } from '../helpers/shutdownEmitter';
+import { logger } from '../helpers/logger';
 
 interface IndexData {
   exchange: string;
@@ -453,7 +454,7 @@ router.post(
   verifySlackSignature,
   async (req: Request, res: Response) => {
     const { command } = req.body;
-    const cmd = command ? command.toLowerCase() : '';
+    const cmd = command ? command.toLowerCase().trim() : '';
 
     if (cmd === '/check' || cmd === '/status') {
       const status = isKillSwitchActive()
@@ -470,11 +471,18 @@ router.post(
     if (cmd === '/kill') {
       setKillSwitch();
       const port = config.port || 8080;
-      // Trigger the server's kill route locally without waiting
-      get(`http://localhost:${port}/kill`, {}).catch(() => {});
-
-      // Directly trigger shutdown using emitter to be robust against localhost request failures
-      setTimeout(() => shutdownEmitter.emit('trigger'), 1000);
+      // Trigger the server's kill route locally
+      get(`http://localhost:${port}/kill`, {})
+        .then(() => {
+          // The local route succeeded and will trigger the shutdown itself
+        })
+        .catch(err => {
+          logger.error(
+            'Failed to call local /kill route, forcing shutdown:',
+            err,
+          );
+          shutdownEmitter.emit('trigger');
+        });
 
       return res.json({
         response_type: 'in_channel', // Broadcast the kill signal to the channel
