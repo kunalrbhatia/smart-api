@@ -259,14 +259,10 @@ export const hasStopLossOrderForPosition = (
   pendingOrders: Record<string, unknown>[],
 ): boolean => {
   const tradingSymbol = position.tradingsymbol;
-  const optionType = position.optiontype;
-  const strikePrice = position.strikeprice;
 
   return pendingOrders.some(
     (order: Record<string, unknown>) =>
-      _get(order, 'tradingsymbol', '') === tradingSymbol &&
-      _get(order, 'optiontype', '') === optionType &&
-      _get(order, 'strikeprice', '') === strikePrice,
+      _get(order, 'tradingsymbol', '') === tradingSymbol,
   );
 };
 
