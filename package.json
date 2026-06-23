@@ -60,7 +60,8 @@
     "verify": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "commit": "cz",
     "precommit": "lint-staged",
-    "clean:logs": "node scripts/clean-logs.js"
+    "clean:logs": "node scripts/clean-logs.js",
+    "get-pending-orders": "ts-node -T scripts/get-pending-orders.ts"
   },
   "husky": {
     "hooks": {
