@@ -305,6 +305,7 @@ export const placeStopLossOrder = async (
         transactionType,
         symboltoken,
         lotSize,
+        quantity: Math.abs(netQty),
         variety: VARIETY_STOPLOSS,
         ordertype: 'STOPLOSS_LIMIT',
         price: limitPriceRounded,
