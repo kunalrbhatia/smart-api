@@ -204,23 +204,25 @@ export const closeParticularTrade = async ({ trade }: { trade: Position }) => {
     logger.error(`${ALGO}: closeParticularTrade failed:`, error);
     throw error;
   }
-};
-
-/**
+}; /**
  * Closes all open trades.
+ * @returns {Promise<number>} The number of positions eligible for closure.
  */
-export const closeAllTrades = async (isAbrupt = false) => {
+export const closeAllTrades = async (isAbrupt = false): Promise<number> => {
+  let eligibleCount = 0;
   try {
     await delay({ milliSeconds: DELAY });
     const positions = await getPositionsJson(isAbrupt);
 
-    if (!Array.isArray(positions) || positions.length === 0) return;
+    if (!Array.isArray(positions) || positions.length === 0) return 0;
 
     // Import marketData at the start of the function, not inside the loop
     const { getLtpWithRetry } = await import('./marketData');
 
     for (const position of positions) {
-      if (isAbrupt && Number.parseInt(position.netqty) !== 0) {
+      const netQty = Number.parseInt(position.netqty);
+      if (isAbrupt && netQty !== 0) {
+        eligibleCount++;
         await closeParticularTrade({ trade: position });
       } else if (!isAbrupt) {
         const ltpData = await getLtpWithRetry({
@@ -229,10 +231,11 @@ export const closeAllTrades = async (isAbrupt = false) => {
           symboltoken: position.symboltoken,
         });
 
-        const isNetqtyNegative = Number.parseInt(position.netqty) < 0;
+        const isNetqtyNegative = netQty < 0;
         const isLtpGreaterThanFive = ltpData && ltpData.ltp > 5;
 
         if (isNetqtyNegative && isLtpGreaterThanFive) {
+          eligibleCount++;
           await closeParticularTrade({ trade: position });
         }
       }
@@ -241,6 +244,7 @@ export const closeAllTrades = async (isAbrupt = false) => {
     logger.error(`${ALGO}: closeAllTrades failed:`, error);
     throw error;
   }
+  return eligibleCount;
 };
 
 /**
@@ -289,7 +293,16 @@ export const closeTrade = async (isAbrupt = false) => {
     logger.log(
       `${ALGO}: Active trades found (${openPositions.length}). Executing close (Attempt ${retries + 1}/${MAX_RETRIES})...`,
     );
-    await closeAllTrades(isAbrupt);
+    const eligibleCount = await closeAllTrades(isAbrupt);
+
+    // If there are no positions eligible for closure (e.g. all remaining have LTP <= 5), stop retrying
+    if (eligibleCount === 0) {
+      logger.log(
+        `${ALGO}: No more eligible positions to close (others are <= 5 LTP or hedges).`,
+      );
+      break;
+    }
+
     retries++;
 
     if (retries === MAX_RETRIES) {
