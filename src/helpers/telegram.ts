@@ -209,18 +209,9 @@ export const startTelegramBotListener = async () => {
               await get(`http://localhost:${port}/kill`, {});
             } catch (e) {
               logger.error(
-                'Failed to call kill route via HTTP in Telegram listener, trying direct closure:',
+                'Failed to call kill route via HTTP in Telegram listener, forcing shutdown:',
                 e,
               );
-              try {
-                const { closeTrade } = await import('./apiService/positions');
-                await closeTrade(true);
-              } catch (closeErr) {
-                logger.error(
-                  'Failed to close trades directly in Telegram listener:',
-                  closeErr,
-                );
-              }
               shutdownEmitter.emit('trigger');
             }
             return; // Stop polling
