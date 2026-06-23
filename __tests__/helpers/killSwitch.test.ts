@@ -15,10 +15,10 @@ describe('killSwitch helper', () => {
   });
 
   describe('setKillSwitch', () => {
-    it('should create the .killswitch file successfully', () => {
+    it('should create the .kill file successfully', () => {
       setKillSwitch();
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('.killswitch'),
+        expect.stringContaining('.kill'),
         expect.any(String),
       );
       expect(logger.log).toHaveBeenCalledWith(
@@ -39,7 +39,7 @@ describe('killSwitch helper', () => {
   });
 
   describe('clearKillSwitch', () => {
-    it('should remove the .killswitch file if it exists', () => {
+    it('should remove the .kill file if it exists', () => {
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       clearKillSwitch();
       expect(fs.unlinkSync).toHaveBeenCalled();
@@ -48,7 +48,7 @@ describe('killSwitch helper', () => {
       );
     });
 
-    it('should do nothing if the .killswitch file does not exist', () => {
+    it('should do nothing if the .kill file does not exist', () => {
       (fs.existsSync as jest.Mock).mockReturnValue(false);
       clearKillSwitch();
       expect(fs.unlinkSync).not.toHaveBeenCalled();

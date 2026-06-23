@@ -8,6 +8,7 @@ import { config } from './config/env';
 import { ALGO } from './helpers/constants';
 import { startTelegramBotListener } from './helpers/telegram';
 import { logger } from './helpers/logger';
+import { shutdownEmitter } from './helpers/shutdownEmitter';
 
 /**
  * The HTTP server.
@@ -58,9 +59,4 @@ process.on('uncaughtException', err => {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
-
-// Optional /kill route (instead of process signal)
-app.get('/kill', (req, res) => {
-  setTimeout(shutdown, 1000);
-  res.send("Execution of the 'Kill Algo' command has been initiated.");
-});
+shutdownEmitter.on('trigger', shutdown);
