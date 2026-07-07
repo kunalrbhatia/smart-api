@@ -138,15 +138,13 @@ jobs:
           name: build-artifacts
           path: build-artifacts
 
-      - name: Copy files via SCP
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USER }}
-          key: ${{ secrets.ORACLE_SSH_KEY }}
-          source: 'build-artifacts/*'
-          target: '~/smart-api-temp'
-          strip_components: 1
+      - name: Copy files via native SCP
+        run: |
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "mkdir -p ~/smart-api-temp"
+          scp -i private_key.pem -o StrictHostKeyChecking=no -r build-artifacts/* ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }}:~/smart-api-temp/
+          rm -f private_key.pem
 
       - name: Deploy using ssh
         uses: appleboy/ssh-action@master
