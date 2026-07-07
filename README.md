@@ -18,6 +18,7 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 - 🧪 **Paper Trading Mode**: High-fidelity simulation mode to test strategies against live market data without financial risk.
 - 💬 **Multi-Channel Remote Control**: Dual support for Telegram and Slack interactive commands to monitor and control the algorithm remotely.
 - 📅 **Datewise Logging & Retention**: Dynamically logs application status and MTM metrics daily, with automated script-based log retention cleanup.
+- 📊 **Weekly Expiry Reports**: Track and analyze performance with detailed P&L and straddle breakdowns under [expiry-reports/](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/).
 - 🧩 **Developer Agent Customizations**: Integrated workspace agent skills (`.agents/skills`) to automate PR creation, git cleanup, and description validation.
 - 🏗️ **Modular Architecture**: Clean, domain-driven design for high maintainability and testability.
 - 🛡️ **High Test Coverage**: Robust test suite with **86.2% branch coverage** ensuring reliable execution.
@@ -103,6 +104,15 @@ The algorithm generates daily date-wise log files (`app-YYYY-MM-DD.log` and `mtm
 ```bash
 node scripts/clean-logs.js
 ```
+
+### 📊 Expiry Reports
+
+Performance analyses and P&L breakdowns for each weekly expiry date are documented in the [expiry-reports/](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/) directory (e.g. [expiry-2026-07-07.md](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/expiry-2026-07-07.md)).
+
+Each report highlights:
+- **P&L Summary**: Net Premium, Realised vs Unrealised P&L, and winner/loser counts.
+- **Position Breakdown**: Status (LONG/SHORT/CLOSED) and individual P&L for each traded contract.
+- **Straddle Pair Analysis**: Grouped CE/PE strike performance.
 
 ---
 
