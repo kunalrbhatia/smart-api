@@ -191,6 +191,8 @@ For AI developers using AI agents (like Antigravity), workspace customization sk
 * **[gh-pr-workflow](file:///.agents/skills/gh-pr-workflow/SKILL.md)**: Automates branching, staging, committing (Conventional Commits), pushing, and opening GitHub Pull Requests.
 * **[git-cleanup-sync](file:///.agents/skills/git-cleanup-sync/SKILL.md)**: Cleans up local feature branches, switches back to `development`, and pulls the latest changes.
 * **[pr-description-check](file:///.agents/skills/pr-description-check/SKILL.md)**: Validates PR descriptions to ensure paths, commands, and code snippets are wrapped in backticks (e.g., \`src/app.ts\`).
+* **[readme-auto-update](file:///.agents/skills/readme-auto-update/SKILL.md)**: Automates and verifies updating the `README.md` file whenever core application changes are made.
+* **[verify-pr-status](file:///.agents/skills/verify-pr-status/SKILL.md)**: Watches and verifies that all GitHub PR checks complete and pass successfully before concluding a PR lifecycle.
 
 ---
 
