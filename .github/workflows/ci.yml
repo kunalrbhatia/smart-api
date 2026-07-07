@@ -117,12 +117,37 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Build
         run: pnpm run build
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist
+            package.json
+            pnpm-lock.yaml
+            ecosystem.config.cjs
 
   deploy:
     if: github.ref == 'refs/heads/development' && github.event_name == 'push'
     needs: [lint, typecheck, test, build]
     runs-on: ubuntu-latest
     steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build-artifacts
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          source: 'build-artifacts/*'
+          target: '~/smart-api-temp'
+          strip_components: 1
+
       - name: Deploy using ssh
         uses: appleboy/ssh-action@master
         with:
@@ -130,24 +155,24 @@ jobs:
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
-            # Check if directory exists, if not clone it
-            if [ ! -d "$HOME/smart-api" ]; then
-              git clone https://github.com/kunalrbhatia/smart-api.git "$HOME/smart-api"
-            fi
+            # Ensure target directory exists
+            mkdir -p "$HOME/smart-api"
+
+            # Move files from temp to final destination
+            cp -r "$HOME/smart-api-temp"/* "$HOME/smart-api/"
+            rm -rf "$HOME/smart-api-temp"
 
             cd "$HOME/smart-api"
-            git fetch origin development
-            git reset --hard origin/development
 
-            # Ensure pnpm is installed and up-to-date
-            sudo npm install -g pnpm@latest
+            # Check if pnpm is installed, otherwise install it
+            if ! command -v pnpm &> /dev/null; then
+              sudo npm install -g pnpm@latest
+            fi
 
-            # Fix: Set CI=true and PNPM_CONFIRM_MODULES_PURGE to avoid TTY issues
+            # Set environment and install production dependencies only
             export CI=true
             export PNPM_CONFIRM_MODULES_PURGE=false
-
-            pnpm install --no-frozen-lockfile
-            pnpm build
+            pnpm install --prod --frozen-lockfile
 
             # Create/Update .env file from secrets
             echo "PORT=${{ secrets.PORT || 3000 }}" > .env
