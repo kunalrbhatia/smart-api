@@ -16,6 +16,7 @@ import OrderStore from '../../../src/store/orderStore';
 import { isCurrentTimeGreater, getNearestStrike } from 'krb-smart-api-module';
 import { OptionType, CheckOptionType } from '../../../src/app.interface';
 import * as functionsHelper from '../../../src/helpers/functions';
+import { isKillSwitchActive } from '../../../src/helpers/killSwitch';
 
 // Mock krb-smart-api-module
 jest.mock('krb-smart-api-module', () => ({
@@ -39,6 +40,7 @@ jest.mock('../../../src/store/orderStore');
 jest.mock('../../../src/store/dataStore');
 jest.mock('../../../src/helpers/functions');
 jest.mock('../../../src/helpers/apiService/session');
+jest.mock('../../../src/helpers/killSwitch');
 
 import { getSmartSession } from '../../../src/helpers/apiService/session';
 
@@ -47,6 +49,7 @@ describe('ApiService - Strategy - Final 90+', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (isKillSwitchActive as jest.Mock).mockReturnValue(false);
     mockOrderStoreInstance = {
       getPostData: jest.fn().mockReturnValue({
         INDEX: 'NIFTY',
@@ -279,6 +282,13 @@ describe('ApiService - Strategy - Final 90+', () => {
       const result = await isTradeAllowed('20FEB2025');
       expect(result.isAllowed).toBe(false);
       expect(result.reasons).toContain('Smart API down');
+    });
+
+    it('should fail if kill switch is active', async () => {
+      (isKillSwitchActive as jest.Mock).mockReturnValue(true);
+      const result = await isTradeAllowed('20FEB2025');
+      expect(result.isAllowed).toBe(false);
+      expect(result.reasons).toContain('Kill switch engaged');
     });
   });
 

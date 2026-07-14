@@ -29,6 +29,7 @@ import {
 } from '../functions';
 import OrderStore from '../../store/orderStore';
 import { getSmartSession } from './session';
+import { isKillSwitchActive } from '../killSwitch';
 import {
   getNearestWeeklyExpiry,
   getLtpWithRetry,
@@ -291,6 +292,10 @@ export const executeTrade = async () => {
  * Checks if trading is allowed based on market conditions.
  */
 export const isTradeAllowed = async (expiryDate: string) => {
+  if (isKillSwitchActive()) {
+    return { isAllowed: false, reasons: ['Kill switch engaged'] };
+  }
+
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isTuesday = moment().day() === 2;
