@@ -26,7 +26,12 @@ function getIST() {
 
 function getDateStr() {
   const d = new Date();
-  const opts = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+  const opts = {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  };
   const parts = new Intl.DateTimeFormat('en-CA', opts).formatToParts(d);
   const y = parts.find(p => p.type === 'year').value;
   const m = parts.find(p => p.type === 'month').value;
@@ -48,7 +53,12 @@ async function main() {
     process.exit(1);
   }
 
-  const creds = { APIKEY: apiKey, CLIENT_CODE: clientCode, CLIENT_PIN: clientPin, CLIENT_TOTP_PIN: clientTotpPin };
+  const creds = {
+    APIKEY: apiKey,
+    CLIENT_CODE: clientCode,
+    CLIENT_PIN: clientPin,
+    CLIENT_TOTP_PIN: clientTotpPin,
+  };
   setCredentials(creds);
   DataStore.getInstance().setPostData(creds);
 
@@ -79,8 +89,10 @@ async function main() {
   const filename = `expiry-${dateStr}.md`;
   const filepath = path.join(REPORTS_DIR, filename);
 
-  let totalRealised = 0, totalUnrealised = 0;
-  let totalBuyValue = 0, totalSellValue = 0;
+  let totalRealised = 0,
+    totalUnrealised = 0;
+  let totalBuyValue = 0,
+    totalSellValue = 0;
   let closedCount = 0;
   const rows = [];
   const strikes = new Map();
@@ -102,7 +114,9 @@ async function main() {
     const pnl = Number(p.pnl || 0);
     const sym = p.tradingsymbol || p.symbol || 'N/A';
     const status = netQty > 0 ? 'LONG' : netQty < 0 ? 'SHORT' : 'CLOSED';
-    rows.push(`| ${sym} | ${netQty} | ${status} | ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} | ${pnl >= 0 ? '✅' : '❌'} |`);
+    rows.push(
+      `| ${sym} | ${netQty} | ${status} | ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} | ${pnl >= 0 ? '✅' : '❌'} |`,
+    );
 
     // Straddle pair grouping
     const strike = Number(p.strikeprice);
@@ -118,15 +132,27 @@ async function main() {
 
   // Pair analysis rows
   const pairRows = [];
-  for (const [strike, pair] of [...strikes.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const [strike, pair] of [...strikes.entries()].sort(
+    (a, b) => a[0] - b[0],
+  )) {
     const net = pair.ce + pair.pe;
-    pairRows.push(`| ${strike} | ${pair.ce >= 0 ? '+' : ''}${pair.ce.toFixed(2)} | ${pair.pe >= 0 ? '+' : ''}${pair.pe.toFixed(2)} | ${net >= 0 ? '+' : ''}${net.toFixed(2)} | ${net >= 0 ? '✅' : '❌'} |`);
+    pairRows.push(
+      `| ${strike} | ${pair.ce >= 0 ? '+' : ''}${pair.ce.toFixed(2)} | ${pair.pe >= 0 ? '+' : ''}${pair.pe.toFixed(2)} | ${net >= 0 ? '+' : ''}${net.toFixed(2)} | ${net >= 0 ? '✅' : '❌'} |`,
+    );
   }
 
-  const shortCount = currentExpiryPositions.filter(p => Number(p.netqty || 0) < 0).length;
-  const longCount = currentExpiryPositions.filter(p => Number(p.netqty || 0) > 0).length;
-  const winners = currentExpiryPositions.filter(p => Number(p.pnl || 0) > 0).length;
-  const losers = currentExpiryPositions.filter(p => Number(p.pnl || 0) < 0).length;
+  const shortCount = currentExpiryPositions.filter(
+    p => Number(p.netqty || 0) < 0,
+  ).length;
+  const longCount = currentExpiryPositions.filter(
+    p => Number(p.netqty || 0) > 0,
+  ).length;
+  const winners = currentExpiryPositions.filter(
+    p => Number(p.pnl || 0) > 0,
+  ).length;
+  const losers = currentExpiryPositions.filter(
+    p => Number(p.pnl || 0) < 0,
+  ).length;
 
   const report = [
     `# 📊 Weekly Expiry Analysis — ${expiryLabel}`,
