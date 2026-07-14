@@ -185,7 +185,3 @@ jobs:
             echo "USE_SLACK=${{ secrets.USE_SLACK }}" >> .env
             echo "USE_TELEGRAM=${{ secrets.USE_TELEGRAM }}" >> .env
             echo "SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}" >> .env
-
-            # Restart with PM2
-            pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
-            pm2 save
