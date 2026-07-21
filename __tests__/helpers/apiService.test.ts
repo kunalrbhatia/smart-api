@@ -100,7 +100,7 @@ describe('apiService', () => {
       (ScripMasterStore.getInstance as jest.Mock).mockReturnValue({
         getPostData: getPostDataMock,
         setPostData: setPostDataMock,
-        isExpired: jest.fn().mockReturnValue(false),
+        isExpired: jest.fn().mockReturnValue(true),
       });
       const mockScripMaster = [{ name: 'NIFTY' }];
       (api.get as jest.Mock).mockResolvedValue(mockScripMaster);

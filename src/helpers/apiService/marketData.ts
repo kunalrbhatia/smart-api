@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { get as _get, isArray } from 'lodash';
 import moment from 'moment-timezone';
 import { delay } from 'krb-smart-api-module';
@@ -7,6 +9,7 @@ import {
   ALGO,
   GET_LTP_DATA_API,
   SCRIPMASTER,
+  SCRIP_MASTER_FILE,
   SEARCHSCRIPAPI,
 } from '../constants';
 import {
@@ -20,31 +23,60 @@ import { getAuthHeaders } from './session';
 
 /**
  * Fetches the scrip master data.
- * It first checks if the data is available in the store, if not, it fetches from the API.
+ * Checks in-memory store first, then local scripMaster.json file (if modified today), and downloads via API if needed.
  * @returns {Promise<scripMasterResponse[]>} A promise that resolves with the scrip master data.
  */
 export const fetchData = async (): Promise<scripMasterResponse[]> => {
   const store = ScripMasterStore.getInstance();
-  const data = store.getPostData().SCRIP_MASTER_JSON;
+  const memoryData = store.getPostData().SCRIP_MASTER_JSON;
 
-  if (data.length > 0 && !store.isExpired()) {
-    return data as scripMasterResponse[];
-  } else {
+  // 1. If in-memory data exists and file is up to date (modified today), return memory data
+  if (memoryData.length > 0 && !store.isExpired()) {
+    return memoryData as scripMasterResponse[];
+  }
+
+  const filePath = path.join(process.cwd(), SCRIP_MASTER_FILE);
+
+  // 2. If file exists on disk and is modified today, load from file
+  if (!store.isExpired()) {
     try {
-      logger.log(`${ALGO}: 📥 Downloading Scrip Master...`);
-      const response = (await get(SCRIPMASTER, {})) as scripMasterResponse[];
-      const acData: scripMasterResponse[] = response;
+      logger.log(`${ALGO}: 📄 Loading Scrip Master from local file cache...`);
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      const fileData = JSON.parse(fileContent) as scripMasterResponse[];
+      store.setPostData({ SCRIP_MASTER_JSON: fileData });
       logger.log(
-        `${ALGO}: Scrip Master loaded. Total scrips: ${acData.length}`,
+        `${ALGO}: Scrip Master loaded from file cache. Total scrips: ${fileData.length}`,
       );
-      ScripMasterStore.getInstance().setPostData({
-        SCRIP_MASTER_JSON: acData,
-      });
-      return acData;
-    } catch (error) {
-      logger.error(`${ALGO}: fetchData failed:`, error);
-      throw error;
+      return fileData;
+    } catch (err) {
+      logger.error(`${ALGO}: Failed to read scrip master local cache:`, err);
     }
+  }
+
+  // 3. Otherwise download from API and update both local file and memory store
+  try {
+    logger.log(`${ALGO}: 📥 Downloading Scrip Master...`);
+    const response = (await get(SCRIPMASTER, {})) as scripMasterResponse[];
+    const acData: scripMasterResponse[] = response;
+    logger.log(
+      `${ALGO}: Scrip Master downloaded. Total scrips: ${acData.length}`,
+    );
+
+    // Save to local file cache
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(acData));
+    } catch (writeErr) {
+      logger.error(
+        `${ALGO}: Failed to write scrip master local cache:`,
+        writeErr,
+      );
+    }
+
+    store.setPostData({ SCRIP_MASTER_JSON: acData });
+    return acData;
+  } catch (error) {
+    logger.error(`${ALGO}: fetchData failed:`, error);
+    throw error;
   }
 };
 

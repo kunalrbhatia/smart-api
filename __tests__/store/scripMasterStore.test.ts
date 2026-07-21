@@ -1,8 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import fs from 'fs';
+import moment from 'moment-timezone';
 import ScripMasterStore from '../../src/store/scripMasterStore';
+
+jest.mock('fs');
 
 describe('ScripMasterStore', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     const instance = ScripMasterStore.getInstance();
     instance.setPostData({
       SCRIP_MASTER_JSON: [],
@@ -27,22 +32,28 @@ describe('ScripMasterStore', () => {
     expect(instance.getPostData().SCRIP_MASTER_JSON).toEqual(mockData);
   });
 
-  it('should not be expired initially', () => {
+  it('should return isExpired = true if file does not exist', () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(false);
+    const instance = ScripMasterStore.getInstance();
+    expect(instance.isExpired()).toBe(true);
+  });
+
+  it('should return isExpired = false if file was modified today (IST)', () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.statSync as jest.Mock).mockReturnValue({
+      mtime: new Date(),
+    });
     const instance = ScripMasterStore.getInstance();
     expect(instance.isExpired()).toBe(false);
   });
 
-  it('should be expired if data is more than 24 hours old', () => {
+  it('should return isExpired = true if file was modified on a previous date', () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    const yesterday = moment().subtract(1, 'days').toDate();
+    (fs.statSync as jest.Mock).mockReturnValue({
+      mtime: yesterday,
+    });
     const instance = ScripMasterStore.getInstance();
-    instance.setPostData({ SCRIP_MASTER_JSON: [] });
-
-    // Mock Date.now to be 25 hours in the future
-    const originalDateNow = Date.now;
-    Date.now = jest.fn(() => originalDateNow() + 25 * 60 * 60 * 1000);
-
     expect(instance.isExpired()).toBe(true);
-
-    // Restore original Date.now
-    Date.now = originalDateNow;
   });
 });

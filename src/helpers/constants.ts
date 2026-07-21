@@ -54,6 +54,11 @@ export const GET_LTP_DATA_API =
 export const SCRIPMASTER =
   'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json';
 /**
+ * Local cache file path for scrip master JSON data.
+ * @type {string}
+ */
+export const SCRIP_MASTER_FILE = 'scripMaster.json';
+/**
  * The API endpoint for the order book.
  * @type {string}
  */

@@ -10,3 +10,5 @@ pnpm-workspace.yaml
 smart-api-bruno
 algo-smart-api/short-straddle-algo.bru
 .aider*
+scripMaster.json
+pr-body.txt
