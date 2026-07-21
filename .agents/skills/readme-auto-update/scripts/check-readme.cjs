@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-var-requires */
 const { execSync } = require('child_process');
 
 try {
@@ -22,18 +23,31 @@ try {
   }
 
   // Check if README.md is in changed files
-  const isReadmeUpdated = changedFiles.some(f => f.toLowerCase() === 'readme.md');
+  const isReadmeUpdated = changedFiles.some(
+    f => f.toLowerCase() === 'readme.md',
+  );
 
   // Check if any source code or config files are modified
   const hasCoreChanges = changedFiles.some(f => {
-    return f.startsWith('src/') || f === 'package.json' || f === '.env.example' || f === 'initialize.sh';
+    return (
+      f.startsWith('src/') ||
+      f === 'package.json' ||
+      f === '.env.example' ||
+      f === 'initialize.sh'
+    );
   });
 
   if (hasCoreChanges && !isReadmeUpdated) {
     console.error('\n❌ README Verification Failed!');
-    console.error('You have modified core application files or configurations, but README.md has not been updated.');
-    console.error('Please update README.md to document your changes (e.g. new commands, configurations, environment variables, or logic).');
-    console.error('If the changes do not require a README update, you can bypass this check using git commit --no-verify\n');
+    console.error(
+      'You have modified core application files or configurations, but README.md has not been updated.',
+    );
+    console.error(
+      'Please update README.md to document your changes (e.g. new commands, configurations, environment variables, or logic).',
+    );
+    console.error(
+      'If the changes do not require a README update, you can bypass this check using git commit --no-verify\n',
+    );
     process.exit(1);
   }
 
