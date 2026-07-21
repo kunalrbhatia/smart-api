@@ -24,6 +24,9 @@ jest.mock('krb-smart-api-module', () => ({
   delay: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('fs');
+import fs from 'fs';
+
 describe('ApiService - MarketData', () => {
   let mockScripMasterStoreInstance: any;
 
@@ -43,7 +46,7 @@ describe('ApiService - MarketData', () => {
   });
 
   describe('fetchData', () => {
-    it('should return data from store if available', async () => {
+    it('should return data from store if available and not expired', async () => {
       const storedData = [{ symbol: 'NIFTY' }];
       mockScripMasterStoreInstance.getPostData.mockReturnValue({
         SCRIP_MASTER_JSON: storedData,
@@ -55,16 +58,37 @@ describe('ApiService - MarketData', () => {
       expect(api.get).not.toHaveBeenCalled();
     });
 
-    it('should fetch data from API if store is empty', async () => {
+    it('should load from local file cache if memory is empty but file is not expired', async () => {
       mockScripMasterStoreInstance.getPostData.mockReturnValue({
         SCRIP_MASTER_JSON: [],
       });
+      mockScripMasterStoreInstance.isExpired.mockReturnValue(false);
+      const cachedData = [{ symbol: 'BANKNIFTY' }];
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(cachedData),
+      );
+
+      const result = await fetchData();
+
+      expect(result).toEqual(cachedData);
+      expect(mockScripMasterStoreInstance.setPostData).toHaveBeenCalledWith({
+        SCRIP_MASTER_JSON: cachedData,
+      });
+      expect(api.get).not.toHaveBeenCalled();
+    });
+
+    it('should fetch data from API if store is expired and save to local file', async () => {
+      mockScripMasterStoreInstance.getPostData.mockReturnValue({
+        SCRIP_MASTER_JSON: [],
+      });
+      mockScripMasterStoreInstance.isExpired.mockReturnValue(true);
       const apiData = [{ symbol: 'NIFTY' }];
       (api.get as jest.Mock).mockResolvedValue(apiData);
 
       const result = await fetchData();
 
       expect(result).toEqual(apiData);
+      expect(fs.writeFileSync).toHaveBeenCalled();
       expect(mockScripMasterStoreInstance.setPostData).toHaveBeenCalledWith({
         SCRIP_MASTER_JSON: apiData,
       });
@@ -74,6 +98,7 @@ describe('ApiService - MarketData', () => {
       mockScripMasterStoreInstance.getPostData.mockReturnValue({
         SCRIP_MASTER_JSON: [],
       });
+      mockScripMasterStoreInstance.isExpired.mockReturnValue(true);
       (api.get as jest.Mock).mockRejectedValue(new Error('API Error'));
 
       await expect(fetchData()).rejects.toThrow('API Error');
@@ -317,11 +342,12 @@ describe('ApiService - MarketData', () => {
       mockScripMasterStoreInstance.getPostData.mockReturnValue({
         SCRIP_MASTER_JSON: [],
       });
+      mockScripMasterStoreInstance.isExpired.mockReturnValue(true);
       (api.get as jest.Mock).mockResolvedValue([]); // Mock API to return empty array
 
       await expect(
         getScrip({ scriptName: 'NIFTY', expiryDate: '20FEB2025' }),
-      ).rejects.toMatch('getScrip failed for NIFTY');
+      ).rejects.toEqual('Algo: getScrip failed for NIFTY');
     });
   });
 
@@ -345,10 +371,11 @@ describe('ApiService - MarketData', () => {
       mockScripMasterStoreInstance.getPostData.mockReturnValue({
         SCRIP_MASTER_JSON: [],
       });
+      mockScripMasterStoreInstance.isExpired.mockReturnValue(true);
       (api.get as jest.Mock).mockResolvedValue([]); // Mock API to return empty array
 
-      await expect(getIndexScrip({ scriptName: 'UNKNOWN' })).rejects.toMatch(
-        'getIndexScrip failed for UNKNOWN',
+      await expect(getIndexScrip({ scriptName: 'UNKNOWN' })).rejects.toEqual(
+        'Algo: getIndexScrip failed for UNKNOWN',
       );
     });
   });
