@@ -30,6 +30,7 @@ class OrderStore {
       INDEX: '',
       LOSSPERLOT: 0,
       INDIAVIX: 0,
+      MTM_BASELINE: 0,
     };
   }
   /**

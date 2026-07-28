@@ -26,6 +26,7 @@ import {
   hedgeCalculation,
   isMarketClosed,
   getOpenSellPositions,
+  hasHedgePositions,
 } from '../functions';
 import OrderStore from '../../store/orderStore';
 import { getSmartSession } from './session';
@@ -243,9 +244,17 @@ export const checkToRepeatShortStraddle = async (
 /**
  * Executes the core trading logic.
  */
-export const coreTradeExecution = async ({ data }: { data: Position[] }) => {
+export const coreTradeExecution = async ({
+  data,
+  allPositions,
+}: {
+  data: Position[];
+  allPositions: Position[];
+}) => {
   const isTradeAlreadyTaken = Array.isArray(data) && data.length > 0;
-  if (isTradeAlreadyTaken === false) {
+  const hedgesExist = hasHedgePositions(allPositions);
+
+  if (isTradeAlreadyTaken === false || hedgesExist === false) {
     await shortStraddle(true);
     await notify('Short Straddle order executed successfully!');
   } else {
@@ -278,10 +287,18 @@ export const executeTrade = async () => {
   const openSellPositions = getOpenSellPositions(allPositions);
   const mtmData = await getMtm(allPositions);
 
+  const orderStore = OrderStore.getInstance();
+  const postData = orderStore.getPostData();
+  if (postData.MTM_BASELINE === 0) {
+    postData.MTM_BASELINE = mtmData;
+    orderStore.setPostData(postData);
+  }
+  const adjustedMtm = mtmData - postData.MTM_BASELINE;
+
   if (isPastClosingTime === false) {
-    await coreTradeExecution({ data: openSellPositions });
+    await coreTradeExecution({ data: openSellPositions, allPositions });
     await placeStopLossOnAllTrades(125, allPositions);
-    resp = mtmData;
+    resp = adjustedMtm;
   }
   if (isPastClosingTime && openSellPositions.length > 0)
     await closeTrade(false);
@@ -347,12 +364,14 @@ export const checkMarketConditionsAndExecuteTrade = async (
       tradingsymbol: indiaVix[0].symbol,
     });
 
+    const currentPostData = OrderStore.getInstance().getPostData();
     OrderStore.getInstance().setPostData({
       QUANTITY: lots,
       EXPIRYDATE: expiryDate,
       INDEX: 'NIFTY',
       LOSSPERLOT: lossPerLot,
       INDIAVIX: indiaVixLtp.ltp,
+      MTM_BASELINE: currentPostData ? currentPostData.MTM_BASELINE : 0,
     });
 
     const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
