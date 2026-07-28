@@ -12,3 +12,7 @@ algo-smart-api/short-straddle-algo.bru
 .aider*
 scripMaster.json
 pr-body.txt
+positions.json
+paper-positions.json
+paper-orders.json
+

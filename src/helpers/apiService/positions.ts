@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { get as _get } from 'lodash';
 import {
   DELAY,
@@ -6,7 +8,6 @@ import {
   CREDENTIALS,
 } from 'krb-smart-api-module';
 
-import { get } from '../api';
 import { logger } from '../logger';
 import { notify } from '../notifier';
 import {
@@ -14,7 +15,6 @@ import {
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
   ME,
-  GET_POSITIONS,
 } from '../constants';
 import { Position, ISmartApiData, CheckPosition } from '../../app.interface';
 import {
@@ -23,7 +23,7 @@ import {
   getOpenPositionsByExpiry,
 } from '../functions';
 import OrderStore from '../../store/orderStore';
-import { getAuthHeaders, getSmartSession } from './session';
+import { getSmartSession } from './session';
 import { doOrder } from './orders';
 import {
   isPaperMode,
@@ -31,101 +31,236 @@ import {
   savePaperPositions,
 } from '../paperTrade';
 
+const POSITIONS_FILE = path.join(process.cwd(), 'positions.json');
+
+export const getAlgoPositions = (): Position[] => {
+  if (isPaperMode()) {
+    return getPaperPositions();
+  }
+  if (!fs.existsSync(POSITIONS_FILE)) return [];
+  try {
+    const data = fs.readFileSync(POSITIONS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    logger.error('Failed to read positions.json:', err);
+    return [];
+  }
+};
+
+export const saveAlgoPositions = (positions: Position[]): void => {
+  if (isPaperMode()) {
+    savePaperPositions(positions);
+    return;
+  }
+  try {
+    fs.writeFileSync(POSITIONS_FILE, JSON.stringify(positions, null, 2));
+  } catch (err) {
+    logger.error('Failed to save positions.json:', err);
+  }
+};
+
+export const updateLivePositions = async ({
+  symboltoken,
+  tradingsymbol,
+  transactionType,
+  quantity,
+  exchange,
+}: {
+  symboltoken: string;
+  tradingsymbol: string;
+  transactionType: 'BUY' | 'SELL';
+  quantity: number;
+  exchange: string;
+}) => {
+  let price = 0;
+  try {
+    const { getLtpWithRetry } = await import('./marketData');
+    const ltpData = await getLtpWithRetry({
+      exchange,
+      symboltoken,
+      tradingsymbol,
+    });
+    price = ltpData.ltp;
+  } catch (err) {
+    logger.error(
+      `Failed to fetch LTP for ${tradingsymbol} while updating live positions:`,
+      err,
+    );
+  }
+
+  const positions = getAlgoPositions();
+  const existingIdx = positions.findIndex(p => p.symboltoken === symboltoken);
+  const qty = transactionType === 'BUY' ? quantity : -quantity;
+
+  if (existingIdx >= 0) {
+    const p = positions[existingIdx];
+    const oldNetQty = Number.parseInt(p.netqty);
+    const newNetQty = oldNetQty + qty;
+
+    p.netqty = newNetQty.toString();
+    if (transactionType === 'BUY') {
+      const oldBuyQty = Number.parseInt(p.buyqty);
+      const oldBuyVal = Number.parseFloat(p.totalbuyvalue);
+      p.buyqty = (oldBuyQty + quantity).toString();
+      p.totalbuyvalue = (oldBuyVal + quantity * price).toString();
+      p.buyavgprice = (
+        Number.parseFloat(p.totalbuyvalue) / Number.parseInt(p.buyqty)
+      ).toString();
+    } else {
+      const oldSellQty = Number.parseInt(p.sellqty);
+      const oldSellVal = Number.parseFloat(p.totalsellvalue);
+      p.sellqty = (oldSellQty + quantity).toString();
+      p.totalsellvalue = (oldSellVal + quantity * price).toString();
+      p.sellavgprice = (
+        Number.parseFloat(p.totalsellvalue) / Number.parseInt(p.sellqty)
+      ).toString();
+    }
+    p.netvalue = (
+      Number.parseFloat(p.totalbuyvalue) - Number.parseFloat(p.totalsellvalue)
+    ).toString();
+
+    if (oldNetQty < 0 && qty > 0) {
+      const coveredQty = Math.min(Math.abs(oldNetQty), qty);
+      const sellAvg = Number.parseFloat(p.sellavgprice);
+      p.realised = (
+        Number.parseFloat(p.realised) +
+        coveredQty * (sellAvg - price)
+      ).toString();
+    } else if (oldNetQty > 0 && qty < 0) {
+      const soldQty = Math.min(oldNetQty, Math.abs(qty));
+      const buyAvg = Number.parseFloat(p.buyavgprice);
+      p.realised = (
+        Number.parseFloat(p.realised) +
+        soldQty * (price - buyAvg)
+      ).toString();
+    }
+  } else {
+    let strikeprice = '0';
+    let optiontype: 'CE' | 'PE' = 'CE';
+    const symbolRegex = /^([A-Z]+)(\d{2}[A-Z]{3}\d{2})(\d+\.?\d*)([CP]E)$/;
+    const match = tradingsymbol.match(symbolRegex);
+    if (match) {
+      strikeprice = match[3];
+      optiontype = match[4] as 'CE' | 'PE';
+    }
+
+    const postData = OrderStore.getInstance().getPostData();
+
+    const newPos: Position = {
+      symboltoken,
+      tradingsymbol,
+      symbolname:
+        postData.INDEX ||
+        (tradingsymbol.includes('BANKNIFTY') ? 'BANKNIFTY' : 'NIFTY'),
+      expirydate: postData.EXPIRYDATE || '',
+      exchange,
+      strikeprice,
+      optiontype,
+      netqty: qty.toString(),
+      buyqty: transactionType === 'BUY' ? quantity.toString() : '0',
+      sellqty: transactionType === 'SELL' ? quantity.toString() : '0',
+      totalbuyvalue:
+        transactionType === 'BUY' ? (quantity * price).toString() : '0',
+      totalsellvalue:
+        transactionType === 'SELL' ? (quantity * price).toString() : '0',
+      buyavgprice: transactionType === 'BUY' ? price.toString() : '0',
+      sellavgprice: transactionType === 'SELL' ? price.toString() : '0',
+      netvalue: (transactionType === 'BUY'
+        ? quantity * price
+        : -(quantity * price)
+      ).toString(),
+      realised: '0',
+      unrealised: '0',
+      ltp: price.toString(),
+      lotsize: '1',
+      instrumenttype: 'OPTIDX',
+      priceden: '1',
+      pricenum: '1',
+      genden: '1',
+      gennum: '1',
+      precision: '2',
+      multiplier: '1',
+      boardlotsize: '1',
+      symbolgroup: '',
+      cfbuyqty: '0',
+      cfsellqty: '0',
+      cfbuyamount: '0',
+      cfsellamount: '0',
+      avgnetprice: '0',
+      totalbuyavgprice: '0',
+      totalsellavgprice: '0',
+      netprice: '0',
+      buyamount: '0',
+      sellamount: '0',
+      pnl: '0',
+      close: '0',
+      producttype: 'CARRYFORWARD',
+      cfbuyavgprice: '0',
+      cfsellavgprice: '0',
+    };
+    positions.push(newPos);
+  }
+  saveAlgoPositions(positions);
+};
+
 export const getPositions = async (
   _smartSession: ISmartApiData,
   _cred: CREDENTIALS,
 ): Promise<Position[]> => {
-  if (isPaperMode()) {
-    const paperPositions = getPaperPositions();
-    // Update LTP for paper positions
-    const { getLtpWithRetry } = await import('./marketData');
-    for (const pos of paperPositions) {
-      let retryAttempt = 0;
-      const MAX_LTP_RETRIES = 3;
-      let success = false;
+  const isPaper = isPaperMode();
+  const positions = isPaper ? getPaperPositions() : getAlgoPositions();
 
-      while (retryAttempt < MAX_LTP_RETRIES && !success) {
-        try {
-          const ltpData = await getLtpWithRetry({
-            exchange: pos.exchange,
-            symboltoken: pos.symboltoken,
-            tradingsymbol: pos.tradingsymbol,
-            maxRetries: 1, // We handle retries here with exponential backoff
-          });
+  const { getLtpWithRetry } = await import('./marketData');
+  for (const pos of positions) {
+    let retryAttempt = 0;
+    const MAX_LTP_RETRIES = 3;
+    let success = false;
 
-          if (ltpData && ltpData.ltp) {
-            pos.ltp = ltpData.ltp.toString();
-            const netQty = Number.parseInt(pos.netqty);
-            const buyVal = Number.parseFloat(pos.totalbuyvalue);
-            const sellVal = Number.parseFloat(pos.totalsellvalue);
-            pos.unrealised = (sellVal - buyVal + netQty * ltpData.ltp).toFixed(
-              2,
-            );
-            pos.pnl = (
-              Number.parseFloat(pos.realised) +
-              Number.parseFloat(pos.unrealised)
-            ).toFixed(2);
-            success = true;
-          }
-        } catch (e: any) {
-          retryAttempt++;
-          if (retryAttempt >= MAX_LTP_RETRIES) {
-            logger.error(
-              `[PAPER] Failed to update LTP for ${pos.tradingsymbol} after ${MAX_LTP_RETRIES} attempts`,
-              e,
-            );
-          } else {
-            const backoffDelay = 3000 * Math.pow(2, retryAttempt - 1);
-            logger.warn(
-              `[PAPER] Rate limit or error for ${pos.tradingsymbol}. Retrying in ${backoffDelay}ms (Attempt ${retryAttempt}/${MAX_LTP_RETRIES})`,
-            );
-            await delay({ milliSeconds: backoffDelay });
-          }
+    while (retryAttempt < MAX_LTP_RETRIES && !success) {
+      try {
+        const ltpData = await getLtpWithRetry({
+          exchange: pos.exchange,
+          symboltoken: pos.symboltoken,
+          tradingsymbol: pos.tradingsymbol,
+          maxRetries: 1,
+        });
+
+        if (ltpData && ltpData.ltp) {
+          pos.ltp = ltpData.ltp.toString();
+          const netQty = Number.parseInt(pos.netqty);
+          const buyVal = Number.parseFloat(pos.totalbuyvalue);
+          const sellVal = Number.parseFloat(pos.totalsellvalue);
+          pos.unrealised = (sellVal - buyVal + netQty * ltpData.ltp).toFixed(2);
+          pos.pnl = (
+            Number.parseFloat(pos.realised) + Number.parseFloat(pos.unrealised)
+          ).toFixed(2);
+          success = true;
+        }
+      } catch (e: any) {
+        retryAttempt++;
+        if (retryAttempt >= MAX_LTP_RETRIES) {
+          logger.error(
+            `Failed to update LTP for ${pos.tradingsymbol} after ${MAX_LTP_RETRIES} attempts`,
+            e,
+          );
+        } else {
+          const backoffDelay = 3000 * Math.pow(2, retryAttempt - 1);
+          logger.warn(
+            `Rate limit or error for ${pos.tradingsymbol}. Retrying in ${backoffDelay}ms (Attempt ${retryAttempt}/${MAX_LTP_RETRIES})`,
+          );
+          await delay({ milliSeconds: backoffDelay });
         }
       }
-      // Fixed small delay between different positions to stay under rate limits
-      await delay({ milliSeconds: 350 });
     }
-    savePaperPositions(paperPositions);
-    return paperPositions;
+    await delay({ milliSeconds: 350 });
   }
 
-  const headers = await getAuthHeaders();
-
-  try {
-    const responseJson = await get(GET_POSITIONS, headers);
-    const positions = _get(responseJson, 'data', null);
-
-    if (positions === null) {
-      logger.warn(
-        `${ALGO}: getPositions — 'data' field missing in response. Full response:`,
-        responseJson,
-      );
-      return [];
-    }
-
-    if (Array.isArray(positions)) {
-      logger.log(
-        `${ALGO}: getPositions — Success. Total positions: ${positions.length}`,
-      );
-      if (positions.length > 0) {
-        logger.log(
-          `${ALGO}: Raw positions detail:`,
-          positions.map(p => ({
-            symbol: p.tradingsymbol,
-            symbolname: p.symbolname,
-            qty: p.netqty,
-            expiry: p.expirydate,
-          })),
-        );
-      }
-      return positions;
-    }
-    return [];
-  } catch (error) {
-    logger.error(`${ALGO}: getPositions failed:`, error);
-    throw error;
+  if (isPaper) {
+    savePaperPositions(positions);
+  } else {
+    saveAlgoPositions(positions);
   }
+  return positions;
 };
 
 /**

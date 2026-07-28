@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as sessionHelper from '../../../src/helpers/apiService/session';
-
 import * as marketDataHelper from '../../../src/helpers/apiService/marketData';
 import * as ordersHelper from '../../../src/helpers/apiService/orders';
+
+// Mock fs
+jest.mock('fs');
+import fs from 'fs';
 
 // Mock krb-smart-api-module FIRST
 jest.mock('krb-smart-api-module', () => ({
@@ -27,7 +30,6 @@ jest.mock('../../../src/helpers/apiService/marketData');
 jest.mock('../../../src/helpers/apiService/orders');
 jest.mock('../../../src/helpers/functions');
 
-import * as api from '../../../src/helpers/api';
 import * as functionsHelper from '../../../src/helpers/functions';
 
 import {
@@ -48,6 +50,10 @@ describe('ApiService - Positions - Final', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.readFileSync as jest.Mock).mockReturnValue('[]');
+    (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
+
     mockOrderStoreInstance = {
       getPostData: jest
         .fn()
@@ -76,29 +82,48 @@ describe('ApiService - Positions - Final', () => {
       clientCode: 'C1',
       password: 'P1',
     });
+    (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+      ltp: 10,
+    });
   });
 
   const mockFetchSuccess = (data: any) => {
-    (api.get as jest.Mock).mockResolvedValue({ data, status: true });
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(data));
   };
 
   describe('getPositions', () => {
     it('should fetch and return positions', async () => {
-      mockFetchSuccess([{ tradingsymbol: 'T1' }]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockFetchSuccess([
+        {
+          tradingsymbol: 'T1',
+          exchange: 'NFO',
+          symboltoken: '1',
+          netqty: '50',
+          totalbuyvalue: '500',
+          totalsellvalue: '0',
+          realised: '0',
+        },
+      ]);
       const result = await getPositions(
         { jwtToken: 'token' } as any,
         {} as any,
       );
 
-      expect(result).toEqual([{ tradingsymbol: 'T1' }]);
+      expect(result).toHaveLength(1);
+      expect(result[0].tradingsymbol).toBe('T1');
     });
 
-    it('should throw error if API returns error status', async () => {
-      (api.get as jest.Mock).mockRejectedValue(new Error('getPositions'));
-      await expect(
-        getPositions({ jwtToken: 'token' } as any, {} as any),
-      ).rejects.toThrow('getPositions');
+    it('should log error and return empty if file reading fails', async () => {
+      (fs.readFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error('Read Error');
+      });
+      const result = await getPositions(
+        { jwtToken: 'token' } as any,
+        {} as any,
+      );
+      expect(result).toEqual([]);
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -110,6 +135,11 @@ describe('ApiService - Positions - Final', () => {
           netqty: '-50',
           expirydate: '20FEB2025',
           symbolname: 'NIFTY',
+          exchange: 'NFO',
+          symboltoken: '1',
+          totalbuyvalue: '0',
+          totalsellvalue: '500',
+          realised: '0',
         },
       ];
       mockFetchSuccess(allPositions);
@@ -118,7 +148,9 @@ describe('ApiService - Positions - Final', () => {
     });
 
     it('should return empty array and log on failure', async () => {
-      (api.get as jest.Mock).mockRejectedValue(new Error('Fatal'));
+      (fs.readFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error('Fatal');
+      });
       const result = await getPositionsJson();
       expect(result).toEqual([]);
       expect(logger.error).toHaveBeenCalled();
@@ -135,19 +167,23 @@ describe('ApiService - Positions - Final', () => {
           lotsize: '50',
           expirydate: '20FEB2025',
           symbolname: 'NIFTY',
+          exchange: 'NFO',
+          totalbuyvalue: '0',
+          totalsellvalue: '500',
+          realised: '0',
         },
       ];
-      // Mock fetch: 1st call (closeTrade while), 2nd call (closeAllTrades), 3rd call (closeTrade while loop check - returns empty), 4th call (getMtm)
-      (api.get as jest.Mock)
-        .mockResolvedValueOnce({ data: positions, status: true })
-        .mockResolvedValueOnce({ data: positions, status: true })
-        .mockResolvedValueOnce({ data: [], status: true })
-        .mockResolvedValueOnce({ data: [], status: true });
+
+      let readCount = 0;
+      (fs.readFileSync as jest.Mock).mockImplementation(() => {
+        readCount++;
+        if (readCount === 1 || readCount === 2) {
+          return JSON.stringify(positions);
+        }
+        return JSON.stringify([]);
+      });
 
       (ordersHelper.doOrder as jest.Mock).mockResolvedValue({ status: true });
-      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
-        ltp: 10,
-      });
 
       await closeTrade();
 
@@ -158,6 +194,9 @@ describe('ApiService - Positions - Final', () => {
 
   describe('getMtm', () => {
     it('should calculate MTM', async () => {
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 16,
+      });
       const positions = [
         {
           tradingsymbol: 'T1',
@@ -166,34 +205,60 @@ describe('ApiService - Positions - Final', () => {
           realised: '200',
           expirydate: '20FEB2025',
           symbolname: 'NIFTY',
+          exchange: 'NFO',
+          symboltoken: '1',
+          totalbuyvalue: '500',
+          totalsellvalue: '0',
         },
       ];
       mockFetchSuccess(positions);
       expect(await getMtm()).toBe(500);
     });
 
-    it('should rethrow if MTM fails', async () => {
-      (api.get as jest.Mock).mockRejectedValue(new Error('MTM Error'));
-      await expect(getMtm()).rejects.toThrow('MTM Error');
+    it('should return 0 if MTM fails', async () => {
+      (fs.readFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error('MTM Error');
+      });
+      const result = await getMtm();
+      expect(result).toBe(0);
     });
   });
 
   describe('fetchOpenPositionsByExpiry', () => {
-    it('should return empty if allPositions is not array', async () => {
-      (api.get as jest.Mock).mockResolvedValue({ data: null, status: true });
+    it('should return empty if allPositions is not array or empty', async () => {
+      (fs.readFileSync as jest.Mock).mockReturnValue('null');
       const result = await fetchOpenPositionsByExpiry('NIFTY', '20FEB2025');
       expect(result).toEqual([]);
     });
 
     it('should return filtered positions', async () => {
-      const positions = [{ tradingsymbol: 'T1' }];
+      const positions = [
+        {
+          tradingsymbol: 'T1',
+          exchange: 'NFO',
+          symboltoken: '1',
+          netqty: '50',
+          totalbuyvalue: '500',
+          totalsellvalue: '0',
+          realised: '0',
+        },
+      ];
       mockFetchSuccess(positions);
       const result = await fetchOpenPositionsByExpiry('NIFTY', '20FEB2025');
-      expect(result).toEqual(positions);
+      expect(result).toEqual([
+        {
+          ...positions[0],
+          ltp: '10',
+          unrealised: '0.00',
+          pnl: '0.00',
+        },
+      ]);
     });
 
     it('should return empty on catch', async () => {
-      (api.get as jest.Mock).mockRejectedValue(new Error('Fetch Error'));
+      (fs.readFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error('Fetch Error');
+      });
       const result = await fetchOpenPositionsByExpiry('NIFTY', '20FEB2025');
       expect(result).toEqual([]);
       expect(logger.error).toHaveBeenCalled();
@@ -208,6 +273,10 @@ describe('ApiService - Positions - Final', () => {
           netqty: '50',
           symboltoken: '1',
           lotsize: '50',
+          exchange: 'NFO',
+          totalbuyvalue: '500',
+          totalsellvalue: '0',
+          realised: '0',
         },
       ];
       mockFetchSuccess(positions);
@@ -225,6 +294,9 @@ describe('ApiService - Positions - Final', () => {
           symboltoken: '1',
           lotsize: '50',
           exchange: 'NFO',
+          totalbuyvalue: '0',
+          totalsellvalue: '500',
+          realised: '0',
         },
       ];
       mockFetchSuccess(positions);
@@ -245,9 +317,12 @@ describe('ApiService - Positions - Final', () => {
           lotsize: '50',
           expirydate: '20FEB2025',
           symbolname: 'NIFTY',
+          exchange: 'NFO',
+          totalbuyvalue: '0',
+          totalsellvalue: '500',
+          realised: '0',
         },
       ];
-      // Always return active positions to keep loop going
       mockFetchSuccess(positions);
       (ordersHelper.doOrder as jest.Mock).mockResolvedValue({ status: true });
       (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
