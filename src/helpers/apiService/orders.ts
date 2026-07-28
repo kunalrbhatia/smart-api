@@ -105,6 +105,16 @@ export const doOrder = async ({
   try {
     const response = await post(ORDER_API, data, headers);
     logger.log(`${ALGO}: doOrder response for ${tradingsymbol}:`, response);
+    if (response && response.status === true) {
+      const { updateLivePositions } = await import('./positions');
+      await updateLivePositions({
+        symboltoken,
+        tradingsymbol,
+        transactionType: transactionType as 'BUY' | 'SELL',
+        quantity,
+        exchange,
+      });
+    }
     return response;
   } catch (error) {
     logger.error(`${ALGO}: doOrder failed for ${tradingsymbol}:`, error);

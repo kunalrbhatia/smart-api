@@ -106,6 +106,7 @@ describe('paperTrade helper', () => {
         QUANTITY: 50,
         LOSSPERLOT: 500,
         INDIAVIX: 15,
+        MTM_BASELINE: 0,
       });
     });
 

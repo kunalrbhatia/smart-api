@@ -137,6 +137,7 @@ export type OrderStoreDataType = {
   INDEX: string;
   LOSSPERLOT: number;
   INDIAVIX: number;
+  MTM_BASELINE: number;
 };
 /**
  * Type for scrip master store data.

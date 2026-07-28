@@ -14,6 +14,7 @@ describe('OrderStore', () => {
       INDEX: '',
       LOSSPERLOT: 0,
       INDIAVIX: 0,
+      MTM_BASELINE: 0,
     });
   });
 
@@ -39,6 +40,7 @@ describe('OrderStore', () => {
       INDEX: 'NIFTY',
       LOSSPERLOT: 1000,
       INDIAVIX: 15,
+      MTM_BASELINE: 0,
     };
     instance.setPostData(newData);
     expect(instance.getPostData()).toEqual(newData);
@@ -52,6 +54,7 @@ describe('OrderStore', () => {
       INDEX: 'BANKNIFTY',
       LOSSPERLOT: 2000,
       INDIAVIX: 12,
+      MTM_BASELINE: 0,
     });
 
     const instance2 = OrderStore.getInstance();

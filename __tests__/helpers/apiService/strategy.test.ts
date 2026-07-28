@@ -55,6 +55,7 @@ describe('ApiService - Strategy - Final 90+', () => {
         INDEX: 'NIFTY',
         EXPIRYDATE: '20FEB2025',
         STRIKE_DIFFERENCE: 100,
+        MTM_BASELINE: 0,
       }),
       setPostData: jest.fn(),
     };
@@ -178,12 +179,42 @@ describe('ApiService - Strategy - Final 90+', () => {
   });
 
   describe('executeTrade', () => {
-    it('should return MTM if not past closing time', async () => {
+    it('should return adjusted MTM if not past closing time', async () => {
       (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
       (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
       (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+
+      mockOrderStoreInstance.getPostData.mockReturnValue({
+        INDEX: 'NIFTY',
+        EXPIRYDATE: '20FEB2025',
+        STRIKE_DIFFERENCE: 100,
+        MTM_BASELINE: 200,
+      });
+
       const result = await executeTrade();
-      expect(result).toBe(1000);
+      expect(result).toBe(800);
+      expect(mockOrderStoreInstance.setPostData).not.toHaveBeenCalled();
+    });
+
+    it('should set baseline on first run (when MTM_BASELINE is 0)', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
+      (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+
+      const postData = {
+        INDEX: 'NIFTY',
+        EXPIRYDATE: '20FEB2025',
+        STRIKE_DIFFERENCE: 100,
+        MTM_BASELINE: 0,
+      };
+      mockOrderStoreInstance.getPostData.mockReturnValue(postData);
+
+      const result = await executeTrade();
+      expect(result).toBe(0);
+      expect(mockOrderStoreInstance.setPostData).toHaveBeenCalledWith({
+        ...postData,
+        MTM_BASELINE: 1000,
+      });
     });
   });
 
@@ -343,7 +374,8 @@ describe('ApiService - Strategy - Final 90+', () => {
       const { coreTradeExecution } = await import(
         '../../../src/helpers/apiService/strategy'
       );
-      await coreTradeExecution({ data: [] });
+      (functionsHelper.hasHedgePositions as jest.Mock).mockReturnValue(false);
+      await coreTradeExecution({ data: [], allPositions: [] });
       expect(ordersHelper.doOrderByStrike).toHaveBeenCalled();
     });
 
@@ -353,8 +385,24 @@ describe('ApiService - Strategy - Final 90+', () => {
       );
       (functionsHelper.getAtmStrikePrice as jest.Mock).mockResolvedValue(18000);
       (getNearestStrike as jest.Mock).mockReturnValue(18000);
-      await coreTradeExecution({ data: [{ tradingsymbol: 'T1' }] as any });
+      (functionsHelper.hasHedgePositions as jest.Mock).mockReturnValue(true);
+      await coreTradeExecution({
+        data: [{ tradingsymbol: 'T1' }] as any,
+        allPositions: [{ tradingsymbol: 'T1' }] as any,
+      });
       expect(positionsHelper.getPositionsJson).toHaveBeenCalled();
+    });
+
+    it('should execute shortStraddle if trades already taken but no hedges exist', async () => {
+      const { coreTradeExecution } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      (functionsHelper.hasHedgePositions as jest.Mock).mockReturnValue(false);
+      await coreTradeExecution({
+        data: [{ tradingsymbol: 'T1' }] as any,
+        allPositions: [{ tradingsymbol: 'T1' }] as any,
+      });
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalled();
     });
   });
 
