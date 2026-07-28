@@ -39,6 +39,9 @@ import {
   closeTrade,
   fetchOpenPositionsByExpiry,
   closeAllTrades,
+  getAlgoPositions,
+  saveAlgoPositions,
+  updateLivePositions,
 } from '../../../src/helpers/apiService/positions';
 import { getCredentials } from 'krb-smart-api-module';
 import OrderStore from '../../../src/store/orderStore';
@@ -360,6 +363,159 @@ describe('ApiService - Positions - Final', () => {
         trades: [{ strike: '18500', optionType: 'CE' }] as any,
       });
       expect(result).toBe(false);
+    });
+  });
+
+  describe('getAlgoPositions', () => {
+    it('should load positions from positions.json in live mode', () => {
+      const positions = [{ tradingsymbol: 'T1' }];
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(positions));
+
+      const result = getAlgoPositions();
+      expect(result).toEqual(positions);
+    });
+
+    it('should return empty array if positions.json does not exist', () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      expect(getAlgoPositions()).toEqual([]);
+    });
+
+    it('should return empty array on read error', () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error('Read Error');
+      });
+      expect(getAlgoPositions()).toEqual([]);
+    });
+  });
+
+  describe('saveAlgoPositions', () => {
+    it('should write to positions.json', () => {
+      const positions = [{ tradingsymbol: 'T1' }] as any;
+      saveAlgoPositions(positions);
+      expect(fs.writeFileSync).toHaveBeenCalled();
+    });
+
+    it('should log error on write failure', () => {
+      (fs.writeFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error('Write Error');
+      });
+      saveAlgoPositions([]);
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateLivePositions', () => {
+    beforeEach(() => {
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue('[]');
+    });
+
+    it('should add a new position if it does not exist', async () => {
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 100,
+      });
+
+      await updateLivePositions({
+        symboltoken: '12345',
+        tradingsymbol: 'NIFTY20FEB2518000CE',
+        transactionType: 'SELL',
+        quantity: 50,
+        exchange: 'NFO',
+      });
+
+      expect(fs.writeFileSync).toHaveBeenCalled();
+      const writtenData = JSON.parse(
+        (fs.writeFileSync as jest.Mock).mock.calls[0][1],
+      );
+      expect(writtenData).toHaveLength(1);
+      expect(writtenData[0].symboltoken).toBe('12345');
+      expect(writtenData[0].netqty).toBe('-50');
+    });
+
+    it('should update existing position netqty and average price', async () => {
+      const existing = [
+        {
+          symboltoken: '12345',
+          tradingsymbol: 'NIFTY20FEB2518000CE',
+          netqty: '-50',
+          buyqty: '0',
+          sellqty: '50',
+          totalbuyvalue: '0',
+          totalsellvalue: '5000',
+          buyavgprice: '0',
+          sellavgprice: '100',
+          netvalue: '-5000',
+          realised: '0',
+          unrealised: '0',
+          exchange: 'NFO',
+          producttype: 'CARRYFORWARD',
+          cfbuyavgprice: '0',
+          cfsellavgprice: '0',
+        },
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(existing));
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 110,
+      });
+
+      await updateLivePositions({
+        symboltoken: '12345',
+        tradingsymbol: 'NIFTY20FEB2518000CE',
+        transactionType: 'BUY',
+        quantity: 50,
+        exchange: 'NFO',
+      });
+
+      expect(fs.writeFileSync).toHaveBeenCalled();
+      const writtenData = JSON.parse(
+        (fs.writeFileSync as jest.Mock).mock.calls[0][1],
+      );
+      expect(writtenData[0].netqty).toBe('0');
+      expect(writtenData[0].realised).toBe('-500');
+    });
+
+    it('should handle covering long position (selling a long)', async () => {
+      const existing = [
+        {
+          symboltoken: '12345',
+          tradingsymbol: 'NIFTY20FEB2518000CE',
+          netqty: '50',
+          buyqty: '50',
+          sellqty: '0',
+          totalbuyvalue: '5000',
+          totalsellvalue: '0',
+          buyavgprice: '100',
+          sellavgprice: '0',
+          netvalue: '5000',
+          realised: '0',
+          unrealised: '0',
+          exchange: 'NFO',
+          producttype: 'CARRYFORWARD',
+          cfbuyavgprice: '0',
+          cfsellavgprice: '0',
+        },
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(existing));
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 110,
+      });
+
+      await updateLivePositions({
+        symboltoken: '12345',
+        tradingsymbol: 'NIFTY20FEB2518000CE',
+        transactionType: 'SELL',
+        quantity: 50,
+        exchange: 'NFO',
+      });
+
+      expect(fs.writeFileSync).toHaveBeenCalled();
+      const writtenData = JSON.parse(
+        (fs.writeFileSync as jest.Mock).mock.calls[0][1],
+      );
+      expect(writtenData[0].netqty).toBe('0');
+      expect(writtenData[0].realised).toBe('500');
     });
   });
 });
