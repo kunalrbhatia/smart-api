@@ -15,6 +15,7 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 - 🔐 **Automated Smart Login**: Hands-free authentication with automated 6-digit TOTP generation.
 - 📡 **Compliance Ready**: Automatic resolution of Public IP, Local IP, and MAC addresses for secure API header requirements.
 - 📉 **Real-time Risk Management**: Active MTM tracking with automated stop-loss placement (150% factor) for all sell positions.
+- 📊 **Local Positions Tracking**: Uses a local `positions.json` database as the sole source of truth for the algorithm's active positions, eliminating MTM leakage from carried-forward legacy broker positions and ensuring precise hedge executions.
 - 🧪 **Paper Trading Mode**: High-fidelity simulation mode to test strategies against live market data without financial risk.
 - 💬 **Multi-Channel Remote Control**: Dual support for Telegram and Slack interactive commands to monitor and control the algorithm remotely.
 - 📅 **Datewise Logging & Retention**: Dynamically logs application status and MTM metrics daily, with automated script-based log retention cleanup.
