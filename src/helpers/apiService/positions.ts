@@ -323,12 +323,11 @@ export const closeParticularTrade = async ({ trade }: { trade: Position }) => {
     const transactionType =
       netQty < 0 ? TRANSACTION_TYPE_BUY : TRANSACTION_TYPE_SELL;
     const symboltoken = trade.symboltoken;
-    const lotSize = Number.parseInt(trade.lotsize);
     const transactionStatus = await doOrder({
       tradingsymbol,
       transactionType,
       symboltoken,
-      lotSize,
+      quantity: Math.abs(netQty),
       variety: 'NORMAL',
       ordertype: 'MARKET',
     });
