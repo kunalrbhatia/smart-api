@@ -117,6 +117,58 @@ Each report highlights:
 
 ---
 
+## 📈 Backtesting the Short Straddle
+
+The repository includes an offline backtester for the **Short Straddle at ATM** strategy. It reads the unified option-chain snapshots produced by the [nifty-optionchain-data](https://github.com/kunalrbhatia/nifty-optionchain-data) pipeline (`data/chains/YYYY-MM-DD/EXPIRY_HHmm.json`) and replays each trading session.
+
+### How it works
+
+For every `(trading day, expiry)` session, the backtester:
+
+1. **Enters** by selling 1 CE + 1 PE at the ATM strike at the configured entry time.
+2. **Tracks** mark-to-market P&L across all intraday snapshots.
+3. **Exits** on the first of: profit target, stop loss, or the configured exit time.
+
+By default only the nearest expiry is traded per day (`--expiries all` to trade every expiry present in the data).
+
+### Running
+
+```bash
+# Point at the option-chain data lake
+pnpm backtest -- --data-dir ../nifty-optionchain-data/data/chains
+
+# Or set it once via environment
+export OPTIONCHAIN_DATA_DIR=../nifty-optionchain-data/data/chains
+pnpm backtest
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--data-dir <path>` | auto-detected | Path to the `data/chains` directory. |
+| `--from YYYY-MM-DD` / `--to YYYY-MM-DD` | all | Restrict the backtest date range. |
+| `--entry HHMM` | `0915` | Session entry time (IST). |
+| `--exit HHMM` | `1530` | Session exit time (IST). |
+| `--target 0.5` | `0.5` | Close when premium decays to `(1 - target)` of entry. |
+| `--stop 1.0` | `1.0` | Close when premium rises to `(1 + stop)` of entry. |
+| `--lot-size 75` | `75` | NIFTY lot size used for P&L in rupees. |
+| `--expiries nearest` | `nearest` | `nearest` (one per day) or `all` (every expiry present). |
+| `--json <file>` | — | Also write full per-session + MTM details to a JSON file. |
+
+### Example output
+
+```text
+ Date       Expiry     ATM strike  Entry prem  Exit prem  Exit time  Reason   P&L (₹)       P&L %
+ 2026-06-09  2026-06-16      24000     200.00      95.00  12:00  TARGET     +₹7,875.00  +52.50%
+ 2026-06-10  2026-06-16      24000     200.00     405.00  12:00  STOP      -₹15,375.00  -102.50%
+ 2026-06-11  2026-06-16      24000     200.00     170.00  15:30  TIME       +₹2,250.00  +15.00%
+```
+
+The summary block reports total P&L, win rate, average per session, profit factor, and maximum drawdown. Trades are simulated in index points — no live brokerage fees are modeled.
+
+---
+
 ## 🤖 Remote Control (Telegram & Slack)
 
 The application supports remote monitoring and control via both **Telegram** and **Slack**. 
