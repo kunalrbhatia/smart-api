@@ -141,7 +141,7 @@ function resolveDataDir(configured) {
 /* Data loading                                                        */
 /* ------------------------------------------------------------------ */
 
-function loadSnapshots(dataDir) {
+function loadSnapshots(dataDir, { from = null, to = null } = {}) {
   const snapshots = [];
   const dateDirs = fs
     .readdirSync(dataDir, { withFileTypes: true })
@@ -150,6 +150,11 @@ function loadSnapshots(dataDir) {
 
   for (const dateDir of dateDirs) {
     const dateStr = dateDir.name;
+    // Skip directories outside the requested range BEFORE reading any files.
+    // This keeps memory usage proportional to the date range instead of the
+    // full dataset (16k+ snapshots would otherwise OOM on small instances).
+    if (from && dateStr < from) continue;
+    if (to && dateStr > to) continue;
     const dirPath = path.join(dataDir, dateStr);
     let files;
     try {
@@ -492,9 +497,10 @@ function main() {
   }
   config.dataDir = dataDir;
 
-  let snapshots = loadSnapshots(dataDir);
-  if (config.from) snapshots = snapshots.filter(s => s.date >= config.from);
-  if (config.to) snapshots = snapshots.filter(s => s.date <= config.to);
+  let snapshots = loadSnapshots(dataDir, {
+    from: config.from,
+    to: config.to,
+  });
   if (snapshots.length === 0) {
     console.error(
       `No snapshots found under ${dataDir}${config.from ? ` for range ${config.from} → ${config.to}` : ''}.`,
