@@ -9,7 +9,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import moment from 'moment-timezone';
-import { setCredentials, getCredentials } from 'krb-smart-api-module';
+import { setCredentials } from 'krb-smart-api-module';
 import DataStoreMod from '../dist/store/dataStore.js';
 import { getSmartSession } from '../dist/helpers/apiService/session.js';
 import { isPaperMode } from '../dist/helpers/paperTrade.js';
