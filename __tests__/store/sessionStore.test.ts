@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import {
   getSessionState,
-  saveSessionState,
   setStraddleOpenedToday,
   setMtmBaseline,
 } from '../../src/store/sessionStore';
