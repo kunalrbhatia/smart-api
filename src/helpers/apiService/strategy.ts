@@ -47,19 +47,19 @@ import {
 } from './positions';
 import { checkAndFillPaperOrders, isPaperMode } from '../paperTrade';
 
+import {
+  getSessionState,
+  setStraddleOpenedToday,
+  setMtmBaseline,
+} from '../../store/sessionStore';
+
 /**
  * Creates a short straddle position.
  */
 export const shortStraddle = async (isBuyHedge = false) => {
   try {
-    if (isBuyHedge) {
-      const store = OrderStore.getInstance();
-      const currentData = store.getPostData();
-      if (!currentData || !currentData.straddleOpenedToday) {
-        store.setPostData({ ...currentData, straddleOpenedToday: true });
-      }
-    }
     const atmStrike = await getAtmStrikePrice();
+    const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
     const index = OrderStore.getInstance().getPostData().INDEX;
     const hedgeVariance = hedgeCalculation(index);
     const strikeDiff = getStrikeDifference(index);
@@ -108,6 +108,9 @@ export const shortStraddle = async (isBuyHedge = false) => {
     }
     await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
     await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
+    if (isBuyHedge) {
+      setStraddleOpenedToday(expiryDate);
+    }
   } catch (error) {
     logger.error(`${ALGO}: shortStraddle failed:`, error);
     throw error;
@@ -261,11 +264,11 @@ export const coreTradeExecution = async ({
 }) => {
   const isTradeAlreadyTaken = Array.isArray(data) && data.length > 0;
   const hedgesExist = hasHedgePositions(allPositions);
-  const postData = OrderStore.getInstance().getPostData();
-  const straddleOpenedToday = postData ? postData.straddleOpenedToday : false;
+  const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
+  const sessionState = getSessionState(expiryDate);
 
   if (isTradeAlreadyTaken === false || hedgesExist === false) {
-    if (straddleOpenedToday) {
+    if (sessionState.straddleOpenedToday) {
       logger.log(
         `${ALGO}: Straddle already opened once in this session. Skipping shortStraddle.`,
       );
@@ -305,10 +308,17 @@ export const executeTrade = async () => {
 
   const orderStore = OrderStore.getInstance();
   const postData = orderStore.getPostData();
-  if (postData.MTM_BASELINE === 0) {
+  const sessionState = getSessionState(postData.EXPIRYDATE);
+
+  if (sessionState.mtmBaseline === 0) {
+    setMtmBaseline(postData.EXPIRYDATE, mtmData);
     postData.MTM_BASELINE = mtmData;
     orderStore.setPostData(postData);
+  } else {
+    postData.MTM_BASELINE = sessionState.mtmBaseline;
+    orderStore.setPostData(postData);
   }
+
   const adjustedMtm = mtmData - postData.MTM_BASELINE;
 
   if (isPastClosingTime === false) {

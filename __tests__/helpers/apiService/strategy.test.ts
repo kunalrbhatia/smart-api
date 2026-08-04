@@ -41,6 +41,17 @@ jest.mock('../../../src/store/dataStore');
 jest.mock('../../../src/helpers/functions');
 jest.mock('../../../src/helpers/apiService/session');
 jest.mock('../../../src/helpers/killSwitch');
+import { getSessionState as getSessionStateFn } from '../../../src/store/sessionStore';
+jest.mock('../../../src/store/sessionStore', () => ({
+  getSessionState: jest.fn().mockImplementation((expiryDate?: string) => ({
+    tradingDate: expiryDate || '20FEB2025',
+    straddleOpenedToday: false,
+    mtmBaseline: 0,
+  })),
+  saveSessionState: jest.fn(),
+  setStraddleOpenedToday: jest.fn(),
+  setMtmBaseline: jest.fn(),
+}));
 
 import { getSmartSession } from '../../../src/helpers/apiService/session';
 
@@ -184,6 +195,12 @@ describe('ApiService - Strategy - Final 90+', () => {
       (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
       (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
 
+      (getSessionStateFn as jest.Mock).mockReturnValue({
+        tradingDate: '20FEB2025',
+        straddleOpenedToday: true,
+        mtmBaseline: 200,
+      });
+
       mockOrderStoreInstance.getPostData.mockReturnValue({
         INDEX: 'NIFTY',
         EXPIRYDATE: '20FEB2025',
@@ -194,13 +211,18 @@ describe('ApiService - Strategy - Final 90+', () => {
 
       const result = await executeTrade();
       expect(result).toBe(800);
-      expect(mockOrderStoreInstance.setPostData).not.toHaveBeenCalled();
     });
 
     it('should set baseline on first run (when MTM_BASELINE is 0)', async () => {
       (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
       (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
       (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+
+      (getSessionStateFn as jest.Mock).mockReturnValue({
+        tradingDate: '20FEB2025',
+        straddleOpenedToday: false,
+        mtmBaseline: 0,
+      });
 
       const postData = {
         INDEX: 'NIFTY',
@@ -372,6 +394,11 @@ describe('ApiService - Strategy - Final 90+', () => {
 
   describe('coreTradeExecution', () => {
     it('should execute shortStraddle if no trades taken', async () => {
+      (getSessionStateFn as jest.Mock).mockReturnValue({
+        tradingDate: '20FEB2025',
+        straddleOpenedToday: false,
+        mtmBaseline: 0,
+      });
       const { coreTradeExecution } = await import(
         '../../../src/helpers/apiService/strategy'
       );
@@ -381,6 +408,11 @@ describe('ApiService - Strategy - Final 90+', () => {
     });
 
     it('should repeat if trades already taken', async () => {
+      (getSessionStateFn as jest.Mock).mockReturnValue({
+        tradingDate: '20FEB2025',
+        straddleOpenedToday: false,
+        mtmBaseline: 0,
+      });
       const { coreTradeExecution } = await import(
         '../../../src/helpers/apiService/strategy'
       );
@@ -395,6 +427,11 @@ describe('ApiService - Strategy - Final 90+', () => {
     });
 
     it('should execute shortStraddle if trades already taken but no hedges exist', async () => {
+      (getSessionStateFn as jest.Mock).mockReturnValue({
+        tradingDate: '20FEB2025',
+        straddleOpenedToday: false,
+        mtmBaseline: 0,
+      });
       const { coreTradeExecution } = await import(
         '../../../src/helpers/apiService/strategy'
       );
