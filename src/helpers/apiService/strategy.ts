@@ -43,6 +43,7 @@ import {
   getPositionsJson,
   closeTrade,
   getMtm,
+  pruneStalePositions,
 } from './positions';
 import { checkAndFillPaperOrders, isPaperMode } from '../paperTrade';
 
@@ -51,6 +52,13 @@ import { checkAndFillPaperOrders, isPaperMode } from '../paperTrade';
  */
 export const shortStraddle = async (isBuyHedge = false) => {
   try {
+    if (isBuyHedge) {
+      const store = OrderStore.getInstance();
+      const currentData = store.getPostData();
+      if (!currentData || !currentData.straddleOpenedToday) {
+        store.setPostData({ ...currentData, straddleOpenedToday: true });
+      }
+    }
     const atmStrike = await getAtmStrikePrice();
     const index = OrderStore.getInstance().getPostData().INDEX;
     const hedgeVariance = hedgeCalculation(index);
@@ -253,8 +261,16 @@ export const coreTradeExecution = async ({
 }) => {
   const isTradeAlreadyTaken = Array.isArray(data) && data.length > 0;
   const hedgesExist = hasHedgePositions(allPositions);
+  const postData = OrderStore.getInstance().getPostData();
+  const straddleOpenedToday = postData ? postData.straddleOpenedToday : false;
 
   if (isTradeAlreadyTaken === false || hedgesExist === false) {
+    if (straddleOpenedToday) {
+      logger.log(
+        `${ALGO}: Straddle already opened once in this session. Skipping shortStraddle.`,
+      );
+      return;
+    }
     await shortStraddle(true);
     await notify('Short Straddle order executed successfully!');
   } else {
@@ -297,7 +313,8 @@ export const executeTrade = async () => {
 
   if (isPastClosingTime === false) {
     await coreTradeExecution({ data: openSellPositions, allPositions });
-    await placeStopLossOnAllTrades(125, allPositions);
+    const freshPositions = await getPositions(smartSession, cred);
+    await placeStopLossOnAllTrades(125, freshPositions);
     resp = adjustedMtm;
   }
   if (isPastClosingTime && openSellPositions.length > 0)
@@ -357,6 +374,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
 ) => {
   try {
     const expiryDate = await getNearestWeeklyExpiry('NIFTY');
+    pruneStalePositions(expiryDate);
     const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
     const indiaVixLtp = await getLtpWithRetry({
       exchange: indiaVix[0].exch_seg,

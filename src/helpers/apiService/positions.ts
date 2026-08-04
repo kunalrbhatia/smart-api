@@ -59,6 +59,25 @@ export const saveAlgoPositions = (positions: Position[]): void => {
   }
 };
 
+export const pruneStalePositions = (currentExpiry: string): void => {
+  if (!currentExpiry) return;
+  const positions = getAlgoPositions();
+  if (positions.length === 0) return;
+
+  const validPositions = positions.filter(
+    p =>
+      p.expirydate &&
+      p.expirydate.toUpperCase() === currentExpiry.toUpperCase(),
+  );
+
+  if (validPositions.length !== positions.length) {
+    logger.log(
+      `${ALGO}: Pruned ${positions.length - validPositions.length} stale position(s) from previous expiries. Retained ${validPositions.length} position(s) for ${currentExpiry}.`,
+    );
+    saveAlgoPositions(validPositions);
+  }
+};
+
 export const updateLivePositions = async ({
   symboltoken,
   tradingsymbol,

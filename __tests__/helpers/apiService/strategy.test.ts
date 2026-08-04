@@ -189,6 +189,7 @@ describe('ApiService - Strategy - Final 90+', () => {
         EXPIRYDATE: '20FEB2025',
         STRIKE_DIFFERENCE: 100,
         MTM_BASELINE: 200,
+        straddleOpenedToday: true,
       });
 
       const result = await executeTrade();

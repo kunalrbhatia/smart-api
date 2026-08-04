@@ -8,6 +8,7 @@ import {
   ALGO,
   ORDER_API,
   GET_ORDER_BOOK_API,
+  VARIETY_NORMAL,
   VARIETY_STOPLOSS,
   TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
@@ -105,7 +106,7 @@ export const doOrder = async ({
   try {
     const response = await post(ORDER_API, data, headers);
     logger.log(`${ALGO}: doOrder response for ${tradingsymbol}:`, response);
-    if (response && response.status === true) {
+    if (response && response.status === true && variety === VARIETY_NORMAL) {
       const { updateLivePositions } = await import('./positions');
       await updateLivePositions({
         symboltoken,

@@ -31,6 +31,7 @@ class OrderStore {
       LOSSPERLOT: 0,
       INDIAVIX: 0,
       MTM_BASELINE: 0,
+      straddleOpenedToday: false,
     };
   }
   /**
