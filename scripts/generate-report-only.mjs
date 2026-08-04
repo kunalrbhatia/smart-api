@@ -9,16 +9,41 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import moment from 'moment-timezone';
-import { setCredentials, getCredentials } from 'krb-smart-api-module';
+import { setCredentials } from 'krb-smart-api-module';
 import DataStoreMod from '../dist/store/dataStore.js';
 import { getSmartSession } from '../dist/helpers/apiService/session.js';
-import { getPositions } from '../dist/helpers/apiService/positions.js';
 import { isPaperMode } from '../dist/helpers/paperTrade.js';
 
 const DataStore = DataStoreMod.default;
 
 // --- helpers (mirrors the dist script) ---
 const REPORTS_DIR = path.resolve('expiry-reports');
+
+/**
+ * Fetch positions from the broker's positions endpoint (source of truth),
+ * NOT from local positions.json (algo bookkeeping, can drift/corrupt).
+ * Mirrors report-live-positions.mjs.
+ */
+async function fetchBrokerPositions() {
+  const { GET_POSITIONS } = await import('krb-smart-api-module');
+  const ss = await getSmartSession();
+  const resp = await fetch(GET_POSITIONS, {
+    method: 'GET',
+    headers: {
+      Authorization: 'Bearer ' + ss.jwtToken,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-UserType': 'USER',
+      'X-SourceID': 'WEB',
+      'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+      'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+      'X-MACAddress': 'MAC_ADDRESS',
+      'X-PrivateKey': process.env.API_KEY,
+    },
+  });
+  const body = await resp.json();
+  return body?.data ?? [];
+}
 
 function getIST() {
   return new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -62,11 +87,9 @@ async function main() {
   setCredentials(creds);
   DataStore.getInstance().setPostData(creds);
 
-  // 2. Login & fetch positions
+  // 2. Login & fetch positions from broker (source of truth)
   console.log('[gen-report] Logging in...');
-  const smartSession = await getSmartSession();
-  const cred = getCredentials();
-  const allPositions = await getPositions(smartSession, cred);
+  const allPositions = await fetchBrokerPositions();
   console.log(`[gen-report] Found ${allPositions.length} total positions`);
 
   const mode = isPaperMode() ? '📝 PAPER' : '💰 LIVE';
