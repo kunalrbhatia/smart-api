@@ -19,6 +19,7 @@
  *   node scripts/backtest-straddle.mjs --from 2026-05-01 --to 2026-07-31
  *   node scripts/backtest-straddle.mjs --entry 0930 --exit 1500 --target 0.5 --stop 1.0
  *   node scripts/backtest-straddle.mjs --lot-size 75 --expiries all --json backtest-result.json
+ *   node scripts/backtest-straddle.mjs --expiry-days-only --from 2026-02-01 --to 2026-08-03
  *
  * Data dir resolution (first match wins):
  *   1. `--data-dir` argument
@@ -47,6 +48,7 @@ const DEFAULTS = {
   stop: 1.0,
   lotSize: 75,
   expiries: 'nearest', // 'nearest' | 'all'
+  expiryDaysOnly: false,
   json: null,
 };
 
@@ -231,6 +233,31 @@ function buildSessions(groups, expiriesMode) {
 function pickNearestExpiry(expiries, dateStr) {
   const eligible = expiries.filter(e => e >= dateStr);
   return [eligible.length ? eligible[0] : expiries[0]];
+}
+
+// '04AUG2026' -> '2026-08-04', or '2026-08-04' -> '2026-08-04', or null if unparseable
+function expiryToDateStr(expiry) {
+  const str = String(expiry || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const m = /^(\d{2})([A-Z]{3})(\d{4})$/.exec(str);
+  if (!m) return null;
+  const months = {
+    JAN: '01',
+    FEB: '02',
+    MAR: '03',
+    APR: '04',
+    MAY: '05',
+    JUN: '06',
+    JUL: '07',
+    AUG: '08',
+    SEP: '09',
+    OCT: '10',
+    NOV: '11',
+    DEC: '12',
+  };
+  const mm = months[m[2]];
+  if (!mm) return null;
+  return `${m[3]}-${mm}-${m[1]}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -434,7 +461,7 @@ function printReport(sessions, config) {
     `Range      : ${config.from || 'all'} → ${config.to || 'all'}  (${valid.length} sessions, ${skipped.length} skipped)`,
   );
   console.log(
-    `Strategy   : entry ${config.entry.slice(0, 2)}:${config.entry.slice(2)}  exit ${config.exit.slice(0, 2)}:${config.exit.slice(2)}  target ${config.target * 100}%  stop ${config.stop * 100}%  expiries ${config.expiries}`,
+    `Strategy   : entry ${config.entry.slice(0, 2)}:${config.entry.slice(2)}  exit ${config.exit.slice(0, 2)}:${config.exit.slice(2)}  target ${config.target * 100}%  stop ${config.stop * 100}%  expiries ${config.expiries}  expiryDaysOnly ${config.expiryDaysOnly ? 'ON' : 'OFF'}`,
   );
   console.log(`Lot size   : ${config.lotSize} (1 CE + 1 PE per session)`);
   console.log('-'.repeat(78));
@@ -509,7 +536,19 @@ function main() {
   }
 
   const groups = groupByDateExpiry(snapshots);
-  const sessions = buildSessions(groups, config.expiries);
+  let sessions = buildSessions(groups, config.expiries);
+  if (config.expiryDaysOnly) {
+    sessions = sessions.filter(s => {
+      const expiryDate = expiryToDateStr(s.expiry);
+      if (!expiryDate || expiryDate !== s.date) return false;
+      // production also requires the trading day to be a Tuesday (weekly expiry day)
+      const dow = new Date(s.date + 'T00:00:00').getDay();
+      return dow === 2;
+    });
+    console.log(
+      `[backtest] --expiry-days-only: keeping only expiry Tuesdays (${sessions.length} sessions)`,
+    );
+  }
   const results = sessions.map(session =>
     simulateSession(session.snaps, {
       entryTime: config.entry,
