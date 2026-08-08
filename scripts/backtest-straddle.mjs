@@ -27,6 +27,10 @@ const ROOT_DIR = path.resolve(
   '..',
 );
 
+const DEFAULT_ENTRY = process.env.ENTRY_TIME
+  ? process.env.ENTRY_TIME.replace(/[^0-9]/g, '').slice(0, 4)
+  : '0915';
+
 const DEFAULT_CLOSE = process.env.EXIT_TIME
   ? process.env.EXIT_TIME.replace(/[^0-9]/g, '').slice(0, 4)
   : '1517';
@@ -35,7 +39,7 @@ const DEFAULTS = {
   dataDir: null,
   from: null,
   to: null,
-  entry: '0915',
+  entry: DEFAULT_ENTRY,
   close: DEFAULT_CLOSE,
   exit: DEFAULT_CLOSE, // alias / compat
   target: 0.5, // legacy flag ignored

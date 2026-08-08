@@ -291,6 +291,16 @@ export const coreTradeExecution = async ({
   }
 };
 
+export const getAlgoEntryTime = (): { hours: number; minutes: number } => {
+  const [hoursStr, minutesStr] = (appConfig.entryTime || '09:15').split(':');
+  const hours = Number.parseInt(hoursStr, 10);
+  const minutes = Number.parseInt(minutesStr, 10);
+  return {
+    hours: Number.isFinite(hours) ? hours : 9,
+    minutes: Number.isFinite(minutes) ? minutes : 15,
+  };
+};
+
 export const getAlgoExitTime = (): { hours: number; minutes: number } => {
   const [hoursStr, minutesStr] = (appConfig.exitTime || '15:17').split(':');
   const hours = Number.parseInt(hoursStr, 10);
@@ -352,12 +362,16 @@ export const isTradeAllowed = async (expiryDate: string) => {
     return { isAllowed: false, reasons: ['Kill switch engaged'] };
   }
 
+  const entryTimeObj = getAlgoEntryTime();
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
   const isTuesday = moment().day() === 2;
   const isHoliday = isTradingHoliday();
   const isExpiryDay = moment().format('DDMMMYYYY').toUpperCase() === expiryDate;
-  const hasTimePassed = isCurrentTimeGreater({ hours: 9, minutes: 15 });
+  const hasTimePassed = isCurrentTimeGreater({
+    hours: entryTimeObj.hours,
+    minutes: entryTimeObj.minutes,
+  });
 
   let isSmartAPIWorking = false;
   try {
@@ -367,12 +381,14 @@ export const isTradeAllowed = async (expiryDate: string) => {
     logger.error('Error in isTradeAllowed:', err);
   }
 
+  const formattedEntryTime = `${String(entryTimeObj.hours).padStart(2, '0')}:${String(entryTimeObj.minutes).padStart(2, '0')}`;
+
   const reasons: string[] = [];
   if (!isExpiryDay) reasons.push(`Not expiry day (${expiryDate})`);
   if (!isTuesday) reasons.push('Not Tuesday');
   if (isWeekend) reasons.push('Weekend');
   if (!isMarketOpen) reasons.push('Market closed');
-  if (!hasTimePassed) reasons.push('Before 09:15 AM');
+  if (!hasTimePassed) reasons.push(`Before ${formattedEntryTime}`);
   if (!isSmartAPIWorking) reasons.push('Smart API down');
   if (isHoliday) reasons.push('Holiday');
 

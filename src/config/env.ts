@@ -40,6 +40,10 @@ export const config = {
    */
   slackSigningSecret: process.env.SLACK_SIGNING_SECRET,
   /**
+   * Intraday algo entry time (HH:mm format). Default: 09:15.
+   */
+  entryTime: process.env.ENTRY_TIME || '09:15',
+  /**
    * Intraday algo exit time (HH:mm format). Default: 15:17.
    */
   exitTime: process.env.EXIT_TIME || '15:17',
