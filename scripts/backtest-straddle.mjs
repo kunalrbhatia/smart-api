@@ -1,32 +1,21 @@
 #!/usr/bin/env node
 /**
  * Short Straddle at ATM — NIFTY Option Chain Backtest
+ * Replicates the LIVE algo's exact rules.
  *
- * Reads unified option-chain snapshots produced by the
- * `nifty-optionchain-data` pipeline (`data/chains/YYYY-MM-DD/EXPIRY_HHmm.json`)
- * and backtests an intraday short straddle strategy:
+ * Exits:
+ *   1. 125% per-leg Stop Loss (trigger = entry * 2.25).
+ *   2. Close (15:17+): sell legs with LTP > 5 bought back at market;
+ *      sell legs with LTP <= 5 and ALL long hedges left to rot/expire.
  *
- *   - Enter : sell 1 CE + 1 PE at the ATM strike at the configured entry time.
- *   - Exit  : first of { profit target, stop loss, configured exit time }.
- *
- * Each `(trading day, expiry)` group forms one session; by default only the
- * nearest expiry per trading day is traded. Positions are squared off by the
- * end of the session (configurable via `--exit`).
+ * Entries:
+ *   - Initial entry (>= 09:15): Buy 5-lot hedges at ATM+500 CE & ATM-500 PE, sell 1-lot ATM straddle.
+ *   - Rolling entries: On subsequent ticks, if |ATM - nearestTradedSellStrike| >= strikeDiff (default 50, VIX < 14)
+ *     and strike not traded, sell new ATM straddle (or missing leg if LTP > 5).
  *
  * Usage:
  *   node scripts/backtest-straddle.mjs
- *   node scripts/backtest-straddle.mjs --data-dir ../nifty-optionchain-data/data/chains
- *   node scripts/backtest-straddle.mjs --from 2026-05-01 --to 2026-07-31
- *   node scripts/backtest-straddle.mjs --entry 0930 --exit 1500 --target 0.5 --stop 1.0
- *   node scripts/backtest-straddle.mjs --lot-size 75 --expiries all --json backtest-result.json
- *   node scripts/backtest-straddle.mjs --expiry-days-only --from 2026-02-01 --to 2026-08-03
- *
- * Data dir resolution (first match wins):
- *   1. `--data-dir` argument
- *   2. `OPTIONCHAIN_DATA_DIR` environment variable
- *   3. `./data/chains`
- *   4. `../nifty-optionchain-data/data/chains`
- *   5. `../../nifty-optionchain-data/data/chains`
+ *   node scripts/backtest-straddle.mjs --expiry-days-only --from 2026-02-01 --to 2026-08-03 --json out.json
  */
 
 import fs from 'fs';
@@ -43,10 +32,13 @@ const DEFAULTS = {
   from: null,
   to: null,
   entry: '0915',
-  exit: '1530',
-  target: 0.5,
-  stop: 1.0,
-  lotSize: 75,
+  close: '1517',
+  exit: '1517', // alias / compat
+  target: 0.5, // legacy flag ignored
+  stop: 1.0, // legacy flag ignored
+  strikeDiff: 50,
+  vix: null,
+  lotSize: 65,
   expiries: 'nearest', // 'nearest' | 'all'
   expiryDaysOnly: false,
   json: null,
@@ -90,25 +82,32 @@ function parseArgs(argv) {
   config.target = num(config.target, DEFAULTS.target);
   config.stop = num(config.stop, DEFAULTS.stop);
   config.lotSize = num(config.lotSize, DEFAULTS.lotSize);
+  config.strikeDiff = num(config.strikeDiff, DEFAULTS.strikeDiff);
   config.entry = normalizeHHmm(config.entry, DEFAULTS.entry);
-  config.exit = normalizeHHmm(config.exit, DEFAULTS.exit);
+
+  const closeVal =
+    config.close !== undefined && config.close !== DEFAULTS.close
+      ? config.close
+      : config.exit !== undefined && config.exit !== DEFAULTS.exit
+        ? config.exit
+        : DEFAULTS.close;
+  config.close = normalizeHHmm(closeVal, DEFAULTS.close);
+  config.exit = config.close;
+
+  if (config.vix !== null && config.vix !== undefined) {
+    const v = String(config.vix);
+    if (v.startsWith('<14') || Number(v) < 14) {
+      config.strikeDiff = 50;
+    } else {
+      config.strikeDiff = 100;
+    }
+  }
+
   config.expiries = config.expiries === 'all' ? 'all' : 'nearest';
 
-  if (config.target < 0 || config.target >= 1) {
+  if (config.entry >= config.close) {
     console.error(
-      `Invalid --target "${config.target}" (must be in [0, 1)). Using default.`,
-    );
-    config.target = DEFAULTS.target;
-  }
-  if (config.stop < 0) {
-    console.error(
-      `Invalid --stop "${config.stop}" (must be >= 0). Using default.`,
-    );
-    config.stop = DEFAULTS.stop;
-  }
-  if (config.entry >= config.exit) {
-    console.error(
-      `--entry (${config.entry}) must be earlier than --exit (${config.exit}).`,
+      `--entry (${config.entry}) must be earlier than --close (${config.close}).`,
     );
     process.exit(1);
   }
@@ -152,9 +151,6 @@ function loadSnapshots(dataDir, { from = null, to = null } = {}) {
 
   for (const dateDir of dateDirs) {
     const dateStr = dateDir.name;
-    // Skip directories outside the requested range BEFORE reading any files.
-    // This keeps memory usage proportional to the date range instead of the
-    // full dataset (16k+ snapshots would otherwise OOM on small instances).
     if (from && dateStr < from) continue;
     if (to && dateStr > to) continue;
     const dirPath = path.join(dataDir, dateStr);
@@ -235,7 +231,6 @@ function pickNearestExpiry(expiries, dateStr) {
   return [eligible.length ? eligible[0] : expiries[0]];
 }
 
-// '04AUG2026' -> '2026-08-04', or '2026-08-04' -> '2026-08-04', or null if unparseable
 function expiryToDateStr(expiry) {
   const str = String(expiry || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
@@ -286,13 +281,32 @@ export function findAtmStrike(rows, spot) {
   return best;
 }
 
-export function getStraddlePremium(row) {
+export function getNearestTradedSellStrike(openPositions, atmStrike) {
+  const sellStrikes = [
+    ...new Set(
+      openPositions.filter(p => p.type === 'SELL').map(p => Number(p.strike)),
+    ),
+  ];
+  if (sellStrikes.length === 0) return null;
+
+  let nearest = sellStrikes[0];
+  let minDiff = Math.abs(nearest - atmStrike);
+  for (let i = 1; i < sellStrikes.length; i++) {
+    const diff = Math.abs(sellStrikes[i] - atmStrike);
+    if (diff < minDiff) {
+      minDiff = diff;
+      nearest = sellStrikes[i];
+    }
+  }
+  return nearest;
+}
+
+export function getOptionLtp(snap, strike, optionType) {
+  const row = snap.rows.find(r => Number(r.strike_price) === strike);
   if (!row) return null;
-  const ce = Number(row.calls_ltp);
-  const pe = Number(row.puts_ltp);
-  if (!Number.isFinite(ce) || !Number.isFinite(pe) || ce <= 0 || pe <= 0)
-    return null;
-  return ce + pe;
+  const val =
+    optionType === 'CE' ? Number(row.calls_ltp) : Number(row.puts_ltp);
+  return Number.isFinite(val) && val > 0 ? val : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -300,17 +314,30 @@ export function getStraddlePremium(row) {
 /* ------------------------------------------------------------------ */
 
 export function simulateSession(snaps, options) {
-  const { entryTime, exitTime, target, stop } = options;
+  const entryTime = options.entryTime || '0915';
+  const closeTime = options.closeTime || options.exitTime || '1517';
+  const strikeDiff = options.strikeDiff !== undefined ? options.strikeDiff : 50;
 
-  const entrySnap =
-    snaps.find(s => s.time >= entryTime) || snaps[snaps.length - 1];
-  if (!entrySnap) {
+  const entrySnapIndex = snaps.findIndex(s => s.time >= entryTime);
+  if (entrySnapIndex === -1) {
     return { skipped: true, reason: 'NO_ENTRY_SNAPSHOT' };
   }
 
-  const atmRow = findAtmStrike(entrySnap.rows, entrySnap.index_close);
-  const entryPremium = getStraddlePremium(atmRow);
-  if (atmRow === null || entryPremium === null) {
+  const positions = [];
+  const mtm = [];
+  let nextPosId = 1;
+
+  function addPosition(pos) {
+    const id = nextPosId++;
+    const fullPos = { id, status: 'OPEN', ...pos };
+    positions.push(fullPos);
+    return fullPos;
+  }
+
+  // First entry snapshot
+  const firstSnap = snaps[entrySnapIndex];
+  const atmRow = findAtmStrike(firstSnap.rows, firstSnap.index_close);
+  if (!atmRow) {
     return {
       skipped: true,
       reason: 'NO_VALID_ATM_PREMIUM',
@@ -319,82 +346,297 @@ export function simulateSession(snaps, options) {
     };
   }
 
-  const entryIndex = snaps.indexOf(entrySnap);
   const atmStrike = Number(atmRow.strike_price);
-  const targetLevel = entryPremium * (1 - target);
-  const stopLevel = entryPremium * (1 + stop);
 
-  const mtm = [
-    {
-      time: entrySnap.time,
-      spot: entrySnap.index_close,
-      ce: Number(atmRow.calls_ltp),
-      pe: Number(atmRow.puts_ltp),
-      premium: entryPremium,
-      pnlUnit: 0,
-    },
-  ];
+  // Buy Hedges (5 lots each at ATM + 500 CE & ATM - 500 PE)
+  const ceHedgeStrike = atmStrike + 500;
+  const peHedgeStrike = atmStrike - 500;
 
-  let exitPremium = entryPremium;
-  let exitTimeHit = entrySnap.time;
-  let exitReason = 'EOD';
-  let lastValid = mtm[0];
+  const ceHedgeLtp = getOptionLtp(firstSnap, ceHedgeStrike, 'CE');
+  if (ceHedgeLtp !== null) {
+    addPosition({
+      strike: ceHedgeStrike,
+      optionType: 'CE',
+      type: 'BUY',
+      quantityLots: 5,
+      entryPrice: ceHedgeLtp,
+      entryTime: firstSnap.time,
+    });
+  } else {
+    console.warn(
+      `[warn] hedge strike missing: ${firstSnap.date} CE ${ceHedgeStrike}`,
+    );
+  }
 
-  for (let i = entryIndex + 1; i < snaps.length; i++) {
+  const peHedgeLtp = getOptionLtp(firstSnap, peHedgeStrike, 'PE');
+  if (peHedgeLtp !== null) {
+    addPosition({
+      strike: peHedgeStrike,
+      optionType: 'PE',
+      type: 'BUY',
+      quantityLots: 5,
+      entryPrice: peHedgeLtp,
+      entryTime: firstSnap.time,
+    });
+  } else {
+    console.warn(
+      `[warn] hedge strike missing: ${firstSnap.date} PE ${peHedgeStrike}`,
+    );
+  }
+
+  // Sell Initial ATM Straddle (1 lot each)
+  const ceSellLtp = getOptionLtp(firstSnap, atmStrike, 'CE');
+  const peSellLtp = getOptionLtp(firstSnap, atmStrike, 'PE');
+
+  if (ceSellLtp === null || peSellLtp === null) {
+    return {
+      skipped: true,
+      reason: 'NO_VALID_ATM_PREMIUM',
+      date: snaps[0].date,
+      expiry: snaps[0].expiry,
+    };
+  }
+
+  addPosition({
+    strike: atmStrike,
+    optionType: 'CE',
+    type: 'SELL',
+    quantityLots: 1,
+    entryPrice: ceSellLtp,
+    entryTime: firstSnap.time,
+    slTriggerPrice: Math.round(ceSellLtp * 2.25 * 100) / 100,
+  });
+
+  addPosition({
+    strike: atmStrike,
+    optionType: 'PE',
+    type: 'SELL',
+    quantityLots: 1,
+    entryPrice: peSellLtp,
+    entryTime: firstSnap.time,
+    slTriggerPrice: Math.round(peSellLtp * 2.25 * 100) / 100,
+  });
+
+  // Track session execution snap-by-snap
+  for (let i = entrySnapIndex; i < snaps.length; i++) {
     const snap = snaps[i];
-    const row = snap.rows.find(r => Number(r.strike_price) === atmStrike);
-    const premium = getStraddlePremium(row);
-    if (premium === null) continue;
 
-    lastValid = {
+    // 1. Check Stop Loss for all OPEN SELL positions
+    for (const pos of positions) {
+      if (pos.status !== 'OPEN' || pos.type !== 'SELL') continue;
+      const currentLtp = getOptionLtp(snap, pos.strike, pos.optionType);
+      if (currentLtp !== null && currentLtp >= pos.slTriggerPrice) {
+        pos.status = 'CLOSED';
+        pos.exitPrice = pos.slTriggerPrice;
+        pos.exitTime = snap.time;
+        pos.exitReason = 'SL_TRIGGERED';
+      }
+    }
+
+    // 2. Check if close time reached (>= closeTime)
+    if (snap.time >= closeTime) {
+      for (const pos of positions) {
+        if (pos.status !== 'OPEN') continue;
+        if (pos.type === 'SELL') {
+          const ltp = getOptionLtp(snap, pos.strike, pos.optionType) || 0;
+          if (ltp > 5) {
+            pos.status = 'CLOSED';
+            pos.exitPrice = ltp;
+            pos.exitTime = snap.time;
+            pos.exitReason = 'CLOSED_LTP_GT_5';
+          } else {
+            pos.status = 'CLOSED';
+            pos.exitPrice = 0;
+            pos.exitTime = snap.time;
+            pos.exitReason = 'EXPIRED_WORTHLESS';
+          }
+        } else if (pos.type === 'BUY') {
+          pos.status = 'CLOSED';
+          pos.exitPrice = 0;
+          pos.exitTime = snap.time;
+          pos.exitReason = 'HEDGE_EXPIRED';
+        }
+      }
+      mtm.push({
+        time: snap.time,
+        spot: snap.index_close,
+        openPositionsCount: 0,
+      });
+      break; // End session simulation for the day
+    }
+
+    // 3. Rolling / Repeat Short Straddle logic
+    const currentAtmRow = findAtmStrike(snap.rows, snap.index_close);
+    if (currentAtmRow) {
+      const currentAtmStrike = Number(currentAtmRow.strike_price);
+      const prevStrike = getNearestTradedSellStrike(
+        positions,
+        currentAtmStrike,
+      );
+
+      if (prevStrike !== null) {
+        const diff = currentAtmStrike - prevStrike;
+        const tradedStrikes = new Set(
+          positions.filter(p => p.type === 'SELL').map(p => p.strike),
+        );
+        const isAlreadyTraded = tradedStrikes.has(currentAtmStrike);
+
+        if (Math.abs(diff) >= strikeDiff && !isAlreadyTraded) {
+          // Sell both legs (or missing leg if LTP > 5)
+          const cePresent = positions.some(
+            p =>
+              p.strike === currentAtmStrike &&
+              p.optionType === 'CE' &&
+              p.type === 'SELL',
+          );
+          const pePresent = positions.some(
+            p =>
+              p.strike === currentAtmStrike &&
+              p.optionType === 'PE' &&
+              p.type === 'SELL',
+          );
+
+          if (!cePresent) {
+            const ltp = getOptionLtp(snap, currentAtmStrike, 'CE');
+            if (ltp !== null && (!pePresent || ltp > 5)) {
+              addPosition({
+                strike: currentAtmStrike,
+                optionType: 'CE',
+                type: 'SELL',
+                quantityLots: 1,
+                entryPrice: ltp,
+                entryTime: snap.time,
+                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+              });
+            }
+          }
+
+          if (!pePresent) {
+            const ltp = getOptionLtp(snap, currentAtmStrike, 'PE');
+            if (ltp !== null && (!cePresent || ltp > 5)) {
+              addPosition({
+                strike: currentAtmStrike,
+                optionType: 'PE',
+                type: 'SELL',
+                quantityLots: 1,
+                entryPrice: ltp,
+                entryTime: snap.time,
+                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+              });
+            }
+          }
+        } else if (diff === 0 && isAlreadyTraded) {
+          // Fill missing leg if LTP > 5
+          const cePresent = positions.some(
+            p =>
+              p.strike === currentAtmStrike &&
+              p.optionType === 'CE' &&
+              p.type === 'SELL' &&
+              p.status === 'OPEN',
+          );
+          const pePresent = positions.some(
+            p =>
+              p.strike === currentAtmStrike &&
+              p.optionType === 'PE' &&
+              p.type === 'SELL' &&
+              p.status === 'OPEN',
+          );
+
+          if (!cePresent && pePresent) {
+            const ltp = getOptionLtp(snap, currentAtmStrike, 'CE');
+            if (ltp !== null && ltp > 5) {
+              addPosition({
+                strike: currentAtmStrike,
+                optionType: 'CE',
+                type: 'SELL',
+                quantityLots: 1,
+                entryPrice: ltp,
+                entryTime: snap.time,
+                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+              });
+            }
+          } else if (!pePresent && cePresent) {
+            const ltp = getOptionLtp(snap, currentAtmStrike, 'PE');
+            if (ltp !== null && ltp > 5) {
+              addPosition({
+                strike: currentAtmStrike,
+                optionType: 'PE',
+                type: 'SELL',
+                quantityLots: 1,
+                entryPrice: ltp,
+                entryTime: snap.time,
+                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    mtm.push({
       time: snap.time,
       spot: snap.index_close,
-      ce: Number(row.calls_ltp),
-      pe: Number(row.puts_ltp),
-      premium,
-      pnlUnit: entryPremium - premium,
-    };
-    mtm.push(lastValid);
+      openPositionsCount: positions.filter(p => p.status === 'OPEN').length,
+    });
+  }
 
-    if (premium <= targetLevel) {
-      exitReason = 'TARGET';
-      exitPremium = premium;
-      exitTimeHit = snap.time;
-      break;
-    }
-    if (premium >= stopLevel) {
-      exitReason = 'STOP';
-      exitPremium = premium;
-      exitTimeHit = snap.time;
-      break;
-    }
-    if (snap.time >= exitTime) {
-      exitReason = 'TIME';
-      exitPremium = premium;
-      exitTimeHit = snap.time;
-      break;
+  // Force close any remaining open positions if loop finished without explicit close
+  const lastSnapTime = snaps[snaps.length - 1].time;
+  for (const pos of positions) {
+    if (pos.status === 'OPEN') {
+      if (pos.type === 'SELL') {
+        const ltp =
+          getOptionLtp(snaps[snaps.length - 1], pos.strike, pos.optionType) ||
+          0;
+        if (ltp > 5) {
+          pos.status = 'CLOSED';
+          pos.exitPrice = ltp;
+          pos.exitTime = lastSnapTime;
+          pos.exitReason = 'CLOSED_LTP_GT_5';
+        } else {
+          pos.status = 'CLOSED';
+          pos.exitPrice = 0;
+          pos.exitTime = lastSnapTime;
+          pos.exitReason = 'EXPIRED_WORTHLESS';
+        }
+      } else if (pos.type === 'BUY') {
+        pos.status = 'CLOSED';
+        pos.exitPrice = 0;
+        pos.exitTime = lastSnapTime;
+        pos.exitReason = 'HEDGE_EXPIRED';
+      }
     }
   }
 
-  if (mtm.length === 1) {
-    exitReason = 'NO_FOLLOW_UP';
-  } else if (exitReason === 'EOD') {
-    exitPremium = lastValid.premium;
-    exitTimeHit = lastValid.time;
+  // Calculate per-position and total P&L in points
+  let totalPnlPoints = 0;
+  for (const pos of positions) {
+    if (pos.type === 'SELL') {
+      pos.pnlPoints = (pos.entryPrice - pos.exitPrice) * pos.quantityLots;
+    } else {
+      // BUY hedges
+      pos.pnlPoints = (pos.exitPrice - pos.entryPrice) * pos.quantityLots;
+    }
+    totalPnlPoints += pos.pnlPoints;
   }
+
+  const tradedSellStrikes = [
+    ...new Set(positions.filter(p => p.type === 'SELL').map(p => p.strike)),
+  ];
 
   return {
     skipped: false,
     date: snaps[0].date,
     expiry: snaps[0].expiry,
-    source: entrySnap.source,
-    entryTime: entrySnap.time,
-    exitTime: exitTimeHit,
+    source: firstSnap.source,
+    entryTime: firstSnap.time,
+    exitTime: positions.length
+      ? positions[positions.length - 1].exitTime
+      : firstSnap.time,
     atmStrike,
-    entryPremium,
-    exitPremium,
-    exitReason,
-    pnlUnit: entryPremium - exitPremium,
+    tradedSellStrikes,
+    positions,
+    pnlUnit: totalPnlPoints,
     mtm,
   };
 }
@@ -429,6 +671,14 @@ function computeSummary(rows, lotSize) {
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
+  const totalLots = rows.reduce((sum, r) => {
+    const sessionLots = r.positions.reduce(
+      (pSum, p) => pSum + p.quantityLots,
+      0,
+    );
+    return sum + sessionLots * lotSize;
+  }, 0);
+
   return {
     sessions: rows.length,
     total,
@@ -442,7 +692,7 @@ function computeSummary(rows, lotSize) {
     grossLoss,
     profitFactor,
     maxDrawdown,
-    totalLots: rows.length * 2 * lotSize,
+    totalLots,
   };
 }
 
@@ -454,26 +704,28 @@ function printReport(sessions, config) {
   const summary = computeSummary(valid, config.lotSize);
 
   console.log('='.repeat(78));
-  console.log(' SHORT STRADDLE AT ATM — NIFTY OPTION CHAIN BACKTEST');
+  console.log(
+    ' SHORT STRADDLE AT ATM — NIFTY OPTION CHAIN BACKTEST (LIVE FIDELITY)',
+  );
   console.log('='.repeat(78));
   console.log(`Data dir   : ${config.dataDir}`);
   console.log(
     `Range      : ${config.from || 'all'} → ${config.to || 'all'}  (${valid.length} sessions, ${skipped.length} skipped)`,
   );
   console.log(
-    `Strategy   : entry ${config.entry.slice(0, 2)}:${config.entry.slice(2)}  exit ${config.exit.slice(0, 2)}:${config.exit.slice(2)}  target ${config.target * 100}%  stop ${config.stop * 100}%  expiries ${config.expiries}  expiryDaysOnly ${config.expiryDaysOnly ? 'ON' : 'OFF'}`,
+    `Strategy   : entry ${config.entry.slice(0, 2)}:${config.entry.slice(2)}  close ${config.close.slice(0, 2)}:${config.close.slice(2)}  strikeDiff ${config.strikeDiff}  expiries ${config.expiries}  expiryDaysOnly ${config.expiryDaysOnly ? 'ON' : 'OFF'}`,
   );
-  console.log(`Lot size   : ${config.lotSize} (1 CE + 1 PE per session)`);
+  console.log(`Lot size   : ${config.lotSize}`);
   console.log('-'.repeat(78));
   console.log(
-    ' Date       Expiry     ATM strike  Entry prem  Exit prem  Exit time  Reason   P&L (₹)       P&L %',
+    ' Date       Expiry     ATM strike  Traded Strikes      Positions  P&L (₹)',
   );
   console.log('-'.repeat(78));
 
   for (const r of valid) {
-    const pnlPct = r.entryPremium > 0 ? (r.pnlUnit / r.entryPremium) * 100 : 0;
+    const strikesStr = (r.tradedSellStrikes || [r.atmStrike]).join(',');
     console.log(
-      ` ${r.date}  ${r.expiry}  ${String(r.atmStrike).padStart(9)}  ${r.entryPremium.toFixed(2).padStart(9)}  ${r.exitPremium.toFixed(2).padStart(9)}  ${r.exitTime.slice(0, 2)}:${r.exitTime.slice(2)}  ${r.exitReason.padEnd(6)}  ${fmtMoney(r.pnl).padStart(13)}  ${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`,
+      ` ${r.date}  ${r.expiry}  ${String(r.atmStrike).padStart(9)}  ${strikesStr.padEnd(18)}  ${String(r.positions.length).padStart(9)}  ${fmtMoney(r.pnl).padStart(13)}`,
     );
   }
 
@@ -503,7 +755,7 @@ function printReport(sessions, config) {
   );
   console.log(`Max Drawdown   : ${fmtMoney(-summary.maxDrawdown)}`);
   console.log(
-    `Lots Traded    : ${summary.totalLots} (${valid.length} straddles)`,
+    `Lots Traded    : ${summary.totalLots} (${valid.length} sessions)`,
   );
   console.log('='.repeat(78));
 }
@@ -541,7 +793,6 @@ function main() {
     sessions = sessions.filter(s => {
       const expiryDate = expiryToDateStr(s.expiry);
       if (!expiryDate || expiryDate !== s.date) return false;
-      // production also requires the trading day to be a Tuesday (weekly expiry day)
       const dow = new Date(s.date + 'T00:00:00').getDay();
       return dow === 2;
     });
@@ -549,12 +800,13 @@ function main() {
       `[backtest] --expiry-days-only: keeping only expiry Tuesdays (${sessions.length} sessions)`,
     );
   }
+
   const results = sessions.map(session =>
     simulateSession(session.snaps, {
       entryTime: config.entry,
+      closeTime: config.close,
       exitTime: config.exit,
-      target: config.target,
-      stop: config.stop,
+      strikeDiff: config.strikeDiff,
     }),
   );
 

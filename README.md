@@ -125,9 +125,11 @@ The repository includes an offline backtester for the **Short Straddle at ATM** 
 
 For every `(trading day, expiry)` session, the backtester:
 
-1. **Enters** by selling 1 CE + 1 PE at the ATM strike at the configured entry time.
-2. **Tracks** mark-to-market P&L across all intraday snapshots.
-3. **Exits** on the first of: profit target, stop loss, or the configured exit time.
+1. **Enters**: at `>= 09:15` IST, buys 5-lot hedges at `ATM+500` CE & `ATM-500` PE, and sells 1-lot ATM straddle.
+2. **Rolls**: on subsequent ticks, if `|ATM - nearestTradedSellStrike| >= strikeDiff` (50 when India VIX < 14, 100 otherwise), sells a new ATM straddle (or missing leg if LTP > 5).
+3. **Exits**:
+   - **Per-leg 125% Stop Loss**: trigger = `entry * 2.25`. Checked per leg on every snapshot.
+   - **Close rule (15:17+)**: sell legs with `LTP > 5` are bought back at market; sell legs with `LTP <= 5` and all long hedges expire worthless.
 
 By default only the nearest expiry is traded per day (`--expiries all` to trade every expiry present in the data).
 
@@ -149,20 +151,18 @@ pnpm backtest
 | `--data-dir <path>` | auto-detected | Path to the `data/chains` directory. |
 | `--from YYYY-MM-DD` / `--to YYYY-MM-DD` | all | Restrict the backtest date range. |
 | `--entry HHMM` | `0915` | Session entry time (IST). |
-| `--exit HHMM` | `1530` | Session exit time (IST). |
-| `--target 0.5` | `0.5` | Close when premium decays to `(1 - target)` of entry. |
-| `--stop 1.0` | `1.0` | Close when premium rises to `(1 + stop)` of entry. |
-| `--lot-size 75` | `75` | NIFTY lot size used for P&L in rupees. |
+| `--close HHMM` | `1517` | Session close time (IST) when sell legs > 5 LTP are bought back. |
+| `--strike-diff N` / `--vix <14|>=14` | `50` | Strike step for rolling ATM entries (default 50 maps to VIX < 14). |
+| `--lot-size 65` | `65` | NIFTY lot size used for P&L in rupees. |
 | `--expiries nearest` | `nearest` | `nearest` (one per day) or `all` (every expiry present). |
-| `--json <file>` | — | Also write full per-session + MTM details to a JSON file. |
+| `--json <file>` | — | Also write full per-session + position details to a JSON file. |
 
 ### Example output
 
 ```text
- Date       Expiry     ATM strike  Entry prem  Exit prem  Exit time  Reason   P&L (₹)       P&L %
- 2026-06-09  2026-06-16      24000     200.00      95.00  12:00  TARGET     +₹7,875.00  +52.50%
- 2026-06-10  2026-06-16      24000     200.00     405.00  12:00  STOP      -₹15,375.00  -102.50%
- 2026-06-11  2026-06-16      24000     200.00     170.00  15:30  TIME       +₹2,250.00  +15.00%
+ Date       Expiry     ATM strike  Traded Strikes      Positions  P&L (₹)
+ 2026-05-04  2026-05-05      24150  24150,24200,24250,24300         10    -₹11,193.00
+ 2026-07-01  2026-07-07      23950  23950                       4    -₹15,015.00
 ```
 
 The summary block reports total P&L, win rate, average per session, profit factor, and maximum drawdown. Trades are simulated in index points — no live brokerage fees are modeled.
