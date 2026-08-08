@@ -27,18 +27,24 @@ const ROOT_DIR = path.resolve(
   '..',
 );
 
+const DEFAULT_CLOSE = process.env.EXIT_TIME
+  ? process.env.EXIT_TIME.replace(/[^0-9]/g, '').slice(0, 4)
+  : '1517';
+
 const DEFAULTS = {
   dataDir: null,
   from: null,
   to: null,
   entry: '0915',
-  close: '1517',
-  exit: '1517', // alias / compat
+  close: DEFAULT_CLOSE,
+  exit: DEFAULT_CLOSE, // alias / compat
   target: 0.5, // legacy flag ignored
   stop: 1.0, // legacy flag ignored
   strikeDiff: 50,
   vix: null,
   lotSize: 65,
+  slSlippage: 0,
+  entrySlippage: 0,
   expiries: 'nearest', // 'nearest' | 'all'
   expiryDaysOnly: false,
   json: null,
@@ -53,6 +59,10 @@ function num(value, fallback) {
     return fallback;
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function round2(v) {
+  return Math.round(v * 100) / 100;
 }
 
 function normalizeHHmm(value, fallback) {
@@ -83,6 +93,8 @@ function parseArgs(argv) {
   config.stop = num(config.stop, DEFAULTS.stop);
   config.lotSize = num(config.lotSize, DEFAULTS.lotSize);
   config.strikeDiff = num(config.strikeDiff, DEFAULTS.strikeDiff);
+  config.slSlippage = num(config.slSlippage, DEFAULTS.slSlippage);
+  config.entrySlippage = num(config.entrySlippage, DEFAULTS.entrySlippage);
   config.entry = normalizeHHmm(config.entry, DEFAULTS.entry);
 
   const closeVal =
@@ -317,6 +329,8 @@ export function simulateSession(snaps, options) {
   const entryTime = options.entryTime || '0915';
   const closeTime = options.closeTime || options.exitTime || '1517';
   const strikeDiff = options.strikeDiff !== undefined ? options.strikeDiff : 50;
+  const slSlippage = options.slSlippage || 0;
+  const entrySlippage = options.entrySlippage || 0;
 
   const entrySnapIndex = snaps.findIndex(s => s.time >= entryTime);
   if (entrySnapIndex === -1) {
@@ -359,7 +373,7 @@ export function simulateSession(snaps, options) {
       optionType: 'CE',
       type: 'BUY',
       quantityLots: 5,
-      entryPrice: ceHedgeLtp,
+      entryPrice: round2(ceHedgeLtp + entrySlippage),
       entryTime: firstSnap.time,
     });
   } else {
@@ -375,7 +389,7 @@ export function simulateSession(snaps, options) {
       optionType: 'PE',
       type: 'BUY',
       quantityLots: 5,
-      entryPrice: peHedgeLtp,
+      entryPrice: round2(peHedgeLtp + entrySlippage),
       entryTime: firstSnap.time,
     });
   } else {
@@ -397,24 +411,28 @@ export function simulateSession(snaps, options) {
     };
   }
 
+  const ceSellEntry = round2(Math.max(0.05, ceSellLtp - entrySlippage));
   addPosition({
     strike: atmStrike,
     optionType: 'CE',
     type: 'SELL',
     quantityLots: 1,
-    entryPrice: ceSellLtp,
+    entryPrice: ceSellEntry,
     entryTime: firstSnap.time,
-    slTriggerPrice: Math.round(ceSellLtp * 2.25 * 100) / 100,
+    slTriggerPrice: round2(ceSellEntry * 2.25),
+    slLimitPrice: round2(ceSellEntry * 2.25 * 1.05),
   });
 
+  const peSellEntry = round2(Math.max(0.05, peSellLtp - entrySlippage));
   addPosition({
     strike: atmStrike,
     optionType: 'PE',
     type: 'SELL',
     quantityLots: 1,
-    entryPrice: peSellLtp,
+    entryPrice: peSellEntry,
     entryTime: firstSnap.time,
-    slTriggerPrice: Math.round(peSellLtp * 2.25 * 100) / 100,
+    slTriggerPrice: round2(peSellEntry * 2.25),
+    slLimitPrice: round2(peSellEntry * 2.25 * 1.05),
   });
 
   // Track session execution snap-by-snap
@@ -427,42 +445,32 @@ export function simulateSession(snaps, options) {
       const currentLtp = getOptionLtp(snap, pos.strike, pos.optionType);
       if (currentLtp !== null && currentLtp >= pos.slTriggerPrice) {
         pos.status = 'CLOSED';
-        pos.exitPrice = pos.slTriggerPrice;
+        pos.exitPrice = round2(
+          Math.max(pos.slLimitPrice, currentLtp) + slSlippage,
+        );
         pos.exitTime = snap.time;
         pos.exitReason = 'SL_TRIGGERED';
       }
     }
 
-    // 2. Check if close time reached (>= closeTime)
+    // 2. Check Phase A close time reached (>= closeTime, ~15:17)
     if (snap.time >= closeTime) {
       for (const pos of positions) {
-        if (pos.status !== 'OPEN') continue;
-        if (pos.type === 'SELL') {
-          const ltp = getOptionLtp(snap, pos.strike, pos.optionType) || 0;
-          if (ltp > 5) {
-            pos.status = 'CLOSED';
-            pos.exitPrice = ltp;
-            pos.exitTime = snap.time;
-            pos.exitReason = 'CLOSED_LTP_GT_5';
-          } else {
-            pos.status = 'CLOSED';
-            pos.exitPrice = 0;
-            pos.exitTime = snap.time;
-            pos.exitReason = 'EXPIRED_WORTHLESS';
-          }
-        } else if (pos.type === 'BUY') {
+        if (pos.status !== 'OPEN' || pos.type !== 'SELL') continue;
+        const ltp = getOptionLtp(snap, pos.strike, pos.optionType) || 0;
+        if (ltp > 5) {
           pos.status = 'CLOSED';
-          pos.exitPrice = 0;
+          pos.exitPrice = round2(ltp);
           pos.exitTime = snap.time;
-          pos.exitReason = 'HEDGE_EXPIRED';
+          pos.exitReason = 'CLOSED_LTP_GT_5';
         }
       }
       mtm.push({
         time: snap.time,
         spot: snap.index_close,
-        openPositionsCount: 0,
+        openPositionsCount: positions.filter(p => p.status === 'OPEN').length,
       });
-      break; // End session simulation for the day
+      break; // Stop market loop; Phase B will settle remaining open positions at final snapshot LTP
     }
 
     // 3. Rolling / Repeat Short Straddle logic
@@ -499,14 +507,16 @@ export function simulateSession(snaps, options) {
           if (!cePresent) {
             const ltp = getOptionLtp(snap, currentAtmStrike, 'CE');
             if (ltp !== null && (!pePresent || ltp > 5)) {
+              const entryPrice = round2(Math.max(0.05, ltp - entrySlippage));
               addPosition({
                 strike: currentAtmStrike,
                 optionType: 'CE',
                 type: 'SELL',
                 quantityLots: 1,
-                entryPrice: ltp,
+                entryPrice,
                 entryTime: snap.time,
-                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+                slTriggerPrice: round2(entryPrice * 2.25),
+                slLimitPrice: round2(entryPrice * 2.25 * 1.05),
               });
             }
           }
@@ -514,14 +524,16 @@ export function simulateSession(snaps, options) {
           if (!pePresent) {
             const ltp = getOptionLtp(snap, currentAtmStrike, 'PE');
             if (ltp !== null && (!cePresent || ltp > 5)) {
+              const entryPrice = round2(Math.max(0.05, ltp - entrySlippage));
               addPosition({
                 strike: currentAtmStrike,
                 optionType: 'PE',
                 type: 'SELL',
                 quantityLots: 1,
-                entryPrice: ltp,
+                entryPrice,
                 entryTime: snap.time,
-                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+                slTriggerPrice: round2(entryPrice * 2.25),
+                slLimitPrice: round2(entryPrice * 2.25 * 1.05),
               });
             }
           }
@@ -545,27 +557,31 @@ export function simulateSession(snaps, options) {
           if (!cePresent && pePresent) {
             const ltp = getOptionLtp(snap, currentAtmStrike, 'CE');
             if (ltp !== null && ltp > 5) {
+              const entryPrice = round2(Math.max(0.05, ltp - entrySlippage));
               addPosition({
                 strike: currentAtmStrike,
                 optionType: 'CE',
                 type: 'SELL',
                 quantityLots: 1,
-                entryPrice: ltp,
+                entryPrice,
                 entryTime: snap.time,
-                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+                slTriggerPrice: round2(entryPrice * 2.25),
+                slLimitPrice: round2(entryPrice * 2.25 * 1.05),
               });
             }
           } else if (!pePresent && cePresent) {
             const ltp = getOptionLtp(snap, currentAtmStrike, 'PE');
             if (ltp !== null && ltp > 5) {
+              const entryPrice = round2(Math.max(0.05, ltp - entrySlippage));
               addPosition({
                 strike: currentAtmStrike,
                 optionType: 'PE',
                 type: 'SELL',
                 quantityLots: 1,
-                entryPrice: ltp,
+                entryPrice,
                 entryTime: snap.time,
-                slTriggerPrice: Math.round(ltp * 2.25 * 100) / 100,
+                slTriggerPrice: round2(entryPrice * 2.25),
+                slLimitPrice: round2(entryPrice * 2.25 * 1.05),
               });
             }
           }
@@ -580,30 +596,44 @@ export function simulateSession(snaps, options) {
     });
   }
 
-  // Force close any remaining open positions if loop finished without explicit close
-  const lastSnapTime = snaps[snaps.length - 1].time;
+  // Phase B: Settle any remaining OPEN positions using the LAST available snapshot of the day (~15:30)
+  const finalSnap = snaps[snaps.length - 1];
+  const finalSnapTime = finalSnap.time;
+
   for (const pos of positions) {
     if (pos.status === 'OPEN') {
-      if (pos.type === 'SELL') {
-        const ltp =
-          getOptionLtp(snaps[snaps.length - 1], pos.strike, pos.optionType) ||
-          0;
-        if (ltp > 5) {
-          pos.status = 'CLOSED';
-          pos.exitPrice = ltp;
-          pos.exitTime = lastSnapTime;
-          pos.exitReason = 'CLOSED_LTP_GT_5';
-        } else {
-          pos.status = 'CLOSED';
-          pos.exitPrice = 0;
-          pos.exitTime = lastSnapTime;
-          pos.exitReason = 'EXPIRED_WORTHLESS';
+      let finalLtp = getOptionLtp(finalSnap, pos.strike, pos.optionType);
+
+      // Fallback: search backwards for previous snapshot LTP if missing from final snap
+      if (finalLtp === null) {
+        for (let j = snaps.length - 2; j >= 0; j--) {
+          const ltp = getOptionLtp(snaps[j], pos.strike, pos.optionType);
+          if (ltp !== null) {
+            finalLtp = ltp;
+            break;
+          }
         }
+      }
+
+      if (finalLtp === null) {
+        finalLtp = 0;
+        console.warn(
+          `[warn] final snapshot LTP missing: ${finalSnap.date} ${pos.optionType} ${pos.strike}`,
+        );
+      }
+
+      finalLtp = round2(finalLtp);
+
+      if (pos.type === 'SELL') {
+        pos.status = 'CLOSED';
+        pos.exitPrice = finalLtp;
+        pos.exitTime = finalSnapTime;
+        pos.exitReason = finalLtp > 5 ? 'SETTLED_ITM' : 'EXPIRED_WORTHLESS';
       } else if (pos.type === 'BUY') {
         pos.status = 'CLOSED';
-        pos.exitPrice = 0;
-        pos.exitTime = lastSnapTime;
-        pos.exitReason = 'HEDGE_EXPIRED';
+        pos.exitPrice = finalLtp;
+        pos.exitTime = finalSnapTime;
+        pos.exitReason = 'HEDGE_SETTLED';
       }
     }
   }

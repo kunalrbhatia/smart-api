@@ -39,6 +39,10 @@ export const config = {
    * Slack Signing Secret for verifying slash commands.
    */
   slackSigningSecret: process.env.SLACK_SIGNING_SECRET,
+  /**
+   * Intraday algo exit time (HH:mm format). Default: 15:17.
+   */
+  exitTime: process.env.EXIT_TIME || '15:17',
 };
 
 // Diagnostic logging

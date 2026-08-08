@@ -153,16 +153,24 @@ pnpm backtest
 | `--entry HHMM` | `0915` | Session entry time (IST). |
 | `--close HHMM` | `1517` | Session close time (IST) when sell legs > 5 LTP are bought back. |
 | `--strike-diff N` / `--vix <14|>=14` | `50` | Strike step for rolling ATM entries (default 50 maps to VIX < 14). |
+| `--entry-slippage N` | `0` | Premium points deducted from sell entries / added to buy hedges for open execution slippage. |
+| `--sl-slippage N` | `0` | Additional premium points added to SL limit fill price on stop loss triggers. |
 | `--lot-size 65` | `65` | NIFTY lot size used for P&L in rupees. |
 | `--expiries nearest` | `nearest` | `nearest` (one per day) or `all` (every expiry present). |
 | `--json <file>` | — | Also write full per-session + position details to a JSON file. |
+
+### Fidelity Notes
+
+1. **Stop Loss Fills**: SL trigger is `entry * 2.25`; limit order is placed at `entry * 2.25 * 1.05`. On trigger, fills occur at `max(slLimitPrice, currentLtp) + slSlippage` to model limit execution and gap-through slippage.
+2. **Expiry Settlement**: At `15:17+` (Phase A), sell legs with `LTP > 5` are bought back at market price. Any legs remaining open are settled at the **final snapshot LTP of the day** (`~15:30`) in Phase B (`SETTLED_ITM` if `LTP > 5`, else `EXPIRED_WORTHLESS`).
+3. **Entry Execution**: Initial entries use the `09:15` chain LTP. Live market fills at `09:16` can differ during volatile opens; `--entry-slippage` allows configuring realistic entry slippage.
 
 ### Example output
 
 ```text
  Date       Expiry     ATM strike  Traded Strikes      Positions  P&L (₹)
- 2026-05-04  2026-05-05      24150  24150,24200,24250,24300         10    -₹11,193.00
- 2026-07-01  2026-07-07      23950  23950                       4    -₹15,015.00
+ 2026-05-04  2026-05-05      24150  24150,24200,24250,24300         10     -₹2,223.00
+ 2026-07-01  2026-07-07      23950  23950                       4         +₹0.00
 ```
 
 The summary block reports total P&L, win rate, average per session, profit factor, and maximum drawdown. Trades are simulated in index points — no live brokerage fees are modeled.

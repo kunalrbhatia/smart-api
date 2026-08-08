@@ -1,3 +1,4 @@
+import { config as appConfig } from '../../config/env';
 import moment from 'moment-timezone';
 import { isEmpty } from 'lodash';
 import {
@@ -290,6 +291,16 @@ export const coreTradeExecution = async ({
   }
 };
 
+export const getAlgoExitTime = (): { hours: number; minutes: number } => {
+  const [hoursStr, minutesStr] = (appConfig.exitTime || '15:17').split(':');
+  const hours = Number.parseInt(hoursStr, 10);
+  const minutes = Number.parseInt(minutesStr, 10);
+  return {
+    hours: Number.isFinite(hours) ? hours : 15,
+    minutes: Number.isFinite(minutes) ? minutes : 17,
+  };
+};
+
 /**
  * Executes the main trading logic for the day.
  */
@@ -298,7 +309,8 @@ export const executeTrade = async () => {
     await checkAndFillPaperOrders();
   }
   let resp: number | string = `${ALGO}: Trade Closed`;
-  const isPastClosingTime = isCurrentTimeGreater({ hours: 15, minutes: 17 });
+  const { hours, minutes } = getAlgoExitTime();
+  const isPastClosingTime = isCurrentTimeGreater({ hours, minutes });
 
   const smartSession = await getSmartSession();
   const cred = getCredentials();
