@@ -7,6 +7,8 @@ import {
   checkMarketConditionsAndExecuteTrade,
   repeatShortStraddle,
   executeSellAtmBuyHedge,
+  getAlgoExitTime,
+  getAlgoEntryTime,
 } from '../../../src/helpers/apiService/strategy';
 import * as ordersHelper from '../../../src/helpers/apiService/orders';
 import * as marketDataHelper from '../../../src/helpers/apiService/marketData';
@@ -460,6 +462,22 @@ describe('ApiService - Strategy - Final 90+', () => {
         hedgeDistance: 500,
       });
       expect(result.trades).toHaveLength(4);
+    });
+  });
+
+  describe('getAlgoEntryTime', () => {
+    it('should parse HH:mm correctly', () => {
+      const entryTime = getAlgoEntryTime();
+      expect(entryTime).toHaveProperty('hours');
+      expect(entryTime).toHaveProperty('minutes');
+    });
+  });
+
+  describe('getAlgoExitTime', () => {
+    it('should parse HH:mm correctly', () => {
+      const exitTime = getAlgoExitTime();
+      expect(exitTime).toHaveProperty('hours');
+      expect(exitTime).toHaveProperty('minutes');
     });
   });
 });
