@@ -12,6 +12,7 @@ import moment from 'moment-timezone';
 import { setCredentials } from 'krb-smart-api-module';
 import DataStoreMod from '../dist/store/dataStore.js';
 import { getSmartSession } from '../dist/helpers/apiService/session.js';
+import { getAlgoPositions } from '../dist/helpers/apiService/positions.js';
 import { isPaperMode } from '../dist/helpers/paperTrade.js';
 
 const DataStore = DataStoreMod.default;
@@ -98,10 +99,30 @@ async function main() {
   const nowIST = moment().tz('Asia/Kolkata');
   const expiryFormatted = nowIST.format('DDMMMYYYY').toUpperCase();
 
-  // 4. Filter positions to current expiry
+  // 4. Filter positions to current expiry AND smart-api's own symbols
+  //    (the account may also hold positions from OTHER algos, e.g. niftyicif,
+  //    trading the same expiry — intersect with positions.json bookkeeping so
+  //    the report only reflects THIS algo's trades).
+  const algoSymbols = new Set(
+    (getAlgoPositions() || [])
+      .map(p => (p.tradingsymbol || '').toUpperCase())
+      .filter(Boolean),
+  );
+  console.log(
+    `[gen-report] smart-api tracks ${algoSymbols.size} symbols in positions.json`,
+  );
+
   const currentExpiryPositions = allPositions.filter(p => {
     const expiry = (p.expirydate || '').toUpperCase();
-    return expiry === expiryFormatted;
+    if (expiry !== expiryFormatted) return false;
+    // Only keep symbols this algo actually traded (positions.json source of truth)
+    if (!algoSymbols.has((p.tradingsymbol || '').toUpperCase())) {
+      console.log(
+        `[gen-report] Excluding foreign position (other algo): ${p.tradingsymbol} (netqty ${p.netqty})`,
+      );
+      return false;
+    }
+    return true;
   });
 
   // 5. Build report
