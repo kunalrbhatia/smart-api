@@ -66,7 +66,7 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
    ```bash
    cp .env.example .env
    ```
-   _Edit `.env` and fill in your `API_KEY`, `CLIENT_ID`, `CLIENT_PASSWORD`, and `CLIENT_TOTP_PIN` (16-character secret)._
+   _Edit `.env` and fill in your `API_KEY`, `CLIENT_ID`, `CLIENT_PASSWORD`, and `CLIENT_TOTP_PIN` (16-character secret). Configurable strategy timings include `ENTRY_TIME` (default `09:15`), `EXIT_TIME` (default `15:17`), and `NO_ENTRY_AFTER` (default `15:10` - no new entries or rolls after this time)._
 
 ---
 
