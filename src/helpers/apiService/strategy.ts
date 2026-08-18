@@ -186,6 +186,14 @@ export const repeatShortStraddle = async (
   atmStrike: number,
 ) => {
   try {
+    const noEntryTime = getAlgoNoEntryTime();
+    if (isCurrentTimeGreater(noEntryTime)) {
+      const formattedCutoff = `${String(noEntryTime.hours).padStart(2, '0')}:${String(noEntryTime.minutes).padStart(2, '0')}`;
+      logger.log(
+        `${ALGO}: Skipping roll: past entry cutoff (${formattedCutoff})`,
+      );
+      return;
+    }
     const idx = OrderStore.getInstance().getPostData().INDEX;
     const strikeDiff = getStrikeDifference(idx);
     const positions = await getPositionsJson();
@@ -311,6 +319,16 @@ export const getAlgoExitTime = (): { hours: number; minutes: number } => {
   };
 };
 
+export const getAlgoNoEntryTime = (): { hours: number; minutes: number } => {
+  const [hoursStr, minutesStr] = (appConfig.noEntryAfter || '15:10').split(':');
+  const hours = Number.parseInt(hoursStr, 10);
+  const minutes = Number.parseInt(minutesStr, 10);
+  return {
+    hours: Number.isFinite(hours) ? hours : 15,
+    minutes: Number.isFinite(minutes) ? minutes : 10,
+  };
+};
+
 /**
  * Executes the main trading logic for the day.
  */
@@ -344,7 +362,9 @@ export const executeTrade = async () => {
   const adjustedMtm = mtmData - postData.MTM_BASELINE;
 
   if (isPastClosingTime === false) {
-    await coreTradeExecution({ data: openSellPositions, allPositions });
+    if (isCurrentTimeGreater(getAlgoNoEntryTime()) === false) {
+      await coreTradeExecution({ data: openSellPositions, allPositions });
+    }
     const freshPositions = await getPositions(smartSession, cred);
     await placeStopLossOnAllTrades(125, freshPositions);
     resp = adjustedMtm;
