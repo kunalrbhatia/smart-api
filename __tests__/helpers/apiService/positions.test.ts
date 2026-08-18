@@ -210,7 +210,6 @@ describe('ApiService - Positions - Final', () => {
       (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
         ltp: 16,
       });
-      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
         if (
           typeof filePath === 'string' &&
           filePath.includes('positions.json')
@@ -246,7 +245,6 @@ describe('ApiService - Positions - Final', () => {
       (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
         ltp: 16,
       });
-      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
         if (
           typeof filePath === 'string' &&
           filePath.includes('positions.json')
