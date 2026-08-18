@@ -24,6 +24,7 @@ import {
   setCredentials,
 } from 'krb-smart-api-module';
 import { logger } from './logger';
+import { config as appConfig } from '../config/env';
 
 /**
  * Normalizes strikeprice string to integer — handles "25400.0" and "25400" both.
@@ -397,8 +398,14 @@ export const getOpenSellPositions = (positions: Position[]): Position[] => {
  * @returns {boolean} A boolean indicating if the market is closed.
  */
 export const isMarketClosed = () => {
+  const [hoursStr, minutesStr] = (appConfig.entryTime || '09:15').split(':');
+  const hours = Number.parseInt(hoursStr, 10);
+  const minutes = Number.parseInt(minutesStr, 10);
+  const entryHours = Number.isFinite(hours) ? hours : 9;
+  const entryMinutes = Number.isFinite(minutes) ? minutes : 15;
+
   if (
-    isCurrentTimeGreater({ hours: 9, minutes: 15 }) &&
+    isCurrentTimeGreater({ hours: entryHours, minutes: entryMinutes }) &&
     !isCurrentTimeGreater({ hours: 15, minutes: 30 })
   ) {
     return false;
