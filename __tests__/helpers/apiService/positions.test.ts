@@ -53,7 +53,12 @@ describe('ApiService - Positions - Final', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.existsSync as jest.Mock).mockImplementation((filePath: string) => {
+      if (typeof filePath === 'string' && filePath.includes('.paper-trade')) {
+        return false;
+      }
+      return true;
+    });
     (fs.readFileSync as jest.Mock).mockReturnValue('[]');
     (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
 
@@ -91,7 +96,12 @@ describe('ApiService - Positions - Final', () => {
   });
 
   const mockFetchSuccess = (data: any) => {
-    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.existsSync as jest.Mock).mockImplementation((filePath: string) => {
+      if (typeof filePath === 'string' && filePath.includes('.paper-trade')) {
+        return false;
+      }
+      return true;
+    });
     (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(data));
   };
 
@@ -196,9 +206,17 @@ describe('ApiService - Positions - Final', () => {
   });
 
   describe('getMtm', () => {
-    it('should calculate MTM', async () => {
+    it('should calculate MTM when positions.json contains symbol', async () => {
       (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
         ltp: 16,
+      });
+      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+        if (typeof filePath === 'string' && filePath.includes('positions.json')) {
+          return JSON.stringify([
+            { tradingsymbol: 'T1', expirydate: '20FEB2025', symbolname: 'NIFTY' },
+          ]);
+        }
+        return '[]';
       });
       const positions = [
         {
@@ -214,8 +232,83 @@ describe('ApiService - Positions - Final', () => {
           totalsellvalue: '0',
         },
       ];
-      mockFetchSuccess(positions);
-      expect(await getMtm()).toBe(500);
+      expect(await getMtm(positions as any)).toBe(500);
+    });
+
+    it('should exclude foreign positions not present in positions.json', async () => {
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 16,
+      });
+      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+        if (typeof filePath === 'string' && filePath.includes('positions.json')) {
+          return JSON.stringify([
+            { tradingsymbol: 'T1', expirydate: '20FEB2025', symbolname: 'NIFTY' },
+          ]);
+        }
+        return '[]';
+      });
+      const positions = [
+        {
+          tradingsymbol: 'T1',
+          netqty: '50',
+          unrealised: '300',
+          realised: '200',
+          expirydate: '20FEB2025',
+          symbolname: 'NIFTY',
+          exchange: 'NFO',
+          symboltoken: '1',
+          totalbuyvalue: '500',
+          totalsellvalue: '0',
+        },
+        {
+          tradingsymbol: 'NIFTY18AUG2623900PE',
+          netqty: '-130',
+          unrealised: '1000',
+          realised: '500',
+          expirydate: '20FEB2025',
+          symbolname: 'NIFTY',
+          exchange: 'NFO',
+          symboltoken: '2',
+          totalbuyvalue: '0',
+          totalsellvalue: '1000',
+        },
+      ];
+      const mtm = await getMtm(positions as any);
+      expect(mtm).toBe(500);
+      expect(logger.log).toHaveBeenCalledWith(
+        'Excluding foreign position from MTM: NIFTY18AUG2623900PE',
+      );
+    });
+
+    it('should log warning and fallback to expiry+index filter if positions.json is empty', async () => {
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 16,
+      });
+      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+        if (typeof filePath === 'string' && filePath.includes('positions.json')) {
+          return '[]';
+        }
+        return '[]';
+      });
+      const positions = [
+        {
+          tradingsymbol: 'T1',
+          netqty: '50',
+          unrealised: '300',
+          realised: '200',
+          expirydate: '20FEB2025',
+          symbolname: 'NIFTY',
+          exchange: 'NFO',
+          symboltoken: '1',
+          totalbuyvalue: '500',
+          totalsellvalue: '0',
+        },
+      ];
+      const mtm = await getMtm(positions as any);
+      expect(mtm).toBe(500);
+      expect(logger.warn).toHaveBeenCalledWith(
+        '⚠️ positions.json empty — MTM may be incomplete',
+      );
     });
 
     it('should return 0 if MTM fails', async () => {

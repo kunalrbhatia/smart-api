@@ -415,15 +415,38 @@ export const getMtm = async (positions?: Position[]) => {
   }
   const tradedExpiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   const tradedIndex = OrderStore.getInstance().getPostData().INDEX;
+
+  const algoPositions = getAlgoPositions();
+  const algoSymbols = new Set(
+    algoPositions
+      .map(p => p.tradingsymbol?.toUpperCase())
+      .filter((s): s is string => Boolean(s)),
+  );
+  const isWhitelistEmpty = algoSymbols.size === 0;
+
+  if (isWhitelistEmpty) {
+    logger.warn('⚠️ positions.json empty — MTM may be incomplete');
+  }
+
   let mtm = 0;
   if (tradedPositions !== null && Array.isArray(tradedPositions)) {
     for (const position of tradedPositions) {
       const isSameExpiryDate = position.expirydate === tradedExpiryDate;
       const isSameIndex = position.symbolname === tradedIndex;
+      const isOwnSymbol =
+        isWhitelistEmpty ||
+        algoSymbols.has(position.tradingsymbol?.toUpperCase());
+
       if (isSameExpiryDate && isSameIndex) {
-        const unrealised = Number.parseFloat(position.unrealised);
-        const realised = Number.parseFloat(position.realised);
-        mtm += unrealised + realised;
+        if (isOwnSymbol) {
+          const unrealised = Number.parseFloat(position.unrealised);
+          const realised = Number.parseFloat(position.realised);
+          mtm += unrealised + realised;
+        } else {
+          logger.log(
+            `Excluding foreign position from MTM: ${position.tradingsymbol}`,
+          );
+        }
       }
     }
   }
