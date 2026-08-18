@@ -47,6 +47,10 @@ export const config = {
    * Intraday algo exit time (HH:mm format). Default: 15:17.
    */
   exitTime: process.env.EXIT_TIME || '15:17',
+  /**
+   * Intraday algo no-entry cutoff time (HH:mm format). Default: 15:10.
+   */
+  noEntryAfter: process.env.NO_ENTRY_AFTER || '15:10',
 };
 
 // Diagnostic logging

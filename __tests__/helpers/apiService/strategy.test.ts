@@ -9,6 +9,7 @@ import {
   executeSellAtmBuyHedge,
   getAlgoExitTime,
   getAlgoEntryTime,
+  getAlgoNoEntryTime,
 } from '../../../src/helpers/apiService/strategy';
 import * as ordersHelper from '../../../src/helpers/apiService/orders';
 import * as marketDataHelper from '../../../src/helpers/apiService/marketData';
@@ -62,6 +63,7 @@ describe('ApiService - Strategy - Final 90+', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
     (isKillSwitchActive as jest.Mock).mockReturnValue(false);
     mockOrderStoreInstance = {
       getPostData: jest.fn().mockReturnValue({
@@ -164,7 +166,17 @@ describe('ApiService - Strategy - Final 90+', () => {
   });
 
   describe('repeatShortStraddle', () => {
+    it('should skip roll and log message if past no entry cutoff time', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(true);
+      await repeatShortStraddle(150, 18100);
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining('Skipping roll: past entry cutoff'),
+      );
+      expect(positionsHelper.getPositionsJson).not.toHaveBeenCalled();
+    });
+
     it('should call checkBothLegs if difference is large enough', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
       (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
       await repeatShortStraddle(150, 18100);
       expect(
@@ -173,6 +185,7 @@ describe('ApiService - Strategy - Final 90+', () => {
     });
 
     it('should log error and rethrow on failure', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
       (positionsHelper.getPositionsJson as jest.Mock).mockRejectedValue(
         new Error('Repeat Error'),
       );
@@ -240,6 +253,31 @@ describe('ApiService - Strategy - Final 90+', () => {
         ...postData,
         MTM_BASELINE: 1000,
       });
+    });
+
+    it('should skip coreTradeExecution if past no entry cutoff time but before exit time', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockImplementation(
+        ({ hours, minutes }: { hours: number; minutes: number }) => {
+          if (hours === 15 && minutes === 17) return false;
+          if (hours === 15 && minutes === 10) return true;
+          return false;
+        },
+      );
+      (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
+      (getSessionStateFn as jest.Mock).mockReturnValue({
+        tradingDate: '20FEB2025',
+        straddleOpenedToday: false,
+        mtmBaseline: 200,
+      });
+      mockOrderStoreInstance.getPostData.mockReturnValue({
+        INDEX: 'NIFTY',
+        EXPIRYDATE: '20FEB2025',
+        STRIKE_DIFFERENCE: 100,
+        MTM_BASELINE: 200,
+      });
+
+      const result = await executeTrade();
+      expect(result).toBe(800);
     });
   });
 
@@ -478,6 +516,14 @@ describe('ApiService - Strategy - Final 90+', () => {
       const exitTime = getAlgoExitTime();
       expect(exitTime).toHaveProperty('hours');
       expect(exitTime).toHaveProperty('minutes');
+    });
+  });
+
+  describe('getAlgoNoEntryTime', () => {
+    it('should parse HH:mm correctly', () => {
+      const noEntryTime = getAlgoNoEntryTime();
+      expect(noEntryTime).toHaveProperty('hours');
+      expect(noEntryTime).toHaveProperty('minutes');
     });
   });
 });
