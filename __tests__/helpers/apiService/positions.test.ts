@@ -211,9 +211,16 @@ describe('ApiService - Positions - Final', () => {
         ltp: 16,
       });
       (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
-        if (typeof filePath === 'string' && filePath.includes('positions.json')) {
+        if (
+          typeof filePath === 'string' &&
+          filePath.includes('positions.json')
+        ) {
           return JSON.stringify([
-            { tradingsymbol: 'T1', expirydate: '20FEB2025', symbolname: 'NIFTY' },
+            {
+              tradingsymbol: 'T1',
+              expirydate: '20FEB2025',
+              symbolname: 'NIFTY',
+            },
           ]);
         }
         return '[]';
@@ -240,9 +247,16 @@ describe('ApiService - Positions - Final', () => {
         ltp: 16,
       });
       (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
-        if (typeof filePath === 'string' && filePath.includes('positions.json')) {
+        if (
+          typeof filePath === 'string' &&
+          filePath.includes('positions.json')
+        ) {
           return JSON.stringify([
-            { tradingsymbol: 'T1', expirydate: '20FEB2025', symbolname: 'NIFTY' },
+            {
+              tradingsymbol: 'T1',
+              expirydate: '20FEB2025',
+              symbolname: 'NIFTY',
+            },
           ]);
         }
         return '[]';
@@ -285,7 +299,10 @@ describe('ApiService - Positions - Final', () => {
         ltp: 16,
       });
       (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
-        if (typeof filePath === 'string' && filePath.includes('positions.json')) {
+        if (
+          typeof filePath === 'string' &&
+          filePath.includes('positions.json')
+        ) {
           return '[]';
         }
         return '[]';

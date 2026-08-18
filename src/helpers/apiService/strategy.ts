@@ -320,9 +320,7 @@ export const getAlgoExitTime = (): { hours: number; minutes: number } => {
 };
 
 export const getAlgoNoEntryTime = (): { hours: number; minutes: number } => {
-  const [hoursStr, minutesStr] = (
-    appConfig.noEntryAfter || '15:10'
-  ).split(':');
+  const [hoursStr, minutesStr] = (appConfig.noEntryAfter || '15:10').split(':');
   const hours = Number.parseInt(hoursStr, 10);
   const minutes = Number.parseInt(minutesStr, 10);
   return {
