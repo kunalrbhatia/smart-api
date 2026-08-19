@@ -385,7 +385,6 @@ export const isTradeAllowed = async (expiryDate: string) => {
   const entryTimeObj = getAlgoEntryTime();
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
-  const isTuesday = moment().day() === 2;
   const isHoliday = isTradingHoliday();
   const isExpiryDay = moment().format('DDMMMYYYY').toUpperCase() === expiryDate;
   const hasTimePassed = isCurrentTimeGreater({
