@@ -425,4 +425,25 @@ describe('ApiService - MarketData', () => {
       expect(logger.error).toHaveBeenCalled();
     });
   });
+
+  describe('getNearestWeeklyExpiry', () => {
+    it('should return nearest expiry for SENSEX using BFO segment', async () => {
+      const scripMaster = [
+        {
+          name: 'SENSEX',
+          exch_seg: 'BFO',
+          instrumenttype: 'OPTIDX',
+          symbol: 'SENSEX28AUG3080000CE',
+          expiry: '28AUG2030',
+          token: '100',
+        },
+      ];
+      mockScripMasterStoreInstance.getPostData.mockReturnValue({
+        SCRIP_MASTER_JSON: scripMaster,
+      });
+
+      const expiry = await getNearestWeeklyExpiry('SENSEX');
+      expect(expiry).toBe('28AUG2030');
+    });
+  });
 });

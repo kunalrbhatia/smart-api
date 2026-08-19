@@ -320,9 +320,7 @@ export const getAlgoExitTime = (): { hours: number; minutes: number } => {
 };
 
 export const getAlgoNoEntryTime = (): { hours: number; minutes: number } => {
-  const [hoursStr, minutesStr] = (
-    appConfig.noEntryAfter || '15:10'
-  ).split(':');
+  const [hoursStr, minutesStr] = (appConfig.noEntryAfter || '15:10').split(':');
   const hours = Number.parseInt(hoursStr, 10);
   const minutes = Number.parseInt(minutesStr, 10);
   return {
@@ -407,7 +405,6 @@ export const isTradeAllowed = async (expiryDate: string) => {
 
   const reasons: string[] = [];
   if (!isExpiryDay) reasons.push(`Not expiry day (${expiryDate})`);
-  if (!isTuesday) reasons.push('Not Tuesday');
   if (isWeekend) reasons.push('Weekend');
   if (!isMarketOpen) reasons.push('Market closed');
   if (!hasTimePassed) reasons.push(`Before ${formattedEntryTime}`);
@@ -416,7 +413,6 @@ export const isTradeAllowed = async (expiryDate: string) => {
 
   const isAllowed =
     isExpiryDay &&
-    isTuesday &&
     !isWeekend &&
     isMarketOpen &&
     hasTimePassed &&
