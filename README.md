@@ -152,7 +152,7 @@ node scripts/clean-logs.js
 
 ### 📊 Expiry Reports
 
-Performance analyses and P&L breakdowns for each weekly expiry date are documented in the [expiry-reports/](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/) directory (e.g. [expiry-2026-07-07.md](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/expiry-2026-07-07.md)).
+Performance analyses and P&L breakdowns for each weekly expiry date are documented in the [expiry-reports/](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/) directory formatted as `expiry-<INDEX>-YYYY-MM-DD.md` (e.g. `expiry-NIFTY-2026-08-18.md` or `expiry-SENSEX-2026-08-20.md`).
 
 Each report highlights:
 - **P&L Summary**: Net Premium, Realised vs Unrealised P&L, and winner/loser counts.
