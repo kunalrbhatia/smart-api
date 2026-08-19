@@ -1,12 +1,12 @@
 # 🚀 SmartAPI Intraday Trading Algorithm
 
 [![CI Pipeline](https://github.com/kunalrbhatia/smart-api/actions/workflows/ci.yml/badge.svg)](https://github.com/kunalrbhatia/smart-api/actions/workflows/ci.yml)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-%5E5.4.5-blue)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Coverage](https://img.shields.io/badge/coverage-86.2%25-brightgreen)](https://github.com/kunalrbhatia/smart-api)
+[![Coverage](https://img.shields.io/badge/coverage-%3E%3D80%25-brightgreen)](https://github.com/kunalrbhatia/smart-api)
 
-A robust, enterprise-grade intraday trading algorithm built with Node.js and TypeScript, specifically designed for automating **Short Straddle** strategies on BankNifty index options using the Angel One **SmartAPI**.
+A robust, enterprise-grade intraday trading algorithm built with Node.js and TypeScript, specifically designed for automating **Short Straddle** strategies on **NIFTY** (Tuesday) and **SENSEX** (Thursday) weekly index options using Angel One's **SmartAPI** (BANKNIFTY is monthly expiry and strictly excluded).
 
 ---
 
@@ -14,22 +14,22 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 
 - 🔐 **Automated Smart Login**: Hands-free authentication with automated 6-digit TOTP generation.
 - 📡 **Compliance Ready**: Automatic resolution of Public IP, Local IP, and MAC addresses for secure API header requirements.
-- 📉 **Real-time Risk Management**: Active MTM tracking with automated stop-loss placement (150% factor) for all sell positions.
-- 📊 **Local Positions Tracking**: Uses a local `positions.json` database as the sole source of truth for the algorithm's active positions, eliminating MTM leakage from carried-forward legacy broker positions and ensuring precise hedge executions.
+- 📉 **Real-time Risk Management**: Active MTM tracking with automated stop-loss placement (125% factor: trigger = entry × 2.25, limit = trigger × 1.05) for all sell positions.
+- 📊 **Local Positions Tracking**: Persistent local state bookkeeping in `positions.json` to track open legs and prevent duplicate trade entries; broker truth via SmartAPI `GET_POSITIONS` is queried for post-expiry reports and P&L verification, while `getMtm` filters to the algo's own symbol whitelist.
 - 🧪 **Paper Trading Mode**: High-fidelity simulation mode to test strategies against live market data without financial risk.
 - 💬 **Multi-Channel Remote Control**: Dual support for Telegram and Slack interactive commands to monitor and control the algorithm remotely.
 - 📅 **Datewise Logging & Retention**: Dynamically logs application status and MTM metrics daily, with automated script-based log retention cleanup.
-- 📊 **Weekly Expiry Reports**: Track and analyze performance with detailed P&L and straddle breakdowns under [expiry-reports/](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/).
+- 📊 **Weekly Expiry Reports**: Track and analyze performance with detailed P&L and straddle breakdowns under [expiry-reports/](expiry-reports/).
 - 🧩 **Developer Agent Customizations**: Integrated workspace agent skills (`.agents/skills`) to automate PR creation, git cleanup, and description validation.
 - 🏗️ **Modular Architecture**: Clean, domain-driven design for high maintainability and testability.
-- 🛡️ **High Test Coverage**: Robust test suite with **86.2% branch coverage** ensuring reliable execution.
+- 🛡️ **High Test Coverage**: Robust test suite with **>= 80% branch coverage threshold** ensuring reliable execution.
 - 🐳 **Docker Ready**: Fully containerized for consistent deployment across environments.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Runtime**: Node.js v24+ (LTS)
+- **Runtime**: Node.js v22+ (LTS)
 - **Language**: TypeScript
 - **Framework**: Express.js
 - **API Client**: [SmartAPI](https://smartapi.angelbroking.com/) (via `krb-smart-api-module`)
@@ -43,7 +43,7 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 
 ### Prerequisites
 
-- **Node.js v24+**
+- **Node.js v22+**
 - **pnpm** (recommended) or npm
 - **SmartAPI Credentials**: API Key and 16-character TOTP Secret.
 
@@ -72,9 +72,9 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 
    | Variable | Default | Description |
    | -------- | ------- | ----------- |
-   | `ENTRY_TIME` | `09:15` | Session entry start time (`HH:mm` format) for market open checks and initial trade timing. |
+   | `ENTRY_TIME` | `09:15` | Session entry start time (`HH:mm` format) for market open checks and initial trade timing (deployed VPS setting: `09:30`). |
    | `NO_ENTRY_AFTER` | `15:10` | Session entry cutoff time (`HH:mm` format); no new straddles or rolls are entered after this time. |
-   | `EXIT_TIME` | `15:17` | Session exit time (`HH:mm` format) when open sell positions are force-closed. |
+   | `EXIT_TIME` | `15:17` | Session exit time (`HH:mm` format) when open sell positions are force-closed (deployed VPS setting: `15:35`). |
    | `INDEX` | Auto (`day of week`) | Optional index override (`NIFTY` or `SENSEX` only). BANKNIFTY is ignored and falls back to day-of-week selection. |
 
 ### ⏰ Dual-Index Cron Setup (NIFTY & SENSEX)
@@ -135,12 +135,13 @@ pnpm run test:coverage # Generate coverage report
 Run live-fidelity option chain backtests for NIFTY or SENSEX:
 
 ```bash
-# Default NIFTY backtest (Tuesdays, lot size 65, strike diff 50, hedge ±500)
+# Default NIFTY backtest (Tuesdays, lot size 65, strike diff 50/100, hedge ±500)
 node scripts/backtest-straddle.mjs --expiry-days-only --from 2026-02-01 --to 2026-08-03
 
-# SENSEX backtest (Thursdays, lot size 20, strike diff 200, hedge ±1500)
+# SENSEX backtest (Thursdays, lot size 20, strike diff 200/300, hedge ±1500)
 node scripts/backtest-straddle.mjs --index sensex --expiry-days-only --data-dir ../nifty-optionchain-data/data/chains-sensex
 ```
+*Note: The `chains-sensex` data directory must be populated by the option chain collector prior to running SENSEX backtests.*
 
 ### Log Clean-up
 
@@ -152,7 +153,7 @@ node scripts/clean-logs.js
 
 ### 📊 Expiry Reports
 
-Performance analyses and P&L breakdowns for each weekly expiry date are documented in the [expiry-reports/](file:///C:/Users/Kunal/Desktop/hobby-projects/smart-api/expiry-reports/) directory formatted as `expiry-<INDEX>-YYYY-MM-DD.md` (e.g. `expiry-NIFTY-2026-08-18.md` or `expiry-SENSEX-2026-08-20.md`).
+Performance analyses and P&L breakdowns for each weekly expiry date are documented in the [expiry-reports/](expiry-reports/) directory formatted as `expiry-<INDEX>-YYYY-MM-DD.md` (e.g. `expiry-NIFTY-2026-08-18.md` or `expiry-SENSEX-2026-08-20.md`).
 
 Each report highlights:
 - **P&L Summary**: Net Premium, Realised vs Unrealised P&L, and winner/loser counts.
@@ -163,17 +164,17 @@ Each report highlights:
 
 ## 📈 Backtesting the Short Straddle
 
-The repository includes an offline backtester for the **Short Straddle at ATM** strategy. It reads the unified option-chain snapshots produced by the [nifty-optionchain-data](https://github.com/kunalrbhatia/nifty-optionchain-data) pipeline (`data/chains/YYYY-MM-DD/EXPIRY_HHmm.json`) and replays each trading session.
+The repository includes an offline backtester for the **Short Straddle at ATM** strategy. It reads the unified option-chain snapshots produced by the [nifty-optionchain-data](https://github.com/kunalrbhatia/nifty-optionchain-data) pipeline (`data/chains/YYYY-MM-DD/YYYY-MM-DD_HHmm.json`) and replays each trading session.
 
 ### How it works
 
 For every `(trading day, expiry)` session, the backtester:
 
-1. **Enters**: at `>= 09:15` IST, buys 5-lot hedges at `ATM+500` CE & `ATM-500` PE, and sells 1-lot ATM straddle.
-2. **Rolls**: on subsequent ticks, if `|ATM - nearestTradedSellStrike| >= strikeDiff` (50 when India VIX < 14, 100 otherwise), sells a new ATM straddle (or missing leg if LTP > 5).
+1. **Enters**: at `>= ENTRY_TIME` IST (default `09:15`, deployed `09:30`), buys 5-lot hedges (`ATM+500` CE & `ATM-500` PE for NIFTY; `ATM+1500` CE & `ATM-1500` PE for SENSEX), and sells 1-lot ATM straddle.
+2. **Rolls**: on subsequent ticks, if `|ATM - nearestTradedSellStrike| >= strikeDiff` (NIFTY: 50 when India VIX < 14, 100 otherwise; SENSEX: 200 when India VIX < 14, 300 otherwise), sells a new ATM straddle (or missing leg if LTP > 5).
 3. **Exits**:
-   - **Per-leg 125% Stop Loss**: trigger = `entry * 2.25`. Checked per leg on every snapshot.
-   - **Close rule (15:17+)**: sell legs with `LTP > 5` are bought back at market; sell legs with `LTP <= 5` and all long hedges expire worthless.
+   - **Per-leg 125% Stop Loss**: trigger = `entry * 2.25`. Checked per leg on every snapshot. Fills at `max(slLimitPrice, currentLtp) + slSlippage`.
+   - **Close rule (`EXIT_TIME`+)**: sell legs with `LTP > 5` are bought back at market; sell legs with `LTP <= 5` and all long hedges expire worthless.
 
 By default only the nearest expiry is traded per day (`--expiries all` to trade every expiry present in the data).
 
@@ -193,21 +194,22 @@ pnpm backtest
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--data-dir <path>` | auto-detected | Path to the `data/chains` directory. |
+| `--index nifty\|sensex` | `nifty` | Index profile to select strategy parameters (lot size, hedge variance, strike differences, expiry day). |
 | `--from YYYY-MM-DD` / `--to YYYY-MM-DD` | all | Restrict the backtest date range. |
-| `--entry HHMM` | `0915` | Session entry time (IST). |
-| `--close HHMM` | `1517` | Session close time (IST) when sell legs > 5 LTP are bought back. |
-| `--strike-diff N` / `--vix <14|>=14` | `50` | Strike step for rolling ATM entries (default 50 maps to VIX < 14). |
+| `--entry HHMM` | `0915` | Session entry time (IST); reads `ENTRY_TIME` environment variable if set. |
+| `--close HHMM` | `1517` | Session close time (IST) when sell legs > 5 LTP are bought back; reads `EXIT_TIME` environment variable if set. |
+| `--strike-diff N` / `--vix <14\|>=14` | profile default | Strike step for rolling ATM entries (NIFTY: 50/100; SENSEX: 200/300). |
 | `--entry-slippage N` | `0` | Premium points deducted from sell entries / added to buy hedges for open execution slippage. |
 | `--sl-slippage N` | `0` | Additional premium points added to SL limit fill price on stop loss triggers. |
-| `--lot-size 65` | `65` | NIFTY lot size used for P&L in rupees. |
+| `--lot-size N` | profile default | Index lot size used for P&L in rupees (`65` for NIFTY, `20` for SENSEX). |
 | `--expiries nearest` | `nearest` | `nearest` (one per day) or `all` (every expiry present). |
 | `--json <file>` | — | Also write full per-session + position details to a JSON file. |
 
 ### Fidelity Notes
 
 1. **Stop Loss Fills**: SL trigger is `entry * 2.25`; limit order is placed at `entry * 2.25 * 1.05`. On trigger, fills occur at `max(slLimitPrice, currentLtp) + slSlippage` to model limit execution and gap-through slippage.
-2. **Expiry Settlement**: At `15:17+` (Phase A), sell legs with `LTP > 5` are bought back at market price. Any legs remaining open are settled at the **final snapshot LTP of the day** (`~15:30`) in Phase B (`SETTLED_ITM` if `LTP > 5`, else `EXPIRED_WORTHLESS`).
-3. **Entry Execution**: Initial entries use the `09:15` chain LTP. Live market fills at `09:16` can differ during volatile opens; `--entry-slippage` allows configuring realistic entry slippage.
+2. **Expiry Settlement**: At `EXIT_TIME`+ (Phase A), sell legs with `LTP > 5` are bought back at market price. Any legs remaining open are settled at the **final snapshot LTP of the day** (`~15:40`, CAS market close) in Phase B (`SETTLED_ITM` if `LTP > 5`, else `EXPIRED_WORTHLESS`).
+3. **Entry Execution**: Initial entries use the `ENTRY_TIME` (default `09:15`, deployed `09:30`) chain LTP. Live market fills at `09:16` or `09:31` can differ during volatile opens; `--entry-slippage` allows configuring realistic entry slippage.
 
 ### Example output
 
@@ -216,6 +218,7 @@ pnpm backtest
  2026-05-04  2026-05-05      24150  24150,24200,24250,24300         10     -₹2,223.00
  2026-07-01  2026-07-07      23950  23950                       4         +₹0.00
 ```
+*Note: Non-expiry session rows in the example output above originate from a full-range backtest run without the `--expiry-days-only` filter.*
 
 The summary block reports total P&L, win rate, average per session, profit factor, and maximum drawdown. Trades are simulated in index points — no live brokerage fees are modeled.
 
@@ -231,7 +234,7 @@ In your `.env` file, configure the following:
 * **Telegram:** Set `USE_TELEGRAM=true`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID`.
 * **Slack:** Set `USE_SLACK=true`, `SLACK_WEBHOOK_URL` (for outbound notifications), and `SLACK_SIGNING_SECRET` (to verify slash commands).
 
-Point your Slack App's Slash Commands endpoint to: `https://<your-domain>/api/api/slack/commands`.
+Point your Slack App's Slash Commands endpoint to: `https://<your-domain>/api/slack/commands`.
 
 ### Supported Commands
 
@@ -242,8 +245,8 @@ These commands can be sent as messages on Telegram or run as slash commands in S
 | `/status` or `/check` | Get current algo status (Running/Stopped) and trading mode.                       |
 | `/paperon`            | Enable **Paper Trading Mode** (trades are mocked locally).                        |
 | `/paperoff`           | Enable **Live Trading Mode** (trades execute on your broker account).              |
-| `/logs`               | Retrieve the last 20 lines of application logs (via PM2 or local log file).       |
-| `/kill`               | Emergency shutdown of the server.                                                 |
+| `/logs`               | Retrieve the last 20 lines of application logs from local log files in `logs/`. |
+| `/kill`               | Sets the kill switch (`.kill` file) to stop the algo from placing new trades.     |
 | `/resume` / `/start`  | Clear the kill switch to allow the algo to resume operations.                     |
 
 ---
@@ -253,12 +256,13 @@ These commands can be sent as messages on Telegram or run as slash commands in S
 The project is configured for automated deployment to **Oracle Cloud** via GitHub Actions.
 
 ### Automated Workflow
-The [deploy.yml](.github/workflows/deploy.yml) workflow triggers on every push to the `development` branch. It performs the following on the target server:
-1. Pulls the latest code.
-2. Installs dependencies using `pnpm`.
-3. Builds the project (`babel` transpilation).
-4. Generates the `.env` file from GitHub Secrets.
-5. Restarts the application using **PM2** via `ecosystem.config.cjs`.
+The [.github/workflows/ci.yml](.github/workflows/ci.yml) workflow triggers on every push to the `development` branch. It performs the following on the target server:
+1. Builds the project (`babel` transpilation) and runs lint, typecheck, and test checks.
+2. Copies build artifacts to the Oracle Cloud instance via SCP.
+3. Generates the `.env` file from GitHub Secrets (including API credentials, notification tokens, and `ENTRY_TIME`/`EXIT_TIME`/`NO_ENTRY_AFTER` strategy timings).
+4. Installs production dependencies.
+
+*Note: The trading algorithm runs via system crontab triggers (Tuesday for NIFTY, Thursday for SENSEX). PM2 on the server is used exclusively for hosting the MCP server (`mcp-smart-api`).*
 
 ### Required GitHub Secrets
 To use the deployment workflow, add the following secrets in your repository settings (**Settings > Secrets and variables > Actions**):
@@ -306,11 +310,11 @@ smart-api/
 
 For AI developers using AI agents (like Antigravity), workspace customization skills are configured under `.agents/skills/`:
 
-* **[gh-pr-workflow](file:///.agents/skills/gh-pr-workflow/SKILL.md)**: Automates branching, staging, committing (Conventional Commits), pushing, and opening GitHub Pull Requests.
-* **[git-cleanup-sync](file:///.agents/skills/git-cleanup-sync/SKILL.md)**: Cleans up local feature branches, switches back to `development`, and pulls the latest changes.
-* **[pr-description-check](file:///.agents/skills/pr-description-check/SKILL.md)**: Validates PR descriptions to ensure paths, commands, and code snippets are wrapped in backticks (e.g., \`src/app.ts\`).
-* **[readme-auto-update](file:///.agents/skills/readme-auto-update/SKILL.md)**: Automates and verifies updating the `README.md` file whenever core application changes are made.
-* **[verify-pr-status](file:///.agents/skills/verify-pr-status/SKILL.md)**: Watches and verifies that all GitHub PR checks complete and pass successfully before concluding a PR lifecycle.
+* **[gh-pr-workflow](.agents/skills/gh-pr-workflow/SKILL.md)**: Automates branching, staging, committing (Conventional Commits), pushing, and opening GitHub Pull Requests.
+* **[git-cleanup-sync](.agents/skills/git-cleanup-sync/SKILL.md)**: Cleans up local feature branches, switches back to `development`, and pulls the latest changes.
+* **[pr-description-check](.agents/skills/pr-description-check/SKILL.md)**: Validates PR descriptions to ensure paths, commands, and code snippets are wrapped in backticks (e.g., \`src/app.ts\`).
+* **[readme-auto-update](.agents/skills/readme-auto-update/SKILL.md)**: Automates and verifies updating the `README.md` file whenever core application changes are made.
+* **[verify-pr-status](.agents/skills/verify-pr-status/SKILL.md)**: Watches and verifies that all GitHub PR checks complete and pass successfully before concluding a PR lifecycle.
 
 ---
 
