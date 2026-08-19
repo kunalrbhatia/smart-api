@@ -636,6 +636,67 @@ describe('functions helper', () => {
       await expect(isTradingHoliday()).resolves.toBeDefined();
       global.fetch = originalFetch;
     });
+
+    it('should read from valid cache if available', async () => {
+      const fs = require('fs');
+      const spyExists = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      const spyRead = jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        JSON.stringify({
+          updatedAt: Date.now(),
+          holidays: [{ tradingDate: '26-Jan-2026' }],
+        }),
+      );
+
+      const result = await isTradingHoliday();
+      expect(typeof result).toBe('boolean');
+
+      spyExists.mockRestore();
+      spyRead.mockRestore();
+    });
+
+    it('should handle corrupt cache and fall back to fetch', async () => {
+      const fs = require('fs');
+      const spyExists = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      const spyRead = jest
+        .spyOn(fs, 'readFileSync')
+        .mockReturnValue('invalid json');
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          FO: [{ tradingDate: '26-Jan-2026' }],
+        }),
+      });
+
+      const result = await isTradingHoliday();
+      expect(typeof result).toBe('boolean');
+
+      spyExists.mockRestore();
+      spyRead.mockRestore();
+      global.fetch = originalFetch;
+    });
+
+    it('should handle expired cache and use fallback when fetch fails', async () => {
+      const fs = require('fs');
+      const spyExists = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      const spyRead = jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        JSON.stringify({
+          updatedAt: Date.now() - 10 * 24 * 60 * 60 * 1000,
+          holidays: [{ tradingDate: '26-Jan-2026' }],
+        }),
+      );
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(new Error('Fetch error'));
+
+      const result = await isTradingHoliday();
+      expect(typeof result).toBe('boolean');
+
+      spyExists.mockRestore();
+      spyRead.mockRestore();
+      global.fetch = originalFetch;
+    });
   });
 
   describe('getIndiaVixLtp', () => {

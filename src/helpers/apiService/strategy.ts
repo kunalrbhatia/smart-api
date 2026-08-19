@@ -38,7 +38,6 @@ import {
   getNearestWeeklyExpiry,
   getLtpWithRetry,
   getScrip,
-  getIndexScrip,
 } from './marketData';
 import { doOrderByStrike, placeStopLossOnAllTrades } from './orders';
 import {
