@@ -81,7 +81,7 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
 
 The algorithm automatically selects the index based on the day of the week (`getAlgoIndex()`):
 - **Tuesdays (`* * 2`)**: **NIFTY** weekly option expiry (NSE / `NFO`)
-- **Fridays (`* * 5`)**: **SENSEX** weekly option expiry (BSE / `BFO`)
+- **Thursdays (`* * 4`)**: **SENSEX** weekly option expiry (BSE / `BFO`)
 - *Note:* BANKNIFTY is strictly excluded (monthly expiry, out of scope).
 
 Crontab slices for single-machine VPS execution:
@@ -93,11 +93,11 @@ Crontab slices for single-machine VPS execution:
 */5 10-14 * * 2 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
 0-40/5 15 * * 2 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
 
-# SENSEX expiry Fridays
-16 09 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
-20-55/5 09 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
-*/5 10-14 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
-0-40/5 15 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+# SENSEX expiry Thursdays
+16 09 * * 4 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+20-55/5 09 * * 4 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+*/5 10-14 * * 4 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+0-40/5 15 * * 4 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
 ```
 
 ---
