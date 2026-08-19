@@ -20,6 +20,7 @@ import {
   getExchangeForIndex,
   getSpotExchangeForIndex,
   getIndexFromSymbol,
+  getAlgoIndex,
   hasOpenPositionForStrike,
   countSellPairs,
   hasHedgePositions,
@@ -32,6 +33,7 @@ import {
 import * as apiService from '../../src/helpers/apiService';
 import DataStore from '../../src/store/dataStore';
 import OrderStore from '../../src/store/orderStore';
+import moment from 'moment-timezone';
 import * as smartApiModule from 'krb-smart-api-module';
 
 jest.mock('../../src/helpers/apiService');
@@ -474,6 +476,54 @@ describe('functions helper', () => {
         INDICES.BANKNIFTY,
       );
       expect(getIndexFromSymbol('NIFTY25AUG25000CE')).toBe(INDICES.NIFTY);
+    });
+  });
+
+  describe('getAlgoIndex', () => {
+    const originalEnv = process.env.INDEX;
+
+    afterEach(() => {
+      process.env.INDEX = originalEnv;
+      jest.restoreAllMocks();
+    });
+
+    it('should return NIFTY on Tuesday (day 2)', () => {
+      delete process.env.INDEX;
+      jest.spyOn(moment.prototype, 'day').mockReturnValue(2);
+      expect(getAlgoIndex()).toBe(INDICES.NIFTY);
+    });
+
+    it('should return SENSEX on Friday (day 5)', () => {
+      delete process.env.INDEX;
+      jest.spyOn(moment.prototype, 'day').mockReturnValue(5);
+      expect(getAlgoIndex()).toBe(INDICES.SENSEX);
+    });
+
+    it('should NEVER return BANKNIFTY on any day of the week', () => {
+      delete process.env.INDEX;
+      for (let day = 0; day <= 6; day++) {
+        jest.spyOn(moment.prototype, 'day').mockReturnValue(day);
+        expect(getAlgoIndex()).not.toBe(INDICES.BANKNIFTY);
+      }
+    });
+
+    it('should respect valid INDEX env override (NIFTY or SENSEX)', () => {
+      process.env.INDEX = 'SENSEX';
+      expect(getAlgoIndex()).toBe(INDICES.SENSEX);
+
+      process.env.INDEX = 'NIFTY';
+      expect(getAlgoIndex()).toBe(INDICES.NIFTY);
+    });
+
+    it('should ignore invalid or BANKNIFTY INDEX env override and fall back to day of week', () => {
+      jest.spyOn(moment.prototype, 'day').mockReturnValue(5);
+
+      process.env.INDEX = 'BANKNIFTY';
+      expect(getAlgoIndex()).toBe(INDICES.SENSEX);
+      expect(getAlgoIndex()).not.toBe(INDICES.BANKNIFTY);
+
+      process.env.INDEX = 'INVALID';
+      expect(getAlgoIndex()).toBe(INDICES.SENSEX);
     });
   });
 

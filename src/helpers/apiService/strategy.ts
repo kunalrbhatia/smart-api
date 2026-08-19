@@ -28,6 +28,7 @@ import {
   isMarketClosed,
   getOpenSellPositions,
   hasHedgePositions,
+  getAlgoIndex,
 } from '../functions';
 import OrderStore from '../../store/orderStore';
 import { getSmartSession } from './session';
@@ -428,7 +429,10 @@ export const checkMarketConditionsAndExecuteTrade = async (
   lossPerLot: number = LOSSPERLOT,
 ) => {
   try {
-    const expiryDate = await getNearestWeeklyExpiry('NIFTY');
+    const index = getAlgoIndex();
+    const expiryDate = await getNearestWeeklyExpiry(
+      index as 'NIFTY' | 'SENSEX',
+    );
     pruneStalePositions(expiryDate);
     const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
     const indiaVixLtp = await getLtpWithRetry({
@@ -441,7 +445,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
     OrderStore.getInstance().setPostData({
       QUANTITY: lots,
       EXPIRYDATE: expiryDate,
-      INDEX: 'NIFTY',
+      INDEX: index,
       LOSSPERLOT: lossPerLot,
       INDIAVIX: indiaVixLtp.ltp,
       MTM_BASELINE: currentPostData ? currentPostData.MTM_BASELINE : 0,
@@ -462,7 +466,8 @@ export const checkMarketConditionsAndExecuteTrade = async (
  * Checks market conditions without executing the trade.
  */
 export const checkMarketConditions = async () => {
-  const expiryDate = await getNearestWeeklyExpiry('NIFTY');
+  const index = getAlgoIndex();
+  const expiryDate = await getNearestWeeklyExpiry(index as 'NIFTY' | 'SENSEX');
   const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
   const indiaVixLtp = await getLtpWithRetry({
     exchange: indiaVix[0].exch_seg,
