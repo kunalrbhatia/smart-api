@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [development, feat/*]
+    branches: [development, 'feat/*', 'fix/*', 'docs/*']
   pull_request:
     branches: [development]
     types: [opened, edited, synchronize]
