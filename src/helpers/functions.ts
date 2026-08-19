@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { getIndexScrip, getLtpWithRetry, getScrip } from './apiService';
 import {
   BothPresent,
@@ -661,4 +663,181 @@ export const generateTradingSignal = (
     macdSignal: Number(macdSignal.toFixed(2)),
     signal,
   };
+};
+
+const HOLIDAYS_FILE = path.join(process.cwd(), 'holidays.json');
+const HOLIDAY_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+const STATIC_HOLIDAYS = [
+  '26-Jan-2026', // Republic Day
+  '03-Mar-2026', // Holi
+  '03-Apr-2026', // Good Friday
+  '14-Apr-2026', // Dr. Baba Saheb Ambedkar Jayanti
+  '01-May-2026', // Maharashtra Day
+  '15-Aug-2026', // Independence Day
+  '02-Oct-2026', // Mahatma Gandhi Jayanti
+  '08-Nov-2026', // Diwali
+  '25-Dec-2026', // Christmas
+];
+
+interface HolidayItem {
+  tradingDate: string;
+  weekDay?: string;
+  description?: string;
+}
+
+/**
+ * Checks if today is an F&O trading holiday by fetching from the NSE public API with a 7-day local cache,
+ * falling back to cached file or a static holiday list on network error.
+ * NEVER throws.
+ */
+export const isTradingHoliday = async (): Promise<boolean> => {
+  try {
+    const now = moment();
+    let holidays: HolidayItem[] = [];
+
+    // Check 7-day cache
+    let isCacheValid = false;
+    if (fs.existsSync(HOLIDAYS_FILE)) {
+      try {
+        const raw = fs.readFileSync(HOLIDAYS_FILE, 'utf8');
+        const cached = JSON.parse(raw);
+        if (
+          cached &&
+          typeof cached.updatedAt === 'number' &&
+          Date.now() - cached.updatedAt < HOLIDAY_CACHE_TTL_MS &&
+          Array.isArray(cached.holidays) &&
+          cached.holidays.length > 0
+        ) {
+          holidays = cached.holidays;
+          isCacheValid = true;
+        }
+      } catch {
+        // ignore cache parse failure
+      }
+    }
+
+    if (!isCacheValid) {
+      try {
+        const res = await fetch(
+          'https://www.nseindia.com/api/holiday-master?type=trading',
+          {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+          },
+        );
+        if (res.ok) {
+          const json: any = await res.json();
+          const foList = json?.FO;
+          if (Array.isArray(foList) && foList.length > 0) {
+            holidays = foList;
+            try {
+              fs.writeFileSync(
+                HOLIDAYS_FILE,
+                JSON.stringify(
+                  { updatedAt: Date.now(), holidays: foList },
+                  null,
+                  2,
+                ),
+                'utf8',
+              );
+            } catch (writeErr) {
+              logger.warn('Failed to save holidays.json cache:', writeErr);
+            }
+          }
+        }
+      } catch (fetchErr: any) {
+        logger.warn(
+          `[holidays] NSE API fetch failed: ${fetchErr?.message || fetchErr}`,
+        );
+      }
+    }
+
+    // Fallback to existing cache file if fetch failed and holidays still empty
+    if (holidays.length === 0 && fs.existsSync(HOLIDAYS_FILE)) {
+      try {
+        const raw = fs.readFileSync(HOLIDAYS_FILE, 'utf8');
+        const cached = JSON.parse(raw);
+        if (cached && Array.isArray(cached.holidays)) {
+          holidays = cached.holidays;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Final fallback to static list
+    if (holidays.length === 0) {
+      logger.warn(
+        '[holidays] NSE API fetch failed and no cache available; using static holiday fallback.',
+      );
+      holidays = STATIC_HOLIDAYS.map(dateStr => ({ tradingDate: dateStr }));
+    }
+
+    return holidays.some(h => {
+      if (!h.tradingDate) return false;
+      const itemMoment = moment(h.tradingDate, 'DD-MMM-YYYY', true);
+      if (itemMoment.isValid()) {
+        return now.isSame(itemMoment, 'day');
+      }
+      return false;
+    });
+  } catch (err) {
+    logger.error('Error in isTradingHoliday:', err);
+    return false;
+  }
+};
+
+/**
+ * Fetches India VIX LTP.
+ * Tries broker SmartAPI first; on failure, falls back to Yahoo Finance (^INDIAVIX).
+ */
+export const getIndiaVixLtp = async (): Promise<number | null> => {
+  // 1. Try broker SmartAPI path
+  try {
+    const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
+    if (indiaVix && indiaVix[0]) {
+      const indiaVixLtp = await getLtpWithRetry({
+        exchange: indiaVix[0].exch_seg,
+        symboltoken: indiaVix[0].token,
+        tradingsymbol: indiaVix[0].symbol,
+      });
+      const val = Number(indiaVixLtp?.ltp);
+      if (Number.isFinite(val) && val > 0) {
+        logger.log(`[vix] broker: ${val}`);
+        return val;
+      }
+    }
+  } catch (err: any) {
+    logger.warn(`[vix] broker fetch failed: ${err?.message || err}`);
+  }
+
+  // 2. Fallback to Yahoo Finance
+  try {
+    const res = await fetch(
+      'https://query1.finance.yahoo.com/v8/finance/chart/%5EINDIAVIX',
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      },
+    );
+    if (res.ok) {
+      const json: any = await res.json();
+      const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      const val = Number(price);
+      if (Number.isFinite(val) && val > 0) {
+        logger.log(`[vix] yahoo fallback: ${val}`);
+        return val;
+      }
+    }
+  } catch (err: any) {
+    logger.warn(`[vix] yahoo fallback failed: ${err?.message || err}`);
+  }
+
+  logger.warn('[vix] unavailable — using default strike diff');
+  return null;
 };
