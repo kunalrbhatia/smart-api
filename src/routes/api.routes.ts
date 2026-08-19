@@ -302,7 +302,9 @@ router.post('/getAtmStrike', async (req: Request, res: Response) => {
     // Auto-detect nearest weekly expiry if not provided
     let expiry: string = req.body.expiry || '';
     if (!expiry) {
-      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX');
+      expiry = await getNearestWeeklyExpiry(
+        index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX',
+      );
     }
 
     const result = await getAtmStrikePriceForIndex(index, expiry);
@@ -353,7 +355,9 @@ router.post('/checkAtmPosition', async (req: Request, res: Response) => {
     // Auto-detect expiry if not provided
     let expiry: string = req.body.expiry || '';
     if (!expiry) {
-      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX');
+      expiry = await getNearestWeeklyExpiry(
+        index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX',
+      );
     }
 
     const positions = await fetchOpenPositionsByExpiry(index, expiry, type);
@@ -420,7 +424,9 @@ router.post('/getOpenPositions', async (req: Request, res: Response) => {
     // Auto-detect nearest weekly expiry if not provided
     let expiry: string = req.body.expiry || '';
     if (!expiry) {
-      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX');
+      expiry = await getNearestWeeklyExpiry(
+        index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX',
+      );
     }
 
     const positions = await fetchOpenPositionsByExpiry(index, expiry, type);
@@ -565,7 +571,9 @@ router.post('/executeTrade', async (req: Request, res: Response) => {
 
     let expiry: string = req.body.expiry || '';
     if (!expiry) {
-      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX');
+      expiry = await getNearestWeeklyExpiry(
+        index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX',
+      );
     }
 
     const result = await executeSellAtmBuyHedge({
@@ -617,7 +625,9 @@ router.post('/shouldExecuteTrade', async (req: Request, res: Response) => {
     // Auto-detect expiry if not provided
     let expiry: string = req.body.expiry || '';
     if (!expiry) {
-      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX');
+      expiry = await getNearestWeeklyExpiry(
+        index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX',
+      );
     }
 
     // Fetch all open positions once — used for all checks below
@@ -715,7 +725,9 @@ router.post('/placeStoploss', async (req: Request, res: Response) => {
     // Auto-detect expiry if not provided
     let expiry: string = req.body.expiry || '';
     if (!expiry) {
-      expiry = await getNearestWeeklyExpiry(index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX');
+      expiry = await getNearestWeeklyExpiry(
+        index as 'NIFTY' | 'BANKNIFTY' | 'SENSEX',
+      );
     }
 
     const result = await placeStoplossForAllSells({

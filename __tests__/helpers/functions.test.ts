@@ -470,7 +470,9 @@ describe('functions helper', () => {
   describe('getIndexFromSymbol', () => {
     it('should parse index correctly from trading symbol', () => {
       expect(getIndexFromSymbol('SENSEX25AUG80000CE')).toBe(INDICES.SENSEX);
-      expect(getIndexFromSymbol('BANKNIFTY25AUG45000CE')).toBe(INDICES.BANKNIFTY);
+      expect(getIndexFromSymbol('BANKNIFTY25AUG45000CE')).toBe(
+        INDICES.BANKNIFTY,
+      );
       expect(getIndexFromSymbol('NIFTY25AUG25000CE')).toBe(INDICES.NIFTY);
     });
   });
