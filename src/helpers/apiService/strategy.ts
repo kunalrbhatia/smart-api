@@ -5,7 +5,6 @@ import {
   DELAY,
   delay,
   isCurrentTimeGreater,
-  isTradingHoliday,
   getNearestStrike,
   getCredentials,
 } from 'krb-smart-api-module';
@@ -29,6 +28,8 @@ import {
   getOpenSellPositions,
   hasHedgePositions,
   getAlgoIndex,
+  isTradingHoliday,
+  getIndiaVixLtp,
 } from '../functions';
 import OrderStore from '../../store/orderStore';
 import { getSmartSession } from './session';
@@ -386,7 +387,7 @@ export const isTradeAllowed = async (expiryDate: string) => {
   const entryTimeObj = getAlgoEntryTime();
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
-  const isHoliday = isTradingHoliday();
+  const isHoliday = await isTradingHoliday();
   const isExpiryDay = moment().format('DDMMMYYYY').toUpperCase() === expiryDate;
   const hasTimePassed = isCurrentTimeGreater({
     hours: entryTimeObj.hours,
@@ -434,12 +435,8 @@ export const checkMarketConditionsAndExecuteTrade = async (
       index as 'NIFTY' | 'SENSEX',
     );
     pruneStalePositions(expiryDate);
-    const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
-    const indiaVixLtp = await getLtpWithRetry({
-      exchange: indiaVix[0].exch_seg,
-      symboltoken: indiaVix[0].token,
-      tradingsymbol: indiaVix[0].symbol,
-    });
+    const indiaVixLtp = await getIndiaVixLtp();
+    const vixVal = indiaVixLtp !== null ? indiaVixLtp : 0;
 
     const currentPostData = OrderStore.getInstance().getPostData();
     OrderStore.getInstance().setPostData({
@@ -447,7 +444,7 @@ export const checkMarketConditionsAndExecuteTrade = async (
       EXPIRYDATE: expiryDate,
       INDEX: index,
       LOSSPERLOT: lossPerLot,
-      INDIAVIX: indiaVixLtp.ltp,
+      INDIAVIX: vixVal,
       MTM_BASELINE: currentPostData ? currentPostData.MTM_BASELINE : 0,
     });
 
@@ -468,18 +465,14 @@ export const checkMarketConditionsAndExecuteTrade = async (
 export const checkMarketConditions = async () => {
   const index = getAlgoIndex();
   const expiryDate = await getNearestWeeklyExpiry(index as 'NIFTY' | 'SENSEX');
-  const indiaVix = await getIndexScrip({ scriptName: 'INDIA VIX' });
-  const indiaVixLtp = await getLtpWithRetry({
-    exchange: indiaVix[0].exch_seg,
-    symboltoken: indiaVix[0].token,
-    tradingsymbol: indiaVix[0].symbol,
-  });
+  const indiaVixLtp = await getIndiaVixLtp();
+  const vixVal = indiaVixLtp !== null ? indiaVixLtp : 0;
 
   try {
     const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     return {
       conditions: {
-        indiaVixLtp: indiaVixLtp.ltp,
+        indiaVixLtp: vixVal,
         isAllowed,
         reasons,
         expiryDate,

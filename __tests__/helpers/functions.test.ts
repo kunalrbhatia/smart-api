@@ -21,6 +21,8 @@ import {
   getSpotExchangeForIndex,
   getIndexFromSymbol,
   getAlgoIndex,
+  isTradingHoliday,
+  getIndiaVixLtp,
   hasOpenPositionForStrike,
   countSellPairs,
   hasHedgePositions,
@@ -605,6 +607,91 @@ describe('functions helper', () => {
       // Test BUY signal (Oversold < 30 + Bullish crossover)
       // This is hard to fake without exact math, but we can verify the function structure
       expect(result).toHaveProperty('rsi');
+    });
+  });
+
+  describe('isTradingHoliday', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should return true on a trading holiday', async () => {
+      jest.spyOn(moment.prototype, 'isSame').mockReturnValue(true);
+
+      const result = await isTradingHoliday();
+      expect(typeof result).toBe('boolean');
+    });
+
+    it('should return false on a normal trading day', async () => {
+      jest.spyOn(moment.prototype, 'isSame').mockReturnValue(false);
+
+      const result = await isTradingHoliday();
+      expect(result).toBe(false);
+    });
+
+    it('should fall back to static list and never throw if fetch fails', async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network offline'));
+
+      await expect(isTradingHoliday()).resolves.toBeDefined();
+      global.fetch = originalFetch;
+    });
+  });
+
+  describe('getIndiaVixLtp', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should return broker VIX LTP when broker call succeeds', async () => {
+      (apiService.getIndexScrip as jest.Mock).mockResolvedValue([
+        { exch_seg: 'NSE', token: 'VIX', symbol: 'VIX' },
+      ]);
+      (apiService.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 14.5,
+      });
+
+      const vix = await getIndiaVixLtp();
+      expect(vix).toBe(14.5);
+    });
+
+    it('should fall back to Yahoo Finance VIX when broker call fails', async () => {
+      (apiService.getIndexScrip as jest.Mock).mockRejectedValue(
+        new Error('Broker VIX fail'),
+      );
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          chart: {
+            result: [
+              {
+                meta: { regularMarketPrice: 12.8 },
+              },
+            ],
+          },
+        }),
+      });
+
+      const vix = await getIndiaVixLtp();
+      expect(vix).toBe(12.8);
+
+      global.fetch = originalFetch;
+    });
+
+    it('should return null if both broker and Yahoo Finance fail', async () => {
+      (apiService.getIndexScrip as jest.Mock).mockRejectedValue(
+        new Error('Broker VIX fail'),
+      );
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(new Error('Yahoo fail'));
+
+      const vix = await getIndiaVixLtp();
+      expect(vix).toBeNull();
+
+      global.fetch = originalFetch;
     });
   });
 });
