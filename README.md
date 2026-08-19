@@ -68,13 +68,37 @@ A robust, enterprise-grade intraday trading algorithm built with Node.js and Typ
    ```
    _Edit `.env` and fill in your `API_KEY`, `CLIENT_CODE`, `CLIENT_PIN`, and `CLIENT_TOTP_PIN` (16-character secret)._
 
-   #### Strategy Timing Parameters (`.env`)
+   #### Strategy Parameters (`.env`)
 
    | Variable | Default | Description |
    | -------- | ------- | ----------- |
    | `ENTRY_TIME` | `09:15` | Session entry start time (`HH:mm` format) for market open checks and initial trade timing. |
    | `NO_ENTRY_AFTER` | `15:10` | Session entry cutoff time (`HH:mm` format); no new straddles or rolls are entered after this time. |
    | `EXIT_TIME` | `15:17` | Session exit time (`HH:mm` format) when open sell positions are force-closed. |
+   | `INDEX` | Auto (`day of week`) | Optional index override (`NIFTY` or `SENSEX` only). BANKNIFTY is ignored and falls back to day-of-week selection. |
+
+### ⏰ Dual-Index Cron Setup (NIFTY & SENSEX)
+
+The algorithm automatically selects the index based on the day of the week (`getAlgoIndex()`):
+- **Tuesdays (`* * 2`)**: **NIFTY** weekly option expiry (NSE / `NFO`)
+- **Fridays (`* * 5`)**: **SENSEX** weekly option expiry (BSE / `BFO`)
+- *Note:* BANKNIFTY is strictly excluded (monthly expiry, out of scope).
+
+Crontab slices for single-machine VPS execution:
+
+```bash
+# NIFTY expiry Tuesdays
+16 09 * * 2 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+20-55/5 09 * * 2 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+*/5 10-14 * * 2 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+0-40/5 15 * * 2 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+
+# SENSEX expiry Fridays
+16 09 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+20-55/5 09 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+*/5 10-14 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+0-40/5 15 * * 5 cd /home/ubuntu/smart-api && node dist/run-algo.js >> logs/algo_run.log 2>&1
+```
 
 ---
 

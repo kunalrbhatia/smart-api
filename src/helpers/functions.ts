@@ -496,6 +496,30 @@ export const getIndexFromSymbol = (tradingsymbol: string): string => {
 };
 
 /**
+ * Resolves the target trading index (NIFTY or SENSEX) dynamically based on the day of week or env override.
+ * STRICTLY NO BANKNIFTY — BankNifty is a monthly expiry and out of scope.
+ * Day of week: Tuesday (2) -> NIFTY, Friday (5) -> SENSEX. Fallback: NIFTY.
+ * Optional env override: process.env.INDEX (if set to NIFTY or SENSEX).
+ */
+export const getAlgoIndex = (): string => {
+  const envIndex = (process.env.INDEX || '').toUpperCase();
+  if (envIndex === INDICES.NIFTY || envIndex === INDICES.SENSEX) {
+    return envIndex;
+  }
+  if (envIndex) {
+    logger.warn(
+      `[ENV] Invalid INDEX '${process.env.INDEX}'. Only NIFTY or SENSEX supported. Falling back to day of week.`,
+    );
+  }
+
+  const day = moment().day(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  // BANKNIFTY intentionally excluded (monthly expiry — out of scope)
+  if (day === 2) return INDICES.NIFTY; // Tuesday — NIFTY weekly expiry
+  if (day === 5) return INDICES.SENSEX; // Friday — SENSEX weekly expiry
+  return INDICES.NIFTY; // fallback (isExpiryDay guard blocks anyway)
+};
+
+/**
  * Checks if there is an open position for a given ATM strike.
  */
 export const hasOpenPositionForStrike = (

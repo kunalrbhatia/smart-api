@@ -11,11 +11,14 @@ import path from 'path';
 import moment from 'moment-timezone';
 import { setCredentials } from 'krb-smart-api-module';
 import DataStoreMod from '../dist/store/dataStore.js';
+import OrderStoreMod from '../dist/store/orderStore.js';
 import { getSmartSession } from '../dist/helpers/apiService/session.js';
 import { getAlgoPositions } from '../dist/helpers/apiService/positions.js';
 import { isPaperMode } from '../dist/helpers/paperTrade.js';
+import { getAlgoIndex } from '../dist/helpers/functions.js';
 
 const DataStore = DataStoreMod.default;
+const OrderStore = OrderStoreMod.default;
 
 // --- helpers (mirrors the dist script) ---
 const REPORTS_DIR = path.resolve('expiry-reports');
@@ -95,9 +98,16 @@ async function main() {
 
   const mode = isPaperMode() ? '📝 PAPER' : '💰 LIVE';
 
-  // 3. Determine today's expiry
+  // 3. Determine today's expiry & index
   const nowIST = moment().tz('Asia/Kolkata');
   const expiryFormatted = nowIST.format('DDMMMYYYY').toUpperCase();
+  const index = getAlgoIndex();
+
+  OrderStore.getInstance().setPostData({
+    ...OrderStore.getInstance().getPostData(),
+    INDEX: index,
+    EXPIRYDATE: expiryFormatted,
+  });
 
   // 4. Filter positions to current expiry AND smart-api's own symbols
   //    (the account may also hold positions from OTHER algos, e.g. niftyicif,
