@@ -36,6 +36,7 @@ import * as apiService from '../../src/helpers/apiService';
 import DataStore from '../../src/store/dataStore';
 import OrderStore from '../../src/store/orderStore';
 import moment from 'moment-timezone';
+import fs from 'fs';
 import * as smartApiModule from 'krb-smart-api-module';
 
 jest.mock('../../src/helpers/apiService');
@@ -638,7 +639,6 @@ describe('functions helper', () => {
     });
 
     it('should read from valid cache if available', async () => {
-      const fs = require('fs');
       const spyExists = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       const spyRead = jest.spyOn(fs, 'readFileSync').mockReturnValue(
         JSON.stringify({
@@ -655,7 +655,6 @@ describe('functions helper', () => {
     });
 
     it('should handle corrupt cache and fall back to fetch', async () => {
-      const fs = require('fs');
       const spyExists = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       const spyRead = jest
         .spyOn(fs, 'readFileSync')
@@ -678,7 +677,6 @@ describe('functions helper', () => {
     });
 
     it('should handle expired cache and use fallback when fetch fails', async () => {
-      const fs = require('fs');
       const spyExists = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       const spyRead = jest.spyOn(fs, 'readFileSync').mockReturnValue(
         JSON.stringify({
