@@ -185,3 +185,6 @@ jobs:
             echo "USE_SLACK=${{ secrets.USE_SLACK }}" >> .env
             echo "USE_TELEGRAM=${{ secrets.USE_TELEGRAM }}" >> .env
             echo "SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}" >> .env
+            echo "ENTRY_TIME=${{ secrets.ENTRY_TIME }}" >> .env
+            echo "EXIT_TIME=${{ secrets.EXIT_TIME }}" >> .env
+            echo "NO_ENTRY_AFTER=${{ secrets.NO_ENTRY_AFTER }}" >> .env

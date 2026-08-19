@@ -279,6 +279,9 @@ To use the deployment workflow, add the following secrets in your repository set
 | `USE_SLACK` | Set to `true` to enable Slack notifications. |
 | `SLACK_WEBHOOK_URL` | Your Slack Webhook URL. |
 | `SLACK_SIGNING_SECRET` | Your Slack App Signing Secret. |
+| `ENTRY_TIME` | Intraday strategy entry time (e.g. `09:15`). |
+| `EXIT_TIME` | Intraday strategy exit time (e.g. `15:17`). |
+| `NO_ENTRY_AFTER` | Intraday strategy no-entry cutoff time (e.g. `15:10`). |
 
 ---
 
