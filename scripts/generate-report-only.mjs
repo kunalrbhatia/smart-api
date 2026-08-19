@@ -140,7 +140,8 @@ async function main() {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dayName = dayNames[nowIST.day()];
   const expiryLabel = `${dayName}, ${dateStr}`;
-  const filename = `expiry-${dateStr}.md`;
+  const indexUpper = (index || 'NIFTY').toUpperCase();
+  const filename = `expiry-${indexUpper}-${dateStr}.md`;
   const filepath = path.join(REPORTS_DIR, filename);
 
   let totalRealised = 0,
@@ -215,6 +216,7 @@ async function main() {
     '',
     '| Field | Value |',
     '|-------|-------|',
+    `| **Index** | ${indexUpper} |`,
     `| **Date** | ${expiryLabel} |`,
     `| **Mode** | ${mode} |`,
     `| **Expiry** | ${expiryFormatted} |`,
