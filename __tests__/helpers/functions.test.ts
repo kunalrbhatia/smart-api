@@ -493,9 +493,9 @@ describe('functions helper', () => {
       expect(getAlgoIndex()).toBe(INDICES.NIFTY);
     });
 
-    it('should return SENSEX on Friday (day 5)', () => {
+    it('should return SENSEX on Thursday (day 4)', () => {
       delete process.env.INDEX;
-      jest.spyOn(moment.prototype, 'day').mockReturnValue(5);
+      jest.spyOn(moment.prototype, 'day').mockReturnValue(4);
       expect(getAlgoIndex()).toBe(INDICES.SENSEX);
     });
 
@@ -516,7 +516,7 @@ describe('functions helper', () => {
     });
 
     it('should ignore invalid or BANKNIFTY INDEX env override and fall back to day of week', () => {
-      jest.spyOn(moment.prototype, 'day').mockReturnValue(5);
+      jest.spyOn(moment.prototype, 'day').mockReturnValue(4);
 
       process.env.INDEX = 'BANKNIFTY';
       expect(getAlgoIndex()).toBe(INDICES.SENSEX);
