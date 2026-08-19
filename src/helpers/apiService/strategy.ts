@@ -385,7 +385,6 @@ export const isTradeAllowed = async (expiryDate: string) => {
   const entryTimeObj = getAlgoEntryTime();
   const isMarketOpen = !isMarketClosed();
   const isWeekend = moment().day() === 0 || moment().day() === 6;
-  const isTuesday = moment().day() === 2;
   const isHoliday = isTradingHoliday();
   const isExpiryDay = moment().format('DDMMMYYYY').toUpperCase() === expiryDate;
   const hasTimePassed = isCurrentTimeGreater({
@@ -405,7 +404,6 @@ export const isTradeAllowed = async (expiryDate: string) => {
 
   const reasons: string[] = [];
   if (!isExpiryDay) reasons.push(`Not expiry day (${expiryDate})`);
-  if (!isTuesday) reasons.push('Not Tuesday');
   if (isWeekend) reasons.push('Weekend');
   if (!isMarketOpen) reasons.push('Market closed');
   if (!hasTimePassed) reasons.push(`Before ${formattedEntryTime}`);
@@ -414,7 +412,6 @@ export const isTradeAllowed = async (expiryDate: string) => {
 
   const isAllowed =
     isExpiryDay &&
-    isTuesday &&
     !isWeekend &&
     isMarketOpen &&
     hasTimePassed &&

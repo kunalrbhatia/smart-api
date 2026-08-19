@@ -17,6 +17,9 @@ import {
   getStrikeDifference,
   hedgeCalculation,
   getStrikeVariance,
+  getExchangeForIndex,
+  getSpotExchangeForIndex,
+  getIndexFromSymbol,
   hasOpenPositionForStrike,
   countSellPairs,
   hasHedgePositions,
@@ -444,7 +447,33 @@ describe('functions helper', () => {
     it('should return correct variance', () => {
       expect(getStrikeVariance(INDICES.NIFTY)).toBe(50);
       expect(getStrikeVariance(INDICES.BANKNIFTY)).toBe(100);
+      expect(getStrikeVariance(INDICES.SENSEX)).toBe(100);
       expect(getStrikeVariance('OTHER')).toBe(0);
+    });
+  });
+
+  describe('getExchangeForIndex', () => {
+    it('should return BFO for SENSEX and NFO for NIFTY/BANKNIFTY', () => {
+      expect(getExchangeForIndex(INDICES.SENSEX)).toBe('BFO');
+      expect(getExchangeForIndex(INDICES.NIFTY)).toBe('NFO');
+      expect(getExchangeForIndex(INDICES.BANKNIFTY)).toBe('NFO');
+    });
+  });
+
+  describe('getSpotExchangeForIndex', () => {
+    it('should return BSE for SENSEX and NSE for NIFTY', () => {
+      expect(getSpotExchangeForIndex(INDICES.SENSEX)).toBe('BSE');
+      expect(getSpotExchangeForIndex(INDICES.NIFTY)).toBe('NSE');
+    });
+  });
+
+  describe('getIndexFromSymbol', () => {
+    it('should parse index correctly from trading symbol', () => {
+      expect(getIndexFromSymbol('SENSEX25AUG80000CE')).toBe(INDICES.SENSEX);
+      expect(getIndexFromSymbol('BANKNIFTY25AUG45000CE')).toBe(
+        INDICES.BANKNIFTY,
+      );
+      expect(getIndexFromSymbol('NIFTY25AUG25000CE')).toBe(INDICES.NIFTY);
     });
   });
 

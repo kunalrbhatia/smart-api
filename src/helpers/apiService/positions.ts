@@ -21,6 +21,7 @@ import {
   getAllOpenPositions,
   getOpenSellPositions,
   getOpenPositionsByExpiry,
+  getIndexFromSymbol,
 } from '../functions';
 import OrderStore from '../../store/orderStore';
 import { getSmartSession } from './session';
@@ -168,9 +169,7 @@ export const updateLivePositions = async ({
     const newPos: Position = {
       symboltoken,
       tradingsymbol,
-      symbolname:
-        postData.INDEX ||
-        (tradingsymbol.includes('BANKNIFTY') ? 'BANKNIFTY' : 'NIFTY'),
+      symbolname: postData.INDEX || getIndexFromSymbol(tradingsymbol),
       expirydate: postData.EXPIRYDATE || '',
       exchange,
       strikeprice,

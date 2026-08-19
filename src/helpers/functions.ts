@@ -462,11 +462,37 @@ export const getStrikeVariance = (index: string) => {
     case INDICES.NIFTY:
     case INDICES.FINNIFTY:
       return 50;
+    case INDICES.SENSEX:
     case INDICES.BANKNIFTY:
       return 100;
     default:
       return 0;
   }
+};
+
+/**
+ * Returns option exchange segment for index ('BFO' for SENSEX, 'NFO' for others).
+ */
+export const getExchangeForIndex = (index: string): string => {
+  return index === INDICES.SENSEX ? 'BFO' : 'NFO';
+};
+
+/**
+ * Returns spot index exchange segment ('BSE' for SENSEX, 'NSE' for others).
+ */
+export const getSpotExchangeForIndex = (index: string): string => {
+  return index === INDICES.SENSEX ? 'BSE' : 'NSE';
+};
+
+/**
+ * Determines index name from trading symbol.
+ */
+export const getIndexFromSymbol = (tradingsymbol: string): string => {
+  if (tradingsymbol.includes('SENSEX')) return INDICES.SENSEX;
+  if (tradingsymbol.includes('BANKNIFTY')) return INDICES.BANKNIFTY;
+  if (tradingsymbol.includes('FINNIFTY')) return INDICES.FINNIFTY;
+  if (tradingsymbol.includes('MIDCPNIFTY')) return INDICES.MIDCPNIFTY;
+  return INDICES.NIFTY;
 };
 
 /**

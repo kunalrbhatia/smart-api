@@ -80,23 +80,26 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
   }
 };
 
+import { getExchangeForIndex } from '../functions';
+
 /**
- * Gets the nearest weekly expiry date for a given index (NIFTY or BANKNIFTY).
+ * Gets the nearest weekly expiry date for a given index (NIFTY, BANKNIFTY or SENSEX).
  * Returns the date in the scrip master format e.g. "20FEB2025"
  */
 export const getNearestWeeklyExpiry = async (
-  scriptName: 'NIFTY' | 'BANKNIFTY' = 'NIFTY',
+  scriptName: 'NIFTY' | 'BANKNIFTY' | 'SENSEX' = 'NIFTY',
 ): Promise<string> => {
   const scripMaster: scripMasterResponse[] = await fetchData();
+  const targetExch = getExchangeForIndex(scriptName);
 
   const today = moment().startOf('day');
 
-  // Filter only OPTIDX options for the given index on NFO
+  // Filter only OPTIDX options for the given index on NFO / BFO
   const options = scripMaster.filter(scrip => {
     const name: string = scrip.name || '';
     return (
       name === scriptName &&
-      scrip.exch_seg === 'NFO' &&
+      scrip.exch_seg === targetExch &&
       scrip.instrumenttype === 'OPTIDX' &&
       scrip.expiry // must have expiry
     );
@@ -249,13 +252,14 @@ export const getScrip = async ({
 }: getScripType): Promise<scripMasterResponse[]> => {
   const scripMaster: scripMasterResponse[] = await fetchData();
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
+    const targetExch = getExchangeForIndex(scriptName);
     let scrips = scripMaster.filter(scrip => {
       const _scripName: string = _get(scrip, 'name', '') || '';
       const _symbol: string = _get(scrip, 'symbol', '') || '';
       const _expiry: string = _get(scrip, 'expiry', '') || '';
       return (
         _scripName === scriptName &&
-        _get(scrip, 'exch_seg') === 'NFO' &&
+        _get(scrip, 'exch_seg') === targetExch &&
         _get(scrip, 'instrumenttype') === 'OPTIDX' &&
         (strikePrice === undefined || _symbol.includes(strikePrice)) &&
         (optionType === undefined || _symbol.includes(optionType)) &&

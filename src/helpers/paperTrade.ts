@@ -3,6 +3,7 @@ import path from 'path';
 import { logger } from './logger';
 import { Position, doOrderType, doOrderResponse } from '../app.interface';
 import OrderStore from '../store/orderStore';
+import { getIndexFromSymbol, getExchangeForIndex } from './functions';
 
 const PAPER_MODE_FILE = path.join(process.cwd(), '.paper-trade');
 const PAPER_POSITIONS_FILE = path.join(process.cwd(), 'paper-positions.json');
@@ -197,14 +198,13 @@ export const mockOrderPlacement = async (
       // Create new position
       const postData = OrderStore.getInstance().getPostData();
 
+      const index = postData.INDEX || getIndexFromSymbol(params.tradingsymbol);
       const newPos: Partial<Position> = {
         symboltoken: params.symboltoken,
         tradingsymbol: params.tradingsymbol,
-        symbolname:
-          postData.INDEX ||
-          (params.tradingsymbol.includes('BANKNIFTY') ? 'BANKNIFTY' : 'NIFTY'),
+        symbolname: index,
         expirydate: postData.EXPIRYDATE,
-        exchange: 'NFO',
+        exchange: params.exchange || getExchangeForIndex(index),
         strikeprice,
         optiontype,
         netqty: qty.toString(),
