@@ -35,8 +35,28 @@ const DEFAULT_CLOSE = process.env.EXIT_TIME
   ? process.env.EXIT_TIME.replace(/[^0-9]/g, '').slice(0, 4)
   : '1517';
 
+export const INDEX_PROFILES = {
+  nifty: {
+    hedgeVariance: 500,
+    strikeDiffLow: 50,
+    strikeDiffHigh: 100,
+    lotSize: 65,
+    expiryDow: 2,
+    name: 'NIFTY',
+  },
+  sensex: {
+    hedgeVariance: 1500,
+    strikeDiffLow: 200,
+    strikeDiffHigh: 300,
+    lotSize: 20,
+    expiryDow: 4,
+    name: 'SENSEX',
+  },
+};
+
 const DEFAULTS = {
   dataDir: null,
+  index: 'nifty',
   from: null,
   to: null,
   entry: DEFAULT_ENTRY,
@@ -44,9 +64,10 @@ const DEFAULTS = {
   exit: DEFAULT_CLOSE, // alias / compat
   target: 0.5, // legacy flag ignored
   stop: 1.0, // legacy flag ignored
-  strikeDiff: 50,
+  strikeDiff: null,
+  hedgeVariance: null,
   vix: null,
-  lotSize: 65,
+  lotSize: null,
   slSlippage: 0,
   entrySlippage: 0,
   expiries: 'nearest', // 'nearest' | 'all'
@@ -93,10 +114,21 @@ function parseArgs(argv) {
     }
   }
 
+  config.index = (config.index || 'nifty').toLowerCase();
+  const profile = INDEX_PROFILES[config.index] || INDEX_PROFILES.nifty;
+  config.profile = profile;
+  config.expiryDow = profile.expiryDow;
+
   config.target = num(config.target, DEFAULTS.target);
   config.stop = num(config.stop, DEFAULTS.stop);
-  config.lotSize = num(config.lotSize, DEFAULTS.lotSize);
-  config.strikeDiff = num(config.strikeDiff, DEFAULTS.strikeDiff);
+  config.lotSize =
+    config.lotSize !== null
+      ? num(config.lotSize, profile.lotSize)
+      : profile.lotSize;
+  config.hedgeVariance =
+    config.hedgeVariance !== null
+      ? num(config.hedgeVariance, profile.hedgeVariance)
+      : profile.hedgeVariance;
   config.slSlippage = num(config.slSlippage, DEFAULTS.slSlippage);
   config.entrySlippage = num(config.entrySlippage, DEFAULTS.entrySlippage);
   config.entry = normalizeHHmm(config.entry, DEFAULTS.entry);
@@ -110,13 +142,17 @@ function parseArgs(argv) {
   config.close = normalizeHHmm(closeVal, DEFAULTS.close);
   config.exit = config.close;
 
-  if (config.vix !== null && config.vix !== undefined) {
+  if (config.strikeDiff !== null) {
+    config.strikeDiff = num(config.strikeDiff, profile.strikeDiffLow);
+  } else if (config.vix !== null && config.vix !== undefined) {
     const v = String(config.vix);
     if (v.startsWith('<14') || Number(v) < 14) {
-      config.strikeDiff = 50;
+      config.strikeDiff = profile.strikeDiffLow;
     } else {
-      config.strikeDiff = 100;
+      config.strikeDiff = profile.strikeDiffHigh;
     }
+  } else {
+    config.strikeDiff = profile.strikeDiffLow;
   }
 
   config.expiries = config.expiries === 'all' ? 'all' : 'nearest';
@@ -131,22 +167,25 @@ function parseArgs(argv) {
   return config;
 }
 
-function resolveDataDir(configured) {
+function resolveDataDir(configured, index = 'nifty') {
+  const chainFolder = index === 'sensex' ? 'chains-sensex' : 'chains';
   const candidates = [];
   if (configured) candidates.push(path.resolve(configured));
   if (process.env.OPTIONCHAIN_DATA_DIR)
     candidates.push(path.resolve(process.env.OPTIONCHAIN_DATA_DIR));
   candidates.push(
-    path.join(ROOT_DIR, 'data', 'chains'),
-    path.resolve(ROOT_DIR, '..', 'nifty-optionchain-data', 'data', 'chains'),
+    path.join(ROOT_DIR, 'data', chainFolder),
+    path.resolve(ROOT_DIR, '..', 'nifty-optionchain-data', 'data', chainFolder),
     path.resolve(
       ROOT_DIR,
       '..',
       '..',
       'nifty-optionchain-data',
       'data',
-      'chains',
+      chainFolder,
     ),
+    path.join(ROOT_DIR, 'data', 'chains'),
+    path.resolve(ROOT_DIR, '..', 'nifty-optionchain-data', 'data', 'chains'),
   );
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
@@ -365,10 +404,12 @@ export function simulateSession(snaps, options) {
   }
 
   const atmStrike = Number(atmRow.strike_price);
+  const hedgeVariance =
+    options.hedgeVariance !== undefined ? options.hedgeVariance : 500;
 
-  // Buy Hedges (5 lots each at ATM + 500 CE & ATM - 500 PE)
-  const ceHedgeStrike = atmStrike + 500;
-  const peHedgeStrike = atmStrike - 500;
+  // Buy Hedges (5 lots each at ATM + hedgeVariance CE & ATM - hedgeVariance PE)
+  const ceHedgeStrike = atmStrike + hedgeVariance;
+  const peHedgeStrike = atmStrike - hedgeVariance;
 
   const ceHedgeLtp = getOptionLtp(firstSnap, ceHedgeStrike, 'CE');
   if (ceHedgeLtp !== null) {
@@ -736,18 +777,20 @@ function printReport(sessions, config) {
     .map(s => ({ ...s, pnl: s.pnlUnit * config.lotSize }));
   const skipped = sessions.filter(s => s.skipped);
   const summary = computeSummary(valid, config.lotSize);
+  const indexName = config.profile.name;
 
   console.log('='.repeat(78));
   console.log(
-    ' SHORT STRADDLE AT ATM — NIFTY OPTION CHAIN BACKTEST (LIVE FIDELITY)',
+    ` SHORT STRADDLE AT ATM — ${indexName} OPTION CHAIN BACKTEST (LIVE FIDELITY)`,
   );
   console.log('='.repeat(78));
+  console.log(`Index      : ${indexName}`);
   console.log(`Data dir   : ${config.dataDir}`);
   console.log(
     `Range      : ${config.from || 'all'} → ${config.to || 'all'}  (${valid.length} sessions, ${skipped.length} skipped)`,
   );
   console.log(
-    `Strategy   : entry ${config.entry.slice(0, 2)}:${config.entry.slice(2)}  close ${config.close.slice(0, 2)}:${config.close.slice(2)}  strikeDiff ${config.strikeDiff}  expiries ${config.expiries}  expiryDaysOnly ${config.expiryDaysOnly ? 'ON' : 'OFF'}`,
+    `Strategy   : entry ${config.entry.slice(0, 2)}:${config.entry.slice(2)}  close ${config.close.slice(0, 2)}:${config.close.slice(2)}  strikeDiff ${config.strikeDiff}  hedgeVariance ${config.hedgeVariance}  expiries ${config.expiries}  expiryDaysOnly ${config.expiryDaysOnly ? 'ON' : 'OFF'}`,
   );
   console.log(`Lot size   : ${config.lotSize}`);
   console.log('-'.repeat(78));
@@ -800,11 +843,11 @@ function printReport(sessions, config) {
 
 function main() {
   const config = parseArgs(process.argv.slice(2));
-  const dataDir = resolveDataDir(config.dataDir);
+  const dataDir = resolveDataDir(config.dataDir, config.index);
   if (!dataDir) {
     console.error(
       'Could not locate option-chain data. Pass --data-dir <path> or set OPTIONCHAIN_DATA_DIR ' +
-        'to the "data/chains" directory of the nifty-optionchain-data repo.',
+        'to the "data/chains" (or "data/chains-sensex") directory of the nifty-optionchain-data repo.',
     );
     process.exit(1);
   }
@@ -824,14 +867,17 @@ function main() {
   const groups = groupByDateExpiry(snapshots);
   let sessions = buildSessions(groups, config.expiries);
   if (config.expiryDaysOnly) {
+    const targetDow = config.expiryDow;
     sessions = sessions.filter(s => {
       const expiryDate = expiryToDateStr(s.expiry);
       if (!expiryDate || expiryDate !== s.date) return false;
       const dow = new Date(s.date + 'T00:00:00').getDay();
-      return dow === 2;
+      return dow === targetDow;
     });
+    const dowNames = { 2: 'Tuesdays', 4: 'Thursdays' };
+    const dayLabel = dowNames[targetDow] || `day ${targetDow}`;
     console.log(
-      `[backtest] --expiry-days-only: keeping only expiry Tuesdays (${sessions.length} sessions)`,
+      `[backtest] --expiry-days-only: keeping only expiry ${dayLabel} (${sessions.length} sessions)`,
     );
   }
 
@@ -841,6 +887,9 @@ function main() {
       closeTime: config.close,
       exitTime: config.exit,
       strikeDiff: config.strikeDiff,
+      hedgeVariance: config.hedgeVariance,
+      slSlippage: config.slSlippage,
+      entrySlippage: config.entrySlippage,
     }),
   );
 
