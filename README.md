@@ -130,6 +130,18 @@ pnpm test
 pnpm run test:coverage # Generate coverage report
 ```
 
+### Backtesting
+
+Run live-fidelity option chain backtests for NIFTY or SENSEX:
+
+```bash
+# Default NIFTY backtest (Tuesdays, lot size 65, strike diff 50, hedge ±500)
+node scripts/backtest-straddle.mjs --expiry-days-only --from 2026-02-01 --to 2026-08-03
+
+# SENSEX backtest (Thursdays, lot size 20, strike diff 200, hedge ±1500)
+node scripts/backtest-straddle.mjs --index sensex --expiry-days-only --data-dir ../nifty-optionchain-data/data/chains-sensex
+```
+
 ### Log Clean-up
 
 The algorithm generates daily date-wise log files (`app-YYYY-MM-DD.log` and `mtm-YYYY-MM-DD.log`). To delete logs older than 30 days, run:
