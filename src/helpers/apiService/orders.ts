@@ -54,7 +54,8 @@ export const doOrder = async ({
   // Resolve exchange from the trading symbol when not explicitly provided
   // (NIFTY → NFO, SENSEX → BFO). Without this, SENSEX orders default to NFO
   // and Angel rejects them with AB4046 "Symbol token not found...".
-  const resolvedExchange = exchange || getExchangeForIndex(getIndexFromSymbol(tradingsymbol));
+  const resolvedExchange =
+    exchange || getExchangeForIndex(getIndexFromSymbol(tradingsymbol));
   let quantity: number;
   if (providedQuantity === undefined) {
     if (!lotSize || lotSize <= 0) {
