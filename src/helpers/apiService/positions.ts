@@ -159,6 +159,8 @@ export const updateLivePositions = async ({
     let optiontype: 'CE' | 'PE' = 'CE';
     // Strike is always the last 5 digits before the option type, regardless of
     // symbol date format (NIFTY26AUG24200CE vs SENSEX2682077400CE vs SENSEX26AUG76800PE).
+    // Note: FPI segment symbols like NIFTYFPI25AUG261320PE parse as 61320 (last 5 digits before PE)
+    // instead of 1320. This is a known limitation — the algo never trades FPI symbols.
     const symbolRegex = /(\d{5})([CP]E)$/;
     const match = tradingsymbol.match(symbolRegex);
     if (match) {

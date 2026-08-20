@@ -99,8 +99,11 @@ export const mockOrderPlacement = async (
   // or SENSEX2682077400CE — strike is always the last 5 digits before the type)
   let strikeprice = '0';
   let optiontype: 'CE' | 'PE' = 'CE';
-  const symbolRegex = /(\d{5})([CP]E)$/;
-  const match = params.tradingsymbol.match(symbolRegex);
+  // Strike is always the last 5 digits before option type for NIFTY / SENSEX
+  // (e.g. NIFTY26AUG24200CE -> 24200, SENSEX2682077400CE -> 77400, SENSEX26AUG76800PE -> 76800).
+  // Note: FPI segment symbols like NIFTYFPI25AUG261320PE parse as 61320 (last 5 digits before PE)
+  // instead of 1320. This is a known limitation — the algo never trades FPI symbols.
+  const match = params.tradingsymbol.match(/(\d{5})([CP]E)$/);
   if (match) {
     strikeprice = match[1];
     optiontype = match[2] as 'CE' | 'PE';
