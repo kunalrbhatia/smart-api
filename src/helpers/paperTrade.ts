@@ -95,14 +95,15 @@ export const mockOrderPlacement = async (
   const paperId = `PAPER-${Date.now()}`;
   logger.info(`[PAPER] Mocking order: ${paperId} for ${params.tradingsymbol}`);
 
-  // Extract strikeprice and optiontype from tradingsymbol (e.g. NIFTY09JUN2623200CE)
+  // Extract strikeprice and optiontype from tradingsymbol (e.g. NIFTY26AUG24200CE
+  // or SENSEX2682077400CE — strike is always the last 5 digits before the type)
   let strikeprice = '0';
   let optiontype: 'CE' | 'PE' = 'CE';
-  const symbolRegex = /^([A-Z]+)(\d{2}[A-Z]{3}\d{2})(\d+\.?\d*)([CP]E)$/;
+  const symbolRegex = /(\d{5})([CP]E)$/;
   const match = params.tradingsymbol.match(symbolRegex);
   if (match) {
-    strikeprice = match[3];
-    optiontype = match[4] as 'CE' | 'PE';
+    strikeprice = match[1];
+    optiontype = match[2] as 'CE' | 'PE';
   }
 
   if (params.variety === 'STOPLOSS' || params.ordertype.includes('STOPLOSS')) {
