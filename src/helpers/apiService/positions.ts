@@ -157,11 +157,13 @@ export const updateLivePositions = async ({
   } else {
     let strikeprice = '0';
     let optiontype: 'CE' | 'PE' = 'CE';
-    const symbolRegex = /^([A-Z]+)(\d{2}[A-Z]{3}\d{2})(\d+\.?\d*)([CP]E)$/;
+    // Strike is always the last 5 digits before the option type, regardless of
+    // symbol date format (NIFTY26AUG24200CE vs SENSEX2682077400CE vs SENSEX26AUG76800PE).
+    const symbolRegex = /(\d{5})([CP]E)$/;
     const match = tradingsymbol.match(symbolRegex);
     if (match) {
-      strikeprice = match[3];
-      optiontype = match[4] as 'CE' | 'PE';
+      strikeprice = match[1];
+      optiontype = match[2] as 'CE' | 'PE';
     }
 
     const postData = OrderStore.getInstance().getPostData();

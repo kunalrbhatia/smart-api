@@ -24,6 +24,7 @@ import {
 import OrderStore from '../../store/orderStore';
 import { getAuthHeaders } from './session';
 import { getScrip, getLtpWithRetry, searchScrip } from './marketData';
+import { getExchangeForIndex, getIndexFromSymbol } from '../functions';
 import { fetchOpenPositionsByExpiry, getPositionsJson } from './positions';
 import { isPaperMode, mockOrderPlacement, getPaperOrders } from '../paperTrade';
 
@@ -41,7 +42,7 @@ export const doOrder = async ({
   price,
   triggerprice,
   isHedge,
-  exchange = 'NFO',
+  exchange,
   quantity: providedQuantity,
   lots,
 }: Omit<doOrderType, 'lotSize'> & {
@@ -50,7 +51,11 @@ export const doOrder = async ({
   lots?: number;
   lotSize?: number;
 }): Promise<doOrderResponse> => {
-  // Calculate quantity - use provided quantity if given, otherwise calculate from lots/lotSize
+  // Resolve exchange from the trading symbol when not explicitly provided
+  // (NIFTY → NFO, SENSEX → BFO). Without this, SENSEX orders default to NFO
+  // and Angel rejects them with AB4046 "Symbol token not found...".
+  const resolvedExchange =
+    exchange || getExchangeForIndex(getIndexFromSymbol(tradingsymbol));
   let quantity: number;
   if (providedQuantity === undefined) {
     if (!lotSize || lotSize <= 0) {
@@ -81,12 +86,12 @@ export const doOrder = async ({
       triggerprice,
       isHedge,
       quantity,
-      exchange,
+      exchange: resolvedExchange,
     });
   }
 
   const data = {
-    exchange,
+    exchange: resolvedExchange,
     tradingsymbol,
     symboltoken,
     quantity: quantity,
@@ -113,7 +118,7 @@ export const doOrder = async ({
         tradingsymbol,
         transactionType: transactionType as 'BUY' | 'SELL',
         quantity,
-        exchange,
+        exchange: resolvedExchange,
       });
     }
     return response;
@@ -535,7 +540,6 @@ export const placeStoplossForAllSells = async ({
         tradingsymbol,
         symboltoken,
         transactionType: TRANSACTION_TYPE_BUY,
-        exchange: 'NFO',
         quantity,
         variety: VARIETY_STOPLOSS as 'STOPLOSS',
         ordertype: 'STOPLOSS_LIMIT' as const,

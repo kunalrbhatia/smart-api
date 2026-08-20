@@ -108,10 +108,24 @@ export const shortStraddle = async (isBuyHedge = false) => {
         strikeIncrement -= strikeVariance;
       }
     }
-    await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
-    await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
+    const ceSell = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
+    const peSell = await doOrderByStrike(atmStrike, OptionType.PE, 'SELL');
     if (isBuyHedge) {
-      setStraddleOpenedToday(expiryDate);
+      // Only mark the session as opened if BOTH sell legs actually filled.
+      // (doOrderByStrike returns { status: false } on a rejected order — e.g.
+      // AB4046 exchange mismatch — and setting the flag anyway made the next
+      // tick skip the entry while positions.json was empty.)
+      const ceSellFilled =
+        typeof ceSell === 'object' && ceSell !== null && ceSell.status === true;
+      const peSellFilled =
+        typeof peSell === 'object' && peSell !== null && peSell.status === true;
+      if (ceSellFilled && peSellFilled) {
+        setStraddleOpenedToday(expiryDate);
+      } else {
+        logger.log(
+          `${ALGO}: Straddle SELL legs incomplete (CE: ${ceSellFilled}, PE: ${peSellFilled}) — not marking session as opened. Will retry on next tick.`,
+        );
+      }
     }
   } catch (error) {
     logger.error(`${ALGO}: shortStraddle failed:`, error);
