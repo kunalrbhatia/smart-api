@@ -376,6 +376,29 @@ describe('ApiService - Positions - Final', () => {
   });
 
   describe('closeTrade and closeAllTrades branches', () => {
+    it('should send SENSEX close order via closeParticularTrade to BFO', async () => {
+      const sensexPosition: any = {
+        tradingsymbol: 'SENSEX2682077400CE',
+        symboltoken: '999',
+        netqty: '-10',
+      };
+      (ordersHelper.doOrder as jest.Mock).mockResolvedValue({ status: true });
+
+      const { closeParticularTrade } = await import(
+        '../../../src/helpers/apiService/positions'
+      );
+      await closeParticularTrade({ trade: sensexPosition });
+
+      expect(ordersHelper.doOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tradingsymbol: 'SENSEX2682077400CE',
+          transactionType: 'BUY',
+          symboltoken: '999',
+          quantity: 10,
+        }),
+      );
+    });
+
     it('should handle isAbrupt path in closeAllTrades', async () => {
       const positions = [
         {
@@ -517,6 +540,71 @@ describe('ApiService - Positions - Final', () => {
     beforeEach(() => {
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       (fs.readFileSync as jest.Mock).mockReturnValue('[]');
+    });
+
+    it('should correctly parse strike and option type across NIFTY and SENSEX symbol formats', async () => {
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 100,
+      });
+
+      let currentPositions: any[] = [];
+      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+        if (
+          typeof filePath === 'string' &&
+          filePath.includes('positions.json')
+        ) {
+          return JSON.stringify(currentPositions);
+        }
+        return '[]';
+      });
+      (fs.writeFileSync as jest.Mock).mockImplementation(
+        (_path: string, content: string) => {
+          currentPositions = JSON.parse(content);
+        },
+      );
+
+      const vectors = [
+        {
+          symbol: 'NIFTY26AUG24200CE',
+          expectedStrike: '24200',
+          expectedType: 'CE',
+        },
+        {
+          symbol: 'SENSEX2682077400CE',
+          expectedStrike: '77400',
+          expectedType: 'CE',
+        },
+        {
+          symbol: 'SENSEX26AUG76800PE',
+          expectedStrike: '76800',
+          expectedType: 'PE',
+        },
+        {
+          symbol: 'BANKNIFTY26AUG50000CE',
+          expectedStrike: '50000',
+          expectedType: 'CE',
+        },
+      ];
+
+      for (const [idx, v] of vectors.entries()) {
+        await updateLivePositions({
+          symboltoken: `token-${idx}`,
+          tradingsymbol: v.symbol,
+          transactionType: 'SELL',
+          quantity: 10,
+          exchange: 'NFO',
+        });
+      }
+
+      expect(currentPositions).toHaveLength(4);
+      expect(currentPositions[0].strikeprice).toBe('24200');
+      expect(currentPositions[0].optiontype).toBe('CE');
+      expect(currentPositions[1].strikeprice).toBe('77400');
+      expect(currentPositions[1].optiontype).toBe('CE');
+      expect(currentPositions[2].strikeprice).toBe('76800');
+      expect(currentPositions[2].optiontype).toBe('PE');
+      expect(currentPositions[3].strikeprice).toBe('50000');
+      expect(currentPositions[3].optiontype).toBe('CE');
     });
 
     it('should add a new position if it does not exist', async () => {

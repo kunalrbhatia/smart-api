@@ -82,6 +82,76 @@ describe('ApiService - Orders', () => {
       );
     });
 
+    it('should resolve exchange to BFO for SENSEX symbol when exchange is not provided', async () => {
+      (api.post as jest.Mock).mockResolvedValue({ status: true });
+
+      await doOrder({
+        tradingsymbol: 'SENSEX2682077400CE',
+        transactionType: 'BUY',
+        symboltoken: '12345',
+        lotSize: 10,
+        quantity: 10,
+        variety: 'NORMAL',
+        ordertype: 'MARKET',
+      });
+
+      expect(api.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          tradingsymbol: 'SENSEX2682077400CE',
+          exchange: 'BFO',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should resolve exchange to NFO for NIFTY symbol when exchange is not provided', async () => {
+      (api.post as jest.Mock).mockResolvedValue({ status: true });
+
+      await doOrder({
+        tradingsymbol: 'NIFTY26AUG24200CE',
+        transactionType: 'BUY',
+        symboltoken: '12345',
+        lotSize: 25,
+        quantity: 25,
+        variety: 'NORMAL',
+        ordertype: 'MARKET',
+      });
+
+      expect(api.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          tradingsymbol: 'NIFTY26AUG24200CE',
+          exchange: 'NFO',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should preserve explicit exchange when exchange is provided', async () => {
+      (api.post as jest.Mock).mockResolvedValue({ status: true });
+
+      await doOrder({
+        tradingsymbol: 'SENSEX2682077400CE',
+        transactionType: 'BUY',
+        symboltoken: '12345',
+        lotSize: 10,
+        quantity: 10,
+        exchange: 'CUSTOM_EXCH',
+        variety: 'NORMAL',
+        ordertype: 'MARKET',
+      });
+
+      expect(api.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          tradingsymbol: 'SENSEX2682077400CE',
+          exchange: 'CUSTOM_EXCH',
+        }),
+        expect.any(Object),
+      );
+    });
+
     it('should calculate quantity from lots and lotSize if quantity not provided', async () => {
       (api.post as jest.Mock).mockResolvedValue({ status: true });
 
