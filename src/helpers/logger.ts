@@ -49,6 +49,7 @@ const getLogFilePath = (type: 'app' | 'mtm'): string => {
  * Writes the message to the dynamic datewise log file.
  */
 const writeToFile = (type: 'app' | 'mtm', formattedMessage: string) => {
+  if (process.env.NODE_ENV === 'test') return;
   try {
     fs.appendFileSync(getLogFilePath(type), formattedMessage);
   } catch (err) {

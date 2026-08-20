@@ -172,6 +172,70 @@ describe('ApiService - Orders', () => {
       );
     });
 
+    it('should resolve exchange to BFO for SENSEX symbols when exchange is omitted', async () => {
+      (api.post as jest.Mock).mockResolvedValue({ status: true });
+
+      await doOrder({
+        tradingsymbol: 'SENSEX2682077400CE',
+        transactionType: 'SELL',
+        symboltoken: '100',
+        quantity: 10,
+        variety: 'NORMAL',
+        ordertype: 'MARKET',
+      });
+
+      expect(api.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          exchange: 'BFO',
+          tradingsymbol: 'SENSEX2682077400CE',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should resolve exchange to NFO for NIFTY symbols when exchange is omitted', async () => {
+      (api.post as jest.Mock).mockResolvedValue({ status: true });
+
+      await doOrder({
+        tradingsymbol: 'NIFTY26AUG24200CE',
+        transactionType: 'SELL',
+        symboltoken: '101',
+        quantity: 50,
+        variety: 'NORMAL',
+        ordertype: 'MARKET',
+      });
+
+      expect(api.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          exchange: 'NFO',
+          tradingsymbol: 'NIFTY26AUG24200CE',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should preserve explicitly provided exchange even for SENSEX/NIFTY', async () => {
+      (api.post as jest.Mock).mockResolvedValue({ status: true });
+
+      await doOrder({
+        tradingsymbol: 'SENSEX2682077400CE',
+        transactionType: 'SELL',
+        symboltoken: '100',
+        quantity: 10,
+        exchange: 'CUSTOM_EXCH',
+        variety: 'NORMAL',
+        ordertype: 'MARKET',
+      });
+
+      expect(api.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ exchange: 'CUSTOM_EXCH' }),
+        expect.any(Object),
+      );
+    });
+
     it('should use hedge quantity multiplier if isHedge is true', async () => {
       (api.post as jest.Mock).mockResolvedValue({ status: true });
 

@@ -44,8 +44,10 @@ jest.mock('../../../src/store/dataStore');
 jest.mock('../../../src/helpers/functions');
 jest.mock('../../../src/helpers/apiService/session');
 jest.mock('../../../src/helpers/killSwitch');
-import * as sessionStore from '../../../src/store/sessionStore';
-
+import {
+  getSessionState,
+  setStraddleOpenedToday,
+} from '../../../src/store/sessionStore';
 jest.mock('../../../src/store/sessionStore', () => ({
   getSessionState: jest.fn().mockImplementation((expiryDate?: string) => ({
     tradingDate: expiryDate || '20FEB2025',
@@ -148,6 +150,38 @@ describe('ApiService - Strategy - Final 90+', () => {
       expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(5);
     });
 
+    it('should set straddleOpenedToday session flag when BOTH sell legs fill with status true', async () => {
+      (ordersHelper.doOrderByStrike as jest.Mock)
+        .mockResolvedValueOnce({ status: true }) // CE Hedge
+        .mockResolvedValueOnce({ status: true }) // PE Hedge
+        .mockResolvedValueOnce({ status: true }) // CE Sell
+        .mockResolvedValueOnce({ status: true }); // PE Sell
+
+      await shortStraddle(true);
+
+      expect(setStraddleOpenedToday).toHaveBeenCalledWith('20FEB2025');
+    });
+
+    it('should NOT set straddleOpenedToday session flag when one sell leg status is false', async () => {
+      (ordersHelper.doOrderByStrike as jest.Mock)
+        .mockResolvedValueOnce({ status: true }) // CE Sell
+        .mockResolvedValueOnce({ status: false }); // PE Sell rejected
+
+      await shortStraddle(true);
+
+      expect(setStraddleOpenedToday).not.toHaveBeenCalled();
+    });
+
+    it('should NOT set straddleOpenedToday session flag when order result is undefined/not object without throwing', async () => {
+      (ordersHelper.doOrderByStrike as jest.Mock)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      await shortStraddle(true);
+
+      expect(setStraddleOpenedToday).not.toHaveBeenCalled();
+    });
+
     it('should throw error and log if getAtmStrikePrice fails', async () => {
       (functionsHelper.getAtmStrikePrice as jest.Mock).mockRejectedValue(
         new Error('ATM Error'),
@@ -217,13 +251,50 @@ describe('ApiService - Strategy - Final 90+', () => {
       expect(positionsHelper.getPositionsJson).not.toHaveBeenCalled();
     });
 
-    it('should call checkBothLegs if difference is large enough', async () => {
+    it('should call checkBothLegs if difference is large enough and log decision inputs', async () => {
       (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
-      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
-      await repeatShortStraddle(150, 18100);
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([
+        { strikeprice: '18000', tradingsymbol: 'NIFTY26AUG18000CE' },
+      ]);
+      await repeatShortStraddle(150, 18150, 18000);
       expect(
         functionsHelper.areBothOptionTypesPresentForStrike,
       ).toHaveBeenCalled();
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining('Roll decision inputs'),
+      );
+    });
+
+    it('should NOT roll if any open position has strikeprice = "0" or invalid', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([
+        { strikeprice: '0', tradingsymbol: 'SENSEX2682077400CE' },
+      ]);
+
+      await repeatShortStraddle(300, 77700, 77400);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('found position with invalid strikeprice'),
+      );
+      expect(
+        functionsHelper.areBothOptionTypesPresentForStrike,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should NOT roll if previousTradeStrikePrice is 0 or undefined', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([
+        { strikeprice: '77400', tradingsymbol: 'SENSEX2682077400CE' },
+      ]);
+
+      await repeatShortStraddle(300, 77700, 0);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('previousTradeStrikePrice is 0'),
+      );
+      expect(
+        functionsHelper.areBothOptionTypesPresentForStrike,
+      ).not.toHaveBeenCalled();
     });
 
     it('should log error and rethrow on failure', async () => {
@@ -231,7 +302,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       (positionsHelper.getPositionsJson as jest.Mock).mockRejectedValue(
         new Error('Repeat Error'),
       );
-      await expect(repeatShortStraddle(150, 18100)).rejects.toThrow(
+      await expect(repeatShortStraddle(150, 18100, 18000)).rejects.toThrow(
         'Repeat Error',
       );
       expect(logger.error).toHaveBeenCalled();
@@ -252,7 +323,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
       (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
 
-      (sessionStore.getSessionState as jest.Mock).mockReturnValue({
+      (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: true,
         mtmBaseline: 200,
@@ -275,7 +346,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
       (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
 
-      (sessionStore.getSessionState as jest.Mock).mockReturnValue({
+      (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
         mtmBaseline: 0,
@@ -306,7 +377,7 @@ describe('ApiService - Strategy - Final 90+', () => {
         },
       );
       (positionsHelper.getMtm as jest.Mock).mockResolvedValue(1000);
-      (sessionStore.getSessionState as jest.Mock).mockReturnValue({
+      (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
         mtmBaseline: 200,
@@ -372,9 +443,11 @@ describe('ApiService - Strategy - Final 90+', () => {
 
   describe('repeatShortStraddle - diff 0', () => {
     it('should call checkBothLegs if difference is 0 and strike already traded', async () => {
-      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([
+        { strikeprice: '18000', tradingsymbol: 'NIFTY26AUG18000CE' },
+      ]);
       (functionsHelper.checkStrike as jest.Mock).mockReturnValue(true);
-      await repeatShortStraddle(0, 18000);
+      await repeatShortStraddle(0, 18000, 18000);
       expect(
         functionsHelper.areBothOptionTypesPresentForStrike,
       ).toHaveBeenCalled();
@@ -476,7 +549,7 @@ describe('ApiService - Strategy - Final 90+', () => {
 
   describe('coreTradeExecution', () => {
     it('should execute shortStraddle if no trades taken', async () => {
-      (sessionStore.getSessionState as jest.Mock).mockReturnValue({
+      (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
         mtmBaseline: 0,
@@ -490,7 +563,7 @@ describe('ApiService - Strategy - Final 90+', () => {
     });
 
     it('should repeat if trades already taken', async () => {
-      (sessionStore.getSessionState as jest.Mock).mockReturnValue({
+      (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
         mtmBaseline: 0,
@@ -509,7 +582,7 @@ describe('ApiService - Strategy - Final 90+', () => {
     });
 
     it('should execute shortStraddle if trades already taken but no hedges exist', async () => {
-      (sessionStore.getSessionState as jest.Mock).mockReturnValue({
+      (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
         mtmBaseline: 0,

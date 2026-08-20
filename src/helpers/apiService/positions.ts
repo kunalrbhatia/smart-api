@@ -117,6 +117,14 @@ export const updateLivePositions = async ({
     const oldNetQty = Number.parseInt(p.netqty);
     const newNetQty = oldNetQty + qty;
 
+    if (!p.strikeprice || p.strikeprice === '0') {
+      const match = tradingsymbol.match(/(\d{5})([CP]E)$/);
+      if (match) {
+        p.strikeprice = match[1];
+        p.optiontype = match[2] as 'CE' | 'PE';
+      }
+    }
+
     p.netqty = newNetQty.toString();
     if (transactionType === 'BUY') {
       const oldBuyQty = Number.parseInt(p.buyqty);

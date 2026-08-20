@@ -199,6 +199,7 @@ export const checkBothLegs = async ({
 export const repeatShortStraddle = async (
   difference: number,
   atmStrike: number,
+  previousTradeStrikePrice?: number,
 ) => {
   try {
     const noEntryTime = getAlgoNoEntryTime();
@@ -212,6 +213,32 @@ export const repeatShortStraddle = async (
     const idx = OrderStore.getInstance().getPostData().INDEX;
     const strikeDiff = getStrikeDifference(idx);
     const positions = await getPositionsJson();
+
+    // Guard against zero / unparseable strikeprice in open sell positions
+    const invalidStrikePos = (positions || []).find(
+      p =>
+        !p.strikeprice ||
+        p.strikeprice === '0' ||
+        Number.isNaN(Number(p.strikeprice)),
+    );
+    if (invalidStrikePos) {
+      logger.warn(
+        `${ALGO}: Data integrity warning — found position with invalid strikeprice '${invalidStrikePos.strikeprice}' (${invalidStrikePos.tradingsymbol}). Skipping roll decision.`,
+      );
+      return;
+    }
+
+    if (
+      !previousTradeStrikePrice ||
+      previousTradeStrikePrice === 0 ||
+      Number.isNaN(previousTradeStrikePrice)
+    ) {
+      logger.warn(
+        `${ALGO}: Data integrity warning — previousTradeStrikePrice is ${previousTradeStrikePrice}. Skipping roll decision.`,
+      );
+      return;
+    }
+
     const isSameStrikeAlreadyTraded = checkStrike(
       positions,
       atmStrike.toString(),
@@ -221,6 +248,10 @@ export const repeatShortStraddle = async (
       atmStrike.toString(),
     );
     const cepe_present = checkBoth_CE_PE_Present(result);
+
+    logger.log(
+      `${ALGO}: Roll decision inputs — difference: ${difference}, strikeDiff: ${strikeDiff}, isSameStrikeAlreadyTraded: ${isSameStrikeAlreadyTraded}, cepe_present: ${cepe_present}, previousTradeStrikePrice: ${previousTradeStrikePrice}, atmStrike: ${atmStrike}`,
+    );
 
     if (
       Math.abs(difference) >= strikeDiff &&
@@ -270,7 +301,7 @@ export const checkToRepeatShortStraddle = async (
   if (Number.isFinite(atmStrike)) {
     const difference = atmStrike - previousTradeStrikePrice;
     await delay({ milliSeconds: DELAY });
-    await repeatShortStraddle(difference, atmStrike);
+    await repeatShortStraddle(difference, atmStrike, previousTradeStrikePrice);
   } else {
     throw new Error(`Oops, atmStrike is infinity! Stopping operations.`);
   }
@@ -460,6 +491,13 @@ export const checkMarketConditionsAndExecuteTrade = async (
       INDIAVIX: vixVal,
       MTM_BASELINE: currentPostData ? currentPostData.MTM_BASELINE : 0,
     });
+
+    const { hours, minutes } = getAlgoExitTime();
+    const isPastClosingTime = isCurrentTimeGreater({ hours, minutes });
+    if (isPastClosingTime) {
+      // Past exit time: execute close trade regardless of entry trade permissions
+      return await executeTrade();
+    }
 
     const { isAllowed, reasons } = await isTradeAllowed(expiryDate);
     if (!isAllowed) {
