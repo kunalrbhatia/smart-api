@@ -624,5 +624,51 @@ describe('ApiService - Positions - Final', () => {
       expect(writtenData[0].netqty).toBe('0');
       expect(writtenData[0].realised).toBe('500');
     });
+
+    it('should correctly parse strike and option type across symbol formats', async () => {
+      (fs.readFileSync as jest.Mock).mockReturnValue('[]');
+      (marketDataHelper.getLtpWithRetry as jest.Mock).mockResolvedValue({
+        ltp: 100,
+      });
+
+      const testCases = [
+        {
+          symbol: 'NIFTY26AUG24200CE',
+          expectedStrike: '24200',
+          expectedType: 'CE',
+        },
+        {
+          symbol: 'SENSEX2682077400CE',
+          expectedStrike: '77400',
+          expectedType: 'CE',
+        },
+        {
+          symbol: 'SENSEX26AUG76800PE',
+          expectedStrike: '76800',
+          expectedType: 'PE',
+        },
+        {
+          symbol: 'BANKNIFTY26AUG50000CE',
+          expectedStrike: '50000',
+          expectedType: 'CE',
+        },
+      ];
+
+      for (const tc of testCases) {
+        await updateLivePositions({
+          symboltoken: tc.symbol,
+          tradingsymbol: tc.symbol,
+          transactionType: 'SELL',
+          quantity: 20,
+          exchange: 'BFO',
+        });
+        const written = JSON.parse(
+          (fs.writeFileSync as jest.Mock).mock.calls.pop()[1],
+        );
+        const pos = written.find((p: any) => p.tradingsymbol === tc.symbol);
+        expect(pos.strikeprice).toBe(tc.expectedStrike);
+        expect(pos.optiontype).toBe(tc.expectedType);
+      }
+    });
   });
 });

@@ -62,14 +62,16 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
       `${ALGO}: Scrip Master downloaded. Total scrips: ${acData.length}`,
     );
 
-    // Save to local file cache
-    try {
-      fs.writeFileSync(filePath, JSON.stringify(acData));
-    } catch (writeErr) {
-      logger.error(
-        `${ALGO}: Failed to write scrip master local cache:`,
-        writeErr,
-      );
+    // Save to local file cache (skip only if explicitly disabled in tests)
+    if (process.env.SKIP_SCRIP_CACHE_WRITE !== 'true') {
+      try {
+        fs.writeFileSync(filePath, JSON.stringify(acData));
+      } catch (writeErr) {
+        logger.error(
+          `${ALGO}: Failed to write scrip master local cache:`,
+          writeErr,
+        );
+      }
     }
 
     store.setPostData({ SCRIP_MASTER_JSON: acData });

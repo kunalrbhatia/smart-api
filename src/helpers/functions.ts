@@ -400,15 +400,28 @@ export const getOpenSellPositions = (positions: Position[]): Position[] => {
  * @returns {boolean} A boolean indicating if the market is closed.
  */
 export const isMarketClosed = () => {
-  const [hoursStr, minutesStr] = (appConfig.entryTime || '09:15').split(':');
-  const hours = Number.parseInt(hoursStr, 10);
-  const minutes = Number.parseInt(minutesStr, 10);
-  const entryHours = Number.isFinite(hours) ? hours : 9;
-  const entryMinutes = Number.isFinite(minutes) ? minutes : 15;
+  const [entryHoursStr, entryMinutesStr] = (
+    appConfig.entryTime || '09:15'
+  ).split(':');
+  const entryHours = Number.parseInt(entryHoursStr, 10);
+  const entryMinutes = Number.parseInt(entryMinutesStr, 10);
+  const validEntryHours = Number.isFinite(entryHours) ? entryHours : 9;
+  const validEntryMinutes = Number.isFinite(entryMinutes) ? entryMinutes : 15;
+
+  const [exitHoursStr, exitMinutesStr] = (appConfig.exitTime || '15:40').split(
+    ':',
+  );
+  const exitHours = Number.parseInt(exitHoursStr, 10);
+  const exitMinutes = Number.parseInt(exitMinutesStr, 10);
+  const validExitHours = Number.isFinite(exitHours) ? exitHours : 15;
+  const validExitMinutes = Number.isFinite(exitMinutes) ? exitMinutes : 40;
 
   if (
-    isCurrentTimeGreater({ hours: entryHours, minutes: entryMinutes }) &&
-    !isCurrentTimeGreater({ hours: 15, minutes: 30 })
+    isCurrentTimeGreater({
+      hours: validEntryHours,
+      minutes: validEntryMinutes,
+    }) &&
+    !isCurrentTimeGreater({ hours: validExitHours, minutes: validExitMinutes })
   ) {
     return false;
   } else {

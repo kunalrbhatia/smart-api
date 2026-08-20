@@ -10,6 +10,7 @@ jest.mock('../../src/helpers/paperTrade');
 describe('logger helper', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.NODE_ENV = 'development';
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'info').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
