@@ -115,11 +115,15 @@ export const shortStraddle = async (isBuyHedge = false) => {
       // (doOrderByStrike returns { status: false } on a rejected order — e.g.
       // AB4046 exchange mismatch — and setting the flag anyway made the next
       // tick skip the entry while positions.json was empty.)
-      if (ceSell?.status === true && peSell?.status === true) {
+      const ceSellFilled =
+        typeof ceSell === 'object' && ceSell !== null && ceSell.status === true;
+      const peSellFilled =
+        typeof peSell === 'object' && peSell !== null && peSell.status === true;
+      if (ceSellFilled && peSellFilled) {
         setStraddleOpenedToday(expiryDate);
       } else {
         logger.log(
-          `${ALGO}: Straddle SELL legs incomplete (CE: ${ceSell?.status}, PE: ${peSell?.status}) — not marking session as opened. Will retry on next tick.`,
+          `${ALGO}: Straddle SELL legs incomplete (CE: ${ceSellFilled}, PE: ${peSellFilled}) — not marking session as opened. Will retry on next tick.`,
         );
       }
     }
