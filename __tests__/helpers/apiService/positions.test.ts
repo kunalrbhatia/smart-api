@@ -31,6 +31,7 @@ jest.mock('../../../src/helpers/apiService/orders');
 jest.mock('../../../src/helpers/functions');
 
 import * as functionsHelper from '../../../src/helpers/functions';
+import * as apiHelper from '../../../src/helpers/api';
 
 import {
   getPositions,
@@ -187,10 +188,15 @@ describe('ApiService - Positions - Final', () => {
         },
       ];
 
+      (apiHelper.get as jest.Mock).mockResolvedValue({
+        status: true,
+        data: positions,
+      });
+
       let readCount = 0;
       (fs.readFileSync as jest.Mock).mockImplementation(() => {
         readCount++;
-        if (readCount === 1 || readCount === 2) {
+        if (readCount <= 4) {
           return JSON.stringify(positions);
         }
         return JSON.stringify([]);
@@ -202,6 +208,123 @@ describe('ApiService - Positions - Final', () => {
 
       expect(ordersHelper.doOrder).toHaveBeenCalled();
       expect(notify).toHaveBeenCalledWith(expect.stringContaining('Final MTM'));
+    });
+  });
+
+  describe('reconcilePositionsWithBroker', () => {
+    it('should remove closed position from local file when broker netqty is 0 or position absent in broker', async () => {
+      const local = [
+        { symboltoken: '1', tradingsymbol: 'NIFTY26AUG24200CE', netqty: '-65' },
+        { symboltoken: '2', tradingsymbol: 'NIFTY26AUG24100CE', netqty: '-65' },
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(local));
+      (apiHelper.get as jest.Mock).mockResolvedValue({
+        status: true,
+        data: [
+          {
+            symboltoken: '1',
+            tradingsymbol: 'NIFTY26AUG24200CE',
+            netquantity: '0',
+          },
+          // NIFTY26AUG24100CE is absent at broker
+        ],
+      });
+
+      const { reconcilePositionsWithBroker } = await import(
+        '../../../src/helpers/apiService/positions'
+      );
+      const result = await reconcilePositionsWithBroker();
+
+      expect(result).toEqual([]);
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('positions.json'),
+        JSON.stringify([], null, 2),
+      );
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Reconciled: removed closed position NIFTY26AUG24200CE',
+        ),
+      );
+    });
+
+    it('should correct local netqty when broker netqty differs in magnitude or sign', async () => {
+      const local = [
+        { symboltoken: '1', tradingsymbol: 'NIFTY26AUG24200CE', netqty: '-65' },
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(local));
+      (apiHelper.get as jest.Mock).mockResolvedValue({
+        status: true,
+        data: [
+          {
+            symboltoken: '1',
+            tradingsymbol: 'NIFTY26AUG24200CE',
+            netquantity: '65',
+          },
+        ],
+      });
+
+      const { reconcilePositionsWithBroker } = await import(
+        '../../../src/helpers/apiService/positions'
+      );
+      const result = await reconcilePositionsWithBroker();
+
+      expect(result[0].netqty).toBe('65');
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Reconciled: corrected NIFTY26AUG24200CE netqty from -65 to broker netqty 65',
+        ),
+      );
+    });
+
+    it('should return local positions unchanged without throwing if broker fetch fails', async () => {
+      const local = [
+        { symboltoken: '1', tradingsymbol: 'NIFTY26AUG24200CE', netqty: '-65' },
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(local));
+      (apiHelper.get as jest.Mock).mockRejectedValue(
+        new Error('Network error'),
+      );
+
+      const { reconcilePositionsWithBroker } = await import(
+        '../../../src/helpers/apiService/positions'
+      );
+      const result = await reconcilePositionsWithBroker();
+
+      expect(result).toEqual(local);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('reconcilePositionsWithBroker failed'),
+        expect.any(Error),
+      );
+    });
+
+    it('should leave foreign broker positions untouched (only reconcile local positions)', async () => {
+      const local = [
+        { symboltoken: '1', tradingsymbol: 'NIFTY26AUG24200CE', netqty: '-65' },
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(local));
+      (apiHelper.get as jest.Mock).mockResolvedValue({
+        status: true,
+        data: [
+          {
+            symboltoken: '1',
+            tradingsymbol: 'NIFTY26AUG24200CE',
+            netquantity: '-65',
+          },
+          {
+            symboltoken: '999',
+            tradingsymbol: 'FOREIGN_LEG',
+            netquantity: '-100',
+          },
+        ],
+      });
+
+      const { reconcilePositionsWithBroker } = await import(
+        '../../../src/helpers/apiService/positions'
+      );
+      const result = await reconcilePositionsWithBroker();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].tradingsymbol).toBe('NIFTY26AUG24200CE');
     });
   });
 
