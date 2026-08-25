@@ -475,6 +475,33 @@ describe('ApiService - Orders', () => {
       );
     });
 
+    it('should skip SL for positions with broker netqty >= 0 and log warning', async () => {
+      const positions: any = [
+        {
+          tradingsymbol: 'T1',
+          optiontype: 'CE',
+          strikeprice: '100',
+          netqty: '65',
+          netvalue: '5000',
+          symboltoken: '1',
+          lotsize: '50',
+        },
+      ];
+      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue(
+        positions,
+      );
+      (api.get as jest.Mock).mockResolvedValue({ data: [] });
+
+      await placeStopLossOnAllTrades();
+
+      expect(api.post).not.toHaveBeenCalled();
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Skipping SL for T1: broker netqty 65 is not short',
+        ),
+      );
+    });
+
     it('should log error if main flow fails', async () => {
       (positionsHelper.getPositionsJson as jest.Mock).mockRejectedValue(
         new Error('Fatal'),

@@ -358,6 +358,11 @@ export const placeStopLossOnAllTrades = async (
       `${ALGO}: Starting placeStopLossOnAllTrades with ${stoplossPercentage}% stop loss`,
     );
 
+    if (!positions) {
+      const { reconcilePositionsWithBroker } = await import('./positions');
+      await reconcilePositionsWithBroker();
+    }
+
     // Get existing pending orders
     const pendingOrders = await getPendingOrders();
     logger.log(
@@ -395,6 +400,13 @@ export const placeStopLossOnAllTrades = async (
 
     // Place stop loss orders for positions without them
     for (const position of positionsWithoutStopLoss) {
+      const netQty = Number.parseInt(position.netqty, 10);
+      if (netQty >= 0) {
+        logger.log(
+          `${ALGO}: Skipping SL for ${position.tradingsymbol}: broker netqty ${netQty} is not short`,
+        );
+        continue;
+      }
       await placeStopLossOrder(position, stoplossPercentage);
     }
 

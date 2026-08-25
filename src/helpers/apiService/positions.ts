@@ -24,7 +24,7 @@ import {
   getIndexFromSymbol,
 } from '../functions';
 import OrderStore from '../../store/orderStore';
-import { getSmartSession } from './session';
+import { getSmartSession, getAuthHeaders } from './session';
 import { doOrder } from './orders';
 import {
   isPaperMode,
@@ -369,6 +369,81 @@ export const closeParticularTrade = async ({ trade }: { trade: Position }) => {
     throw error;
   }
 }; /**
+ * Reconciles local positions.json with broker GET_POSITIONS truth.
+ */
+export const reconcilePositionsWithBroker = async (): Promise<Position[]> => {
+  if (isPaperMode()) {
+    return getPaperPositions();
+  }
+  const localPositions = getAlgoPositions();
+  if (localPositions.length === 0) return [];
+
+  try {
+    const { get } = await import('../api');
+    const { GET_POSITIONS } = await import('../constants');
+    const headers = await getAuthHeaders();
+    const responseJson = await get(GET_POSITIONS, headers);
+
+    if (
+      !responseJson ||
+      responseJson.status === false ||
+      !Array.isArray(responseJson.data)
+    ) {
+      logger.warn(
+        `${ALGO}: reconcilePositionsWithBroker — broker positions response invalid or unsuccessful. Continuing with local positions file.`,
+      );
+      return localPositions;
+    }
+
+    const brokerPositionsData: any[] = responseJson.data;
+    const reconciledPositions: Position[] = [];
+    let updated = false;
+
+    for (const localPos of localPositions) {
+      const brokerRow = brokerPositionsData.find(
+        (b: any) =>
+          (b.symboltoken && b.symboltoken === localPos.symboltoken) ||
+          (b.tradingsymbol && b.tradingsymbol === localPos.tradingsymbol),
+      );
+
+      const brokerNetQty = brokerRow
+        ? Number.parseInt(brokerRow.netquantity ?? brokerRow.netqty ?? '0', 10)
+        : 0;
+      const localNetQty = Number.parseInt(localPos.netqty, 10);
+
+      if (!brokerRow || brokerNetQty === 0) {
+        logger.log(
+          `${ALGO}: Reconciled: removed closed position ${localPos.tradingsymbol} (broker netqty 0)`,
+        );
+        updated = true;
+        continue;
+      }
+
+      if (brokerNetQty !== localNetQty) {
+        logger.log(
+          `${ALGO}: Reconciled: corrected ${localPos.tradingsymbol} netqty from ${localNetQty} to broker netqty ${brokerNetQty}`,
+        );
+        localPos.netqty = brokerNetQty.toString();
+        updated = true;
+      }
+
+      reconciledPositions.push(localPos);
+    }
+
+    if (updated) {
+      saveAlgoPositions(reconciledPositions);
+    }
+    return reconciledPositions;
+  } catch (error) {
+    logger.warn(
+      `${ALGO}: reconcilePositionsWithBroker failed, continuing with local positions file:`,
+      error,
+    );
+    return localPositions;
+  }
+};
+
+/**
  * Closes all open trades.
  * @returns {Promise<number>} The number of positions eligible for closure.
  */
@@ -376,6 +451,7 @@ export const closeAllTrades = async (isAbrupt = false): Promise<number> => {
   let eligibleCount = 0;
   try {
     await delay({ milliSeconds: DELAY });
+    await reconcilePositionsWithBroker();
     const positions = await getPositionsJson(isAbrupt);
 
     if (!Array.isArray(positions) || positions.length === 0) return 0;
@@ -385,6 +461,13 @@ export const closeAllTrades = async (isAbrupt = false): Promise<number> => {
 
     for (const position of positions) {
       const netQty = Number.parseInt(position.netqty);
+      if (netQty >= 0 && !isAbrupt) {
+        logger.log(
+          `${ALGO}: Skipping close for ${position.tradingsymbol}: broker netqty ${netQty} is not short`,
+        );
+        continue;
+      }
+
       if (isAbrupt && netQty !== 0) {
         eligibleCount++;
         await closeParticularTrade({ trade: position });
