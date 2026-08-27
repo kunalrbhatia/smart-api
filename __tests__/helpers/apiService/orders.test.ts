@@ -7,7 +7,6 @@ import {
 } from '../../../src/helpers/apiService/orders';
 import * as api from '../../../src/helpers/api';
 import { logger } from '../../../src/helpers/logger';
-import { notify } from '../../../src/helpers/notifier';
 import OrderStore from '../../../src/store/orderStore';
 import * as sessionHelper from '../../../src/helpers/apiService/session';
 import * as marketDataHelper from '../../../src/helpers/apiService/marketData';

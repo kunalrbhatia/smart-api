@@ -3,7 +3,6 @@ import moment from 'moment-timezone';
 import { DELAY, delay } from 'krb-smart-api-module';
 import { get, post } from '../api';
 import { logger } from '../logger';
-import { notify } from '../notifier';
 import {
   ALGO,
   ORDER_API,
@@ -11,7 +10,6 @@ import {
   VARIETY_NORMAL,
   VARIETY_STOPLOSS,
   TRANSACTION_TYPE_BUY,
-  TRANSACTION_TYPE_SELL,
   HEDGE_LOT_MULTIPLIER,
 } from '../constants';
 import {
@@ -25,7 +23,7 @@ import OrderStore from '../../store/orderStore';
 import { getAuthHeaders } from './session';
 import { getScrip, getLtpWithRetry, searchScrip } from './marketData';
 import { getExchangeForIndex, getIndexFromSymbol } from '../functions';
-import { fetchOpenPositionsByExpiry, getPositionsJson } from './positions';
+import { fetchOpenPositionsByExpiry } from './positions';
 import { isPaperMode, mockOrderPlacement, getPaperOrders } from '../paperTrade';
 
 /**
