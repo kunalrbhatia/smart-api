@@ -484,15 +484,13 @@ export function simulateSession(snaps, options) {
   for (let i = entrySnapIndex; i < snaps.length; i++) {
     const snap = snaps[i];
 
-    // 1. Check Stop Loss for all OPEN SELL positions
+    // 1. Check Stop Loss for all OPEN SELL positions (Tick-based exit at snapshot LTP)
     for (const pos of positions) {
       if (pos.status !== 'OPEN' || pos.type !== 'SELL') continue;
       const currentLtp = getOptionLtp(snap, pos.strike, pos.optionType);
       if (currentLtp !== null && currentLtp >= pos.slTriggerPrice) {
         pos.status = 'CLOSED';
-        pos.exitPrice = round2(
-          Math.max(pos.slLimitPrice, currentLtp) + slSlippage,
-        );
+        pos.exitPrice = round2(currentLtp + slSlippage);
         pos.exitTime = snap.time;
         pos.exitReason = 'SL_TRIGGERED';
       }

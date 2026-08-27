@@ -3,13 +3,10 @@ import {
   doOrderByStrike,
   getPendingOrders,
   hasStopLossOrderForPosition,
-  placeStopLossOrder,
-  placeStopLossOnAllTrades,
   placeStoplossForAllSells,
 } from '../../../src/helpers/apiService/orders';
 import * as api from '../../../src/helpers/api';
 import { logger } from '../../../src/helpers/logger';
-import { notify } from '../../../src/helpers/notifier';
 import OrderStore from '../../../src/store/orderStore';
 import * as sessionHelper from '../../../src/helpers/apiService/session';
 import * as marketDataHelper from '../../../src/helpers/apiService/marketData';
@@ -367,149 +364,6 @@ describe('ApiService - Orders', () => {
       ];
       expect(hasStopLossOrderForPosition(position, pendingOrders as any)).toBe(
         true,
-      );
-    });
-  });
-
-  describe('placeStopLossOrder', () => {
-    it('should place SL order for sell position', async () => {
-      const position: any = {
-        tradingsymbol: 'NIFTY-CE',
-        netqty: '-50',
-        netvalue: '-5000', // Entry price 100
-        symboltoken: '1',
-        lotsize: '50',
-      };
-      (api.post as jest.Mock).mockResolvedValue({ status: true });
-
-      await placeStopLossOrder(position, 125);
-
-      // Entry price 100, SL 125% -> 100 + 125 = 225
-      expect(api.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          transactiontype: 'BUY',
-          triggerprice: 225,
-        }),
-        expect.any(Object),
-      );
-      expect(notify).toHaveBeenCalled();
-    });
-
-    it('should return null for buy positions (netqty > 0)', async () => {
-      const position: any = { netqty: '50' };
-      const result = await placeStopLossOrder(position);
-      expect(result).toBeNull();
-    });
-
-    it('should return null and log error if placement fails', async () => {
-      const position: any = {
-        netqty: '-50',
-        tradingsymbol: 'T',
-        netvalue: '-50',
-        symboltoken: '1',
-        lotsize: '1',
-      };
-      (api.post as jest.Mock).mockRejectedValue(new Error('Post failed'));
-      const result = await placeStopLossOrder(position);
-      expect(result).toBeNull();
-      expect(logger.error).toHaveBeenCalled();
-    });
-  });
-
-  describe('placeStopLossOnAllTrades', () => {
-    it('should place SL only for positions without existing SL', async () => {
-      const positions: any = [
-        {
-          tradingsymbol: 'T1',
-          optiontype: 'CE',
-          strikeprice: '100',
-          netqty: '-50',
-          netvalue: '-5000',
-          symboltoken: '1',
-          lotsize: '50',
-        },
-        {
-          tradingsymbol: 'T2',
-          optiontype: 'PE',
-          strikeprice: '100',
-          netqty: '-50',
-          netvalue: '-5000',
-          symboltoken: '2',
-          lotsize: '50',
-        },
-      ];
-      const pendingOrders = [
-        {
-          status: PENDING_ORDER_STATUS,
-          variety: VARIETY_STOPLOSS,
-          tradingsymbol: 'T1',
-          optiontype: 'CE',
-          strikeprice: '100',
-        },
-      ];
-
-      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue(
-        positions,
-      );
-      (api.get as jest.Mock).mockResolvedValue({ data: pendingOrders }); // for getPendingOrders
-      (api.post as jest.Mock).mockResolvedValue({ status: true }); // for doOrder
-
-      await placeStopLossOnAllTrades();
-
-      // Should only call doOrder for T2
-      expect(api.post).toHaveBeenCalledTimes(1);
-      expect(api.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ tradingsymbol: 'T2' }),
-        expect.any(Object),
-      );
-    });
-
-    it('should log and return if no positions found', async () => {
-      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
-      (api.get as jest.Mock).mockResolvedValue({ data: [] });
-      await placeStopLossOnAllTrades();
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.stringContaining('No open positions found'),
-      );
-    });
-
-    it('should skip SL for positions with broker netqty >= 0 and log warning', async () => {
-      const positions: any = [
-        {
-          tradingsymbol: 'T1',
-          optiontype: 'CE',
-          strikeprice: '100',
-          netqty: '65',
-          netvalue: '5000',
-          symboltoken: '1',
-          lotsize: '50',
-        },
-      ];
-      (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue(
-        positions,
-      );
-      (api.get as jest.Mock).mockResolvedValue({ data: [] });
-
-      await placeStopLossOnAllTrades();
-
-      expect(api.post).not.toHaveBeenCalled();
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Skipping SL for T1: broker netqty 65 is not short',
-        ),
-      );
-    });
-
-    it('should log error if main flow fails', async () => {
-      (positionsHelper.getPositionsJson as jest.Mock).mockRejectedValue(
-        new Error('Fatal'),
-      );
-      await placeStopLossOnAllTrades();
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('placeStopLossOnAllTrades failed'),
-        expect.any(Error),
       );
     });
   });

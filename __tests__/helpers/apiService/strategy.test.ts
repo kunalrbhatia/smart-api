@@ -473,6 +473,103 @@ describe('ApiService - Strategy - Final 90+', () => {
     });
   });
 
+  describe('shouldExitDueToStoploss', () => {
+    it('should trigger exit when short leg LTP >= trigger price (entry * 2.25)', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'NIFTY24150CE',
+          netqty: '-65',
+          netvalue: '-6500', // entry = 100, trigger = 225
+          ltp: '230.00',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(true);
+      expect(result.reasons[0]).toContain(
+        'NIFTY24150CE: LTP 230.00 >= trigger 225.00',
+      );
+    });
+
+    it('should not trigger exit when short leg LTP is below trigger price', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'NIFTY24150CE',
+          netqty: '-65',
+          netvalue: '-6500', // entry = 100, trigger = 225
+          ltp: '200.00',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(false);
+      expect(result.reasons).toHaveLength(0);
+    });
+
+    it('should ignore long hedge legs (netqty >= 0)', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'NIFTY24650CE',
+          netqty: '325', // Long hedge
+          netvalue: '3250', // entry = 10
+          ltp: '500.00', // huge jump
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(false);
+    });
+
+    it('should trigger exit when adjustedMtm <= -LOSSPERLOT', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [];
+      const result = shouldExitDueToStoploss(positions, -4000, 3500);
+      expect(result.shouldExit).toBe(true);
+      expect(result.reasons[0]).toContain('MTM -4000.00 <= -3500');
+    });
+
+    it('should contain both reasons when both per-leg and MTM breach occur', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'NIFTY24150CE',
+          netqty: '-65',
+          netvalue: '-6500',
+          ltp: '250.00',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, -4000, 3500);
+      expect(result.shouldExit).toBe(true);
+      expect(result.reasons).toHaveLength(2);
+    });
+
+    it('should handles non-finite LTP gracefully without throwing or triggering', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'NIFTY24150CE',
+          netqty: '-65',
+          netvalue: '-6500',
+          ltp: 'NaN',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(false);
+    });
+  });
+
   describe('executeTrade - Past closing time', () => {
     it('should close trade if past closing time and open positions exist', async () => {
       (isCurrentTimeGreater as jest.Mock).mockReturnValue(true);
@@ -482,6 +579,26 @@ describe('ApiService - Strategy - Final 90+', () => {
       (positionsHelper.getPositionsJson as jest.Mock).mockResolvedValue([]);
       await executeTrade();
       expect(positionsHelper.closeTrade).toHaveBeenCalled();
+    });
+
+    it('should trigger tick-based stoploss and closeTrade when shouldExit is true during active market', async () => {
+      (isCurrentTimeGreater as jest.Mock).mockReturnValue(false);
+      const breachingPositions: any[] = [
+        {
+          tradingsymbol: 'NIFTY24150CE',
+          netqty: '-65',
+          netvalue: '-6500',
+          ltp: '250.00',
+        },
+      ];
+      (positionsHelper.getPositions as jest.Mock).mockResolvedValue(
+        breachingPositions,
+      );
+      (positionsHelper.getMtm as jest.Mock).mockResolvedValue(0);
+
+      await executeTrade();
+
+      expect(positionsHelper.closeTrade).toHaveBeenCalledWith(false);
     });
   });
 
