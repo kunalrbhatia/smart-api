@@ -553,6 +553,55 @@ describe('ApiService - Strategy - Final 90+', () => {
       expect(result.reasons).toHaveLength(2);
     });
 
+    it('should NOT trigger exit when short leg has netvalue 0 and ltp 0 (27-Aug misfire regression test)', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'SENSEX26AUG77400PE',
+          netqty: '-20',
+          netvalue: '0',
+          ltp: '0',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(false);
+      expect(result.reasons).toHaveLength(0);
+    });
+
+    it('should NOT trigger exit when short leg has netvalue 0 and non-zero LTP', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'SENSEX26AUG77400PE',
+          netqty: '-20',
+          netvalue: '0',
+          ltp: '196.6',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(false);
+    });
+
+    it('should NOT trigger exit when short leg has valid netvalue but LTP 0', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'SENSEX26AUG77400PE',
+          netqty: '-20',
+          netvalue: '-3446.6',
+          ltp: '0',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(false);
+    });
+
     it('should handles non-finite LTP gracefully without throwing or triggering', async () => {
       const { shouldExitDueToStoploss } = await import(
         '../../../src/helpers/apiService/strategy'

@@ -71,7 +71,15 @@ export const shouldExitDueToStoploss = (
     const entryPrice = Math.abs(Number.parseFloat(pos.netvalue) / netQty);
     const trigger = entryPrice * (1 + STOPLOSS_PERCENT / 100);
     const ltp = Number.parseFloat(pos.ltp);
-    if (Number.isFinite(ltp) && ltp >= trigger) {
+    // Zero/invalid entry price or LTP (stale row, manual sync, missing refresh)
+    // must NEVER trigger an exit — 0 >= 0 is a false positive.
+    if (
+      Number.isFinite(ltp) &&
+      ltp > 0 &&
+      Number.isFinite(entryPrice) &&
+      entryPrice > 0 &&
+      ltp >= trigger
+    ) {
       reasons.push(
         `${pos.tradingsymbol}: LTP ${ltp.toFixed(2)} >= trigger ${trigger.toFixed(2)}`,
       );
