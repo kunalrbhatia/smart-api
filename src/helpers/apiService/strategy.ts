@@ -39,7 +39,7 @@ import {
   getLtpWithRetry,
   getScrip,
 } from './marketData';
-import { doOrderByStrike, placeStopLossOnAllTrades } from './orders';
+import { doOrderByStrike } from './orders';
 import {
   getPositions,
   getPositionsJson,
@@ -54,6 +54,35 @@ import {
   setStraddleOpenedToday,
   setMtmBaseline,
 } from '../../store/sessionStore';
+
+const STOPLOSS_PERCENT = 125; // 125% over entry → exit at ~2.25× entry premium (matches old SL)
+
+export const shouldExitDueToStoploss = (
+  positions: Position[] = [],
+  adjustedMtm: number,
+  lossPerLot: number = LOSSPERLOT,
+): { shouldExit: boolean; reasons: string[] } => {
+  const reasons: string[] = [];
+  const safePositions = Array.isArray(positions) ? positions : [];
+  // Signal 1: per-leg LTP breach (mirror of old broker SL: entry × (1 + STOPLOSS_PERCENT/100))
+  for (const pos of safePositions) {
+    const netQty = Number.parseInt(pos.netqty, 10);
+    if (netQty >= 0) continue; // only short legs
+    const entryPrice = Math.abs(Number.parseFloat(pos.netvalue) / netQty);
+    const trigger = entryPrice * (1 + STOPLOSS_PERCENT / 100);
+    const ltp = Number.parseFloat(pos.ltp);
+    if (Number.isFinite(ltp) && ltp >= trigger) {
+      reasons.push(
+        `${pos.tradingsymbol}: LTP ${ltp.toFixed(2)} >= trigger ${trigger.toFixed(2)}`,
+      );
+    }
+  }
+  // Signal 2: total MTM breach (LOSSPERLOT per lot × number of straddle legs, conservative)
+  if (adjustedMtm <= -lossPerLot) {
+    reasons.push(`MTM ${adjustedMtm.toFixed(2)} <= -${lossPerLot}`);
+  }
+  return { shouldExit: reasons.length > 0, reasons };
+};
 
 /**
  * Creates a short straddle position.
@@ -412,7 +441,17 @@ export const executeTrade = async () => {
       await coreTradeExecution({ data: openSellPositions, allPositions });
     }
     const freshPositions = await getPositions(smartSession, cred);
-    await placeStopLossOnAllTrades(125, freshPositions);
+    const { shouldExit, reasons } = shouldExitDueToStoploss(
+      freshPositions,
+      adjustedMtm,
+    );
+    if (shouldExit) {
+      logger.log(
+        `${ALGO}: Tick-based stoploss triggered — ${reasons.join('; ')}`,
+      );
+      await notify(`⚠️ Stoploss triggered: ${reasons.join('; ')}`);
+      await closeTrade(false);
+    }
     resp = adjustedMtm;
   }
   if (isPastClosingTime && openSellPositions.length > 0)
