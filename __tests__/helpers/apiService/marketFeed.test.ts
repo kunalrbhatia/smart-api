@@ -3,7 +3,13 @@ const mockFetchData = jest.fn();
 const mockClose = jest.fn();
 let capturedTickCb: ((data: any) => void) | null = null;
 
-const mockWebSocketV2Instance = {
+const mockWebSocketV2Instance: {
+  connect: any;
+  fetchData: any;
+  close: any;
+  on: any;
+  customError?: any;
+} = {
   connect: mockConnect,
   fetchData: mockFetchData,
   close: mockClose,
@@ -138,6 +144,16 @@ describe('marketFeed & normalizeToken', () => {
 
       disconnectMarketFeed();
       expect(isMarketFeedConnected()).toBe(false);
+    });
+
+    it('invokes wsClient.customError if available on wsClient', async () => {
+      const mockCustomError = jest.fn();
+      mockWebSocketV2Instance.customError = mockCustomError;
+
+      await connectMarketFeed([{ token: '41000', exchangeType: 2 }]);
+      expect(mockCustomError).toHaveBeenCalled();
+
+      delete mockWebSocketV2Instance.customError;
     });
 
     it('handles tick property fallbacks and invalid tick structures', async () => {
