@@ -40,6 +40,7 @@ import {
   closeTrade,
   fetchOpenPositionsByExpiry,
   closeAllTrades,
+  closeBreachedLegs,
   getAlgoPositions,
   saveAlgoPositions,
   updateLivePositions,
@@ -880,6 +881,59 @@ describe('ApiService - Positions - Final', () => {
         expect(pos.strikeprice).toBe(tc.expectedStrike);
         expect(pos.optiontype).toBe(tc.expectedType);
       }
+    });
+  });
+
+  describe('closeBreachedLegs', () => {
+    it('should close ONLY breached short position symbols and skip non-breached/longs', async () => {
+      const mockPositions = [
+        { tradingsymbol: '24000CE', netqty: '-50', symboltoken: '101' },
+        { tradingsymbol: '24000PE', netqty: '-50', symboltoken: '102' },
+        { tradingsymbol: '24100CE', netqty: '50', symboltoken: '103' }, // long/hedge
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(mockPositions),
+      );
+      (ordersHelper.doOrder as jest.Mock).mockResolvedValue({ status: true });
+
+      const breaches = [{ symbol: '24000CE', reason: 'LTP' as const }];
+      const closed = await closeBreachedLegs(breaches);
+
+      expect(closed).toBe(1);
+      expect(ordersHelper.doOrder).toHaveBeenCalledTimes(1);
+      expect(ordersHelper.doOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ tradingsymbol: '24000CE', quantity: 50 }),
+      );
+    });
+
+    it('should return 0 when breached symbol is not in positions', async () => {
+      const mockPositions = [
+        { tradingsymbol: '24000PE', netqty: '-50', symboltoken: '102' },
+      ];
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(mockPositions),
+      );
+
+      const breaches = [{ symbol: '24000CE', reason: 'LTP' as const }];
+      const closed = await closeBreachedLegs(breaches);
+
+      expect(closed).toBe(0);
+      expect(ordersHelper.doOrder).not.toHaveBeenCalled();
+    });
+
+    it('should fail-open and return 0 on error without throwing', async () => {
+      (sessionHelper.getSmartSession as jest.Mock).mockRejectedValueOnce(
+        new Error('Session error'),
+      );
+
+      const breaches = [{ symbol: '24000CE', reason: 'LTP' as const }];
+      const closed = await closeBreachedLegs(breaches);
+
+      expect(closed).toBe(0);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('getPositionsJson failed:'),
+        expect.any(Error),
+      );
     });
   });
 });

@@ -444,6 +444,32 @@ export const reconcilePositionsWithBroker = async (): Promise<Position[]> => {
 };
 
 /**
+ * Closes only the targeted breached leg(s).
+ */
+export const closeBreachedLegs = async (
+  breaches: Array<{ symbol: string; reason: string }>,
+): Promise<number> => {
+  let closed = 0;
+  try {
+    await delay({ milliSeconds: DELAY });
+    const positions = await getPositionsJson(false);
+    if (!Array.isArray(positions) || positions.length === 0) return 0;
+    const breachSymbols = new Set(breaches.map(b => b.symbol.toUpperCase()));
+    for (const position of positions) {
+      if (!breachSymbols.has(position.tradingsymbol.toUpperCase())) continue;
+      const netQty = Number.parseInt(position.netqty, 10);
+      if (netQty >= 0) continue; // never close a hedge/long
+      closed++;
+      await closeParticularTrade({ trade: position });
+    }
+    return closed;
+  } catch (error) {
+    logger.error(`${ALGO}: closeBreachedLegs failed:`, error);
+    return closed;
+  }
+};
+
+/**
  * Closes all open trades.
  * @returns {Promise<number>} The number of positions eligible for closure.
  */
