@@ -13,15 +13,15 @@
 
 ## P&L Summary (broker-verified 16:26 IST)
 
-| Metric           | Value         |
-| ---------------- | ------------- |
-| **Total P&L (algo)** | ₹−76.05     |
-| **Total P&L (full book incl. niftyicif)** | ₹−1164.80 |
-| Realised P&L     | ₹−7722.00     |
-| Unrealised P&L   | ₹+6557.20     |
-| Premium Received | ₹30972.50     |
-| Premium Paid     | ₹28954.25     |
-| **Result**       | ❌ **LOSS (algo ≈ breakeven −76; account −1165)** |
+| Metric                                    | Value                                             |
+| ----------------------------------------- | ------------------------------------------------- |
+| **Total P&L (algo)**                      | ₹−76.05                                           |
+| **Total P&L (full book incl. niftyicif)** | ₹−1164.80                                         |
+| Realised P&L                              | ₹−7722.00                                         |
+| Unrealised P&L                            | ₹+6557.20                                         |
+| Premium Received                          | ₹30972.50                                         |
+| Premium Paid                              | ₹28954.25                                         |
+| **Result**                                | ❌ **LOSS (algo ≈ breakeven −76; account −1165)** |
 
 > ⚠️ **CORRECTION (16:26)**: The initial automated report showed +₹2046.85 (PROFIT).
 > That figure whitelisted only the 8 symbols present in positions.json and missed the
