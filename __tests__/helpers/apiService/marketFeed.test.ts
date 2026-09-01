@@ -1,0 +1,189 @@
+const mockConnect = jest.fn().mockResolvedValue(undefined);
+const mockFetchData = jest.fn();
+const mockClose = jest.fn();
+let capturedTickCb: ((data: any) => void) | null = null;
+
+const mockWebSocketV2Instance = {
+  connect: mockConnect,
+  fetchData: mockFetchData,
+  close: mockClose,
+  on: jest.fn((event: string, cb: any) => {
+    if (event === 'tick') {
+      capturedTickCb = cb;
+    }
+  }),
+};
+
+jest.mock('smartapi-javascript', () => {
+  return {
+    WebSocketV2: jest.fn().mockImplementation(() => mockWebSocketV2Instance),
+  };
+});
+
+import {
+  normalizeToken,
+  connectMarketFeed,
+  disconnectMarketFeed,
+  addMarketTickListener,
+  removeMarketTickListener,
+  isMarketFeedConnected,
+} from '../../../src/helpers/apiService/marketFeed';
+import { getMtm } from '../../../src/helpers/apiService/positions';
+
+jest.mock('../../../src/helpers/logger', () => ({
+  logger: {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    mtm: jest.fn(),
+  },
+}));
+
+jest.mock('../../../src/helpers/apiService/session', () => ({
+  getSmartSession: jest.fn().mockResolvedValue({
+    jwtToken: 'mock_jwt',
+    refreshToken: 'mock_refresh',
+    feedToken: 'mock_feed',
+  }),
+}));
+
+import DataStore from '../../../src/store/dataStore';
+import SmartSession from '../../../src/store/smartSession';
+
+describe('marketFeed & normalizeToken', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    capturedTickCb = null;
+    mockConnect.mockResolvedValue(undefined);
+    DataStore.getInstance().setPostData({
+      APIKEY: 'mock_api_key',
+      CLIENT_CODE: 'mock_client_code',
+      CLIENT_PIN: '1234',
+      CLIENT_TOTP_PIN: '123456',
+    });
+    SmartSession.getInstance().setPostData({
+      jwtToken: 'mock_jwt',
+      refreshToken: 'mock_refresh',
+      feedToken: 'mock_feed',
+    });
+    disconnectMarketFeed();
+  });
+
+  describe('normalizeToken', () => {
+    it('normalizes various token representations correctly', () => {
+      expect(normalizeToken('41000')).toBe('41000');
+      expect(normalizeToken(41000)).toBe('41000');
+      expect(normalizeToken('41000\u0000')).toBe('41000');
+      expect(normalizeToken('000041000')).toBe('41000');
+      expect(normalizeToken(undefined)).toBe('');
+      expect(normalizeToken(null)).toBe('');
+      expect(normalizeToken('000')).toBe('0');
+      expect(normalizeToken('abc')).toBe('');
+    });
+  });
+
+  describe('connectMarketFeed & ticks', () => {
+    it('connects WebSocketV2 and subscribes to given token specs', async () => {
+      const specs = [
+        { token: '99926000', exchangeType: 1 },
+        { token: '41000', exchangeType: 2 },
+      ];
+
+      await connectMarketFeed(specs);
+
+      expect(mockConnect).toHaveBeenCalled();
+      expect(isMarketFeedConnected()).toBe(true);
+      expect(mockFetchData).toHaveBeenCalledWith({
+        correlationID: expect.stringMatching(/^sub_1_/),
+        action: 1,
+        mode: 1,
+        exchangeType: 1,
+        tokens: ['99926000'],
+      });
+      expect(mockFetchData).toHaveBeenCalledWith({
+        correlationID: expect.stringMatching(/^sub_2_/),
+        action: 1,
+        mode: 1,
+        exchangeType: 2,
+        tokens: ['41000'],
+      });
+    });
+
+    it('processes tick events and scales LTP by dividing by 100', async () => {
+      const listener = jest.fn();
+      addMarketTickListener(listener);
+
+      await connectMarketFeed([{ token: '41000', exchangeType: 2 }]);
+
+      expect(capturedTickCb).not.toBeNull();
+      if (capturedTickCb) {
+        capturedTickCb({
+          token: '000041000\u0000',
+          last_traded_price: '12345',
+        });
+      }
+
+      expect(listener).toHaveBeenCalledWith({
+        token: '41000',
+        ltp: 123.45,
+      });
+
+      removeMarketTickListener(listener);
+    });
+
+    it('ignores invalid or zero-token ticks', async () => {
+      const listener = jest.fn();
+      addMarketTickListener(listener);
+
+      await connectMarketFeed([{ token: '41000', exchangeType: 2 }]);
+
+      if (capturedTickCb) {
+        capturedTickCb({
+          token: 'abc',
+          last_traded_price: '12345',
+        });
+      }
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getMtm fast path with latestPrices map', () => {
+    it('uses latestPrices map without throwing or failing', async () => {
+      const positions: any[] = [
+        {
+          symboltoken: '41000',
+          tradingsymbol: 'NIFTY26AUG24200CE',
+          expirydate: '26AUG2026',
+          symbolname: 'NIFTY',
+          netqty: '-25',
+          netvalue: '-3000',
+          totalbuyvalue: '0',
+          totalsellvalue: '3000',
+          realised: '0',
+          unrealised: '0',
+          ltp: '120.00',
+        },
+      ];
+
+      const latestPrices = new Map<string, number>([['41000', 140]]);
+
+      jest
+        .spyOn(
+          require('../../../src/helpers/apiService/positions'),
+          'getAlgoPositions',
+        )
+        .mockReturnValue(positions);
+
+      jest
+        .spyOn(
+          require('../../../src/store/orderStore').default.getInstance(),
+          'getPostData',
+        )
+        .mockReturnValue({ EXPIRYDATE: '26AUG2026', INDEX: 'NIFTY' } as any);
+
+      const mtm = await getMtm(positions, latestPrices);
+      expect(mtm).toBe(-500);
+    });
+  });
+});

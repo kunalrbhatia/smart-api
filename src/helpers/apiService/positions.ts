@@ -522,8 +522,12 @@ export const closeAllTrades = async (isAbrupt = false): Promise<number> => {
 
 /**
  * Calculates the Mark-to-Market (MTM) for the traded positions.
+ * Optional `latestPrices` map (token -> ltp) allows fast-path in-memory MTM calculation without REST calls.
  */
-export const getMtm = async (positions?: Position[]) => {
+export const getMtm = async (
+  positions?: Position[],
+  latestPrices?: Map<string, number>,
+) => {
   let tradedPositions: Position[] = [];
   if (positions) {
     tradedPositions = positions;
@@ -559,9 +563,27 @@ export const getMtm = async (positions?: Position[]) => {
 
       if (isSameExpiryDate && isSameIndex) {
         if (isOwnSymbol) {
-          const unrealised = Number.parseFloat(position.unrealised);
+          const netQty = Number.parseInt(position.netqty, 10);
+          const buyVal = Number.parseFloat(position.totalbuyvalue);
+          const sellVal = Number.parseFloat(position.totalsellvalue);
           const realised = Number.parseFloat(position.realised);
-          mtm += unrealised + realised;
+
+          let currentLtp = Number.parseFloat(position.ltp);
+          if (latestPrices && position.symboltoken) {
+            const normalized = position.symboltoken.replace(/[^0-9]/g, '');
+            if (latestPrices.has(normalized)) {
+              currentLtp = latestPrices.get(normalized)!;
+            }
+          }
+
+          const unrealised =
+            Number.isFinite(currentLtp) && currentLtp > 0
+              ? sellVal - buyVal + netQty * currentLtp
+              : Number.parseFloat(position.unrealised || '0');
+
+          mtm +=
+            (Number.isFinite(unrealised) ? unrealised : 0) +
+            (Number.isFinite(realised) ? realised : 0);
         } else {
           logger.log(
             `Excluding foreign position from MTM: ${position.tradingsymbol}`,

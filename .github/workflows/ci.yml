@@ -188,3 +188,8 @@ jobs:
             echo "ENTRY_TIME=${{ secrets.ENTRY_TIME }}" >> .env
             echo "EXIT_TIME=${{ secrets.EXIT_TIME }}" >> .env
             echo "NO_ENTRY_AFTER=${{ secrets.NO_ENTRY_AFTER }}" >> .env
+
+            # Start or reload PM2 apps (server + feed daemon)
+            if command -v pm2 &> /dev/null; then
+              pm2 startOrReload ecosystem.config.cjs || pm2 restart all
+            fi
