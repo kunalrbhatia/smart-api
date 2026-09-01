@@ -563,7 +563,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       expect(result.breaches).toHaveLength(0);
     });
 
-    it('should trigger exit and pick worst leg when adjustedMtm <= -LOSSPERLOT with no LTP breach', async () => {
+    it('should NOT trigger exit on MTM breach alone (Signal 2 removed 1-Sep-2026)', async () => {
       const { shouldExitDueToStoploss } = await import(
         '../../../src/helpers/apiService/strategy'
       );
@@ -581,18 +581,14 @@ describe('ApiService - Strategy - Final 90+', () => {
           ltp: '180', // loss = 80 * 50 = 4000 (worst)
         },
       ];
+      // Deep MTM loss but NO per-leg LTP >= trigger breach (triggers: 225)
       const result = shouldExitDueToStoploss(positions, -4500, 3500);
-      expect(result.shouldExit).toBe(true);
-      expect(result.reasons[0]).toContain('MTM -4500.00 <= -3500');
-      expect(result.breaches).toEqual([
-        {
-          symbol: '24000PE',
-          reason: 'MTM',
-        },
-      ]);
+      expect(result.shouldExit).toBe(false);
+      expect(result.reasons).toHaveLength(0);
+      expect(result.breaches).toHaveLength(0);
     });
 
-    it('should keep ONLY LTP breaches when both LTP and MTM breach occur', async () => {
+    it('should keep LTP breach even when MTM is also deeply negative (MTM signal removed)', async () => {
       const { shouldExitDueToStoploss } = await import(
         '../../../src/helpers/apiService/strategy'
       );
@@ -601,12 +597,12 @@ describe('ApiService - Strategy - Final 90+', () => {
           tradingsymbol: 'NIFTY24150CE',
           netqty: '-65',
           netvalue: '-6500',
-          ltp: '250.00',
+          ltp: '250.00', // LTP breach (trigger 225)
         },
       ];
       const result = shouldExitDueToStoploss(positions, -4000, 3500);
       expect(result.shouldExit).toBe(true);
-      expect(result.reasons).toHaveLength(2);
+      expect(result.reasons).toHaveLength(1);
       expect(result.breaches).toEqual([
         {
           symbol: 'NIFTY24150CE',
