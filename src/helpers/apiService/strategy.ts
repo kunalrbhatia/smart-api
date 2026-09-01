@@ -103,33 +103,10 @@ export const shouldExitDueToStoploss = (
     }
   }
 
-  // Signal 2: total MTM breach (LOSSPERLOT per lot × number of straddle legs, conservative)
-  if (adjustedMtm <= -lossPerLot) {
-    reasons.push(`MTM ${adjustedMtm.toFixed(2)} <= -${lossPerLot}`);
-    // If Signal 2 fires AND no per-leg LTP breach exists, pick the worst leg (largest negative contribution)
-    if (breaches.length === 0) {
-      let worstLeg: { pos: Position; loss: number } | null = null;
-      for (const pos of safePositions) {
-        const netQty = Number.parseInt(pos.netqty, 10);
-        if (netQty >= 0) continue;
-        const entryPrice = Math.abs(Number.parseFloat(pos.netvalue) / netQty);
-        const ltp = Number.parseFloat(pos.ltp);
-        if (Number.isFinite(ltp) && Number.isFinite(entryPrice)) {
-          const loss = (ltp - entryPrice) * Math.abs(netQty);
-          if (!worstLeg || loss > worstLeg.loss) {
-            worstLeg = { pos, loss };
-          }
-        }
-      }
-      if (worstLeg) {
-        breaches.push({
-          symbol: worstLeg.pos.tradingsymbol,
-          reason: 'MTM',
-        });
-      }
-    }
-  }
-
+  // Signal 2 removed by user request (1-Sep-2026): the whole-position MTM condition
+  // (adjustedMtm <= -LOSSPERLOT) no longer triggers exits. Only per-leg LTP breaches
+  // (Signal 1) fire the stop — legs close only when their own premium doubles-ish.
+  // NOTE: this is a live hotfix pending formalization into a PR (PR #104 pattern).
   return {
     shouldExit: breaches.length > 0 || reasons.length > 0,
     reasons,
