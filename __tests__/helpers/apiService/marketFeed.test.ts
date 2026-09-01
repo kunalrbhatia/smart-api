@@ -225,4 +225,14 @@ describe('marketFeed & normalizeToken', () => {
       expect(mtm).toBe(-500);
     });
   });
+
+  describe('connectMarketFeed retry and reconnect branches', () => {
+    it('handles connection error gracefully', async () => {
+      mockConnect.mockRejectedValueOnce(new Error('Connection failed'));
+      await expect(
+        connectMarketFeed([{ token: '41000', exchangeType: 2 }]),
+      ).resolves.not.toThrow();
+      expect(isMarketFeedConnected()).toBe(false);
+    });
+  });
 });
