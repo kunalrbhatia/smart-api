@@ -3,7 +3,8 @@ import path from 'path';
 import moment from 'moment-timezone';
 import { logger } from './helpers/logger';
 import { notify } from './helpers/notifier';
-import { ALGO, INDICES } from './helpers/constants';
+import { ALGO } from './helpers/constants';
+import { INDICES } from './app.interface';
 import {
   getAlgoPositions,
   closeBreachedLegs,
@@ -11,7 +12,6 @@ import {
 } from './helpers/apiService/positions';
 import {
   shouldExitDueToStoploss,
-  getAlgoIndex,
   getAlgoExitTime,
 } from './helpers/apiService/strategy';
 import {
@@ -24,7 +24,11 @@ import {
 import { isKillSwitchActive } from './helpers/killSwitch';
 import { setStoplossFiredToday } from './store/sessionStore';
 import OrderStore from './store/orderStore';
-import { isMarketClosed, isTradingHoliday } from './helpers/functions';
+import {
+  isMarketClosed,
+  isTradingHoliday,
+  getAlgoIndex,
+} from './helpers/functions';
 import {
   getNearestWeeklyExpiry,
   getIndexScrip,

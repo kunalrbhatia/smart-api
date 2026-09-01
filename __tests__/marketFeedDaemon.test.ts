@@ -1,5 +1,6 @@
 import { getAlgoPositions } from '../src/helpers/apiService/positions';
 import { shouldExitDueToStoploss } from '../src/helpers/apiService/strategy';
+import { Position } from '../src/app.interface';
 
 jest.mock('../src/helpers/logger', () => ({
   logger: {
@@ -59,7 +60,7 @@ describe('marketFeedDaemon logic & zero-value guard', () => {
         netqty: '-25',
         netvalue: '-2500', // entry = 100
         ltp: '100',
-      },
+      } as Position,
     ];
 
     (getAlgoPositions as jest.Mock).mockReturnValue(mockPositions);
@@ -72,7 +73,7 @@ describe('marketFeedDaemon logic & zero-value guard', () => {
           netqty: '-25',
           netvalue: '-2500', // entry = 100, trigger = 225
           ltp: '230.00',
-        },
+        } as Position,
       ],
       -500,
     );
@@ -90,7 +91,7 @@ describe('marketFeedDaemon logic & zero-value guard', () => {
         netqty: '-25',
         netvalue: '-2500',
         ltp: '0.00',
-      },
+      } as Position,
     ];
 
     const mockPositionsZeroEntry = [
@@ -100,7 +101,7 @@ describe('marketFeedDaemon logic & zero-value guard', () => {
         netqty: '-25',
         netvalue: '0',
         ltp: '150.00',
-      },
+      } as Position,
     ];
 
     const res1 = shouldExitDueToStoploss(mockPositionsZeroLtp, 0);

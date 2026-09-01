@@ -1,8 +1,10 @@
-import { WebSocketV2 } from 'smartapi-javascript';
 import { getSmartSession } from './session';
 import DataStore from '../../store/dataStore';
 import { logger } from '../logger';
 import { ALGO } from '../constants';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { WebSocketV2 } = require('smartapi-javascript');
 
 export interface TokenSpec {
   token: string;

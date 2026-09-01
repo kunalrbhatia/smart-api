@@ -133,20 +133,48 @@ describe('marketFeed & normalizeToken', () => {
       removeMarketTickListener(listener);
     });
 
-    it('ignores invalid or zero-token ticks', async () => {
+    it('handles disconnectMarketFeed and market feed callbacks correctly', async () => {
+      await connectMarketFeed([{ token: '41000', exchangeType: 2 }]);
+      expect(isMarketFeedConnected()).toBe(true);
+
+      disconnectMarketFeed();
+      expect(isMarketFeedConnected()).toBe(false);
+    });
+
+    it('handles tick property fallbacks and invalid tick structures', async () => {
       const listener = jest.fn();
       addMarketTickListener(listener);
 
       await connectMarketFeed([{ token: '41000', exchangeType: 2 }]);
 
       if (capturedTickCb) {
+        // null data
+        capturedTickCb(null);
+        // data.symboltoken fallback + data.ltp fallback
+        capturedTickCb({
+          symboltoken: '41000',
+          ltp: '5000',
+        });
+        // data.lastTradedPrice fallback
+        capturedTickCb({
+          token: '41000',
+          lastTradedPrice: '6000',
+        });
+        // invalid non-numeric price
+        capturedTickCb({
+          token: '41000',
+          ltp: 'invalid',
+        });
+        // missing/invalid token
         capturedTickCb({
           token: 'abc',
-          last_traded_price: '12345',
+          ltp: '1000',
         });
       }
 
-      expect(listener).not.toHaveBeenCalled();
+      expect(listener).toHaveBeenCalledWith({ token: '41000', ltp: 50 });
+      expect(listener).toHaveBeenCalledWith({ token: '41000', ltp: 60 });
+      removeMarketTickListener(listener);
     });
   });
 
