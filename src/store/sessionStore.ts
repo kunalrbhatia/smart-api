@@ -8,12 +8,14 @@ const SESSION_FILE = path.join(process.cwd(), 'session.json');
 export interface SessionState {
   tradingDate: string;
   straddleOpenedToday: boolean;
+  stoplossFiredToday: boolean;
   mtmBaseline: number;
 }
 
 const DEFAULT_SESSION: SessionState = {
   tradingDate: '',
   straddleOpenedToday: false,
+  stoplossFiredToday: false,
   mtmBaseline: 0,
 };
 
@@ -22,21 +24,23 @@ export const getSessionState = (currentExpiry?: string): SessionState => {
   try {
     const data = fs.readFileSync(SESSION_FILE, 'utf8');
     const parsed: SessionState = JSON.parse(data);
-    if (
-      currentExpiry &&
-      parsed.tradingDate &&
-      parsed.tradingDate.toUpperCase() !== currentExpiry.toUpperCase()
-    ) {
-      logger.log(
-        `${ALGO}: Resetting session store for new expiry date: ${currentExpiry} (previous: ${parsed.tradingDate})`,
-      );
-      const resetState: SessionState = {
-        tradingDate: currentExpiry,
-        straddleOpenedToday: false,
-        mtmBaseline: 0,
-      };
-      saveSessionState(resetState);
-      return resetState;
+    if (currentExpiry && parsed.tradingDate) {
+      if (parsed.tradingDate.toUpperCase() !== currentExpiry.toUpperCase()) {
+        logger.log(
+          `${ALGO}: Resetting session store for new expiry date: ${currentExpiry} (previous: ${parsed.tradingDate})`,
+        );
+        const resetState: SessionState = {
+          tradingDate: currentExpiry,
+          straddleOpenedToday: false,
+          stoplossFiredToday: false,
+          mtmBaseline: 0,
+        };
+        saveSessionState(resetState);
+        return resetState;
+      }
+    } else if (currentExpiry && !parsed.tradingDate) {
+      parsed.tradingDate = currentExpiry;
+      saveSessionState(parsed);
     }
     return parsed;
   } catch (err) {
@@ -59,6 +63,18 @@ export const setStraddleOpenedToday = (expiryDate: string): void => {
     ...currentState,
     tradingDate: expiryDate,
     straddleOpenedToday: true,
+  });
+};
+
+export const setStoplossFiredToday = (
+  expiryDate: string,
+  fired = true,
+): void => {
+  const currentState = getSessionState(expiryDate);
+  saveSessionState({
+    ...currentState,
+    tradingDate: expiryDate,
+    stoplossFiredToday: fired,
   });
 };
 

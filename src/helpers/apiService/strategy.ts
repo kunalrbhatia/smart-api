@@ -52,18 +52,29 @@ import { checkAndFillPaperOrders, isPaperMode } from '../paperTrade';
 import {
   getSessionState,
   setStraddleOpenedToday,
+  setStoplossFiredToday,
   setMtmBaseline,
 } from '../../store/sessionStore';
+import { closeBreachedLegs } from './positions';
 
 const STOPLOSS_PERCENT = 125; // 125% over entry → exit at ~2.25× entry premium (matches old SL)
+
+export interface StoplossBreach {
+  symbol: string; // tradingsymbol of the breached leg
+  reason: 'LTP' | 'MTM';
+  ltp?: number;
+  trigger?: number;
+}
 
 export const shouldExitDueToStoploss = (
   positions: Position[] = [],
   adjustedMtm: number,
   lossPerLot: number = LOSSPERLOT,
-): { shouldExit: boolean; reasons: string[] } => {
+): { shouldExit: boolean; reasons: string[]; breaches: StoplossBreach[] } => {
   const reasons: string[] = [];
+  const breaches: StoplossBreach[] = [];
   const safePositions = Array.isArray(positions) ? positions : [];
+
   // Signal 1: per-leg LTP breach (mirror of old broker SL: entry × (1 + STOPLOSS_PERCENT/100))
   for (const pos of safePositions) {
     const netQty = Number.parseInt(pos.netqty, 10);
@@ -83,13 +94,47 @@ export const shouldExitDueToStoploss = (
       reasons.push(
         `${pos.tradingsymbol}: LTP ${ltp.toFixed(2)} >= trigger ${trigger.toFixed(2)}`,
       );
+      breaches.push({
+        symbol: pos.tradingsymbol,
+        reason: 'LTP',
+        ltp,
+        trigger,
+      });
     }
   }
+
   // Signal 2: total MTM breach (LOSSPERLOT per lot × number of straddle legs, conservative)
   if (adjustedMtm <= -lossPerLot) {
     reasons.push(`MTM ${adjustedMtm.toFixed(2)} <= -${lossPerLot}`);
+    // If Signal 2 fires AND no per-leg LTP breach exists, pick the worst leg (largest negative contribution)
+    if (breaches.length === 0) {
+      let worstLeg: { pos: Position; loss: number } | null = null;
+      for (const pos of safePositions) {
+        const netQty = Number.parseInt(pos.netqty, 10);
+        if (netQty >= 0) continue;
+        const entryPrice = Math.abs(Number.parseFloat(pos.netvalue) / netQty);
+        const ltp = Number.parseFloat(pos.ltp);
+        if (Number.isFinite(ltp) && Number.isFinite(entryPrice)) {
+          const loss = (ltp - entryPrice) * Math.abs(netQty);
+          if (!worstLeg || loss > worstLeg.loss) {
+            worstLeg = { pos, loss };
+          }
+        }
+      }
+      if (worstLeg) {
+        breaches.push({
+          symbol: worstLeg.pos.tradingsymbol,
+          reason: 'MTM',
+        });
+      }
+    }
   }
-  return { shouldExit: reasons.length > 0, reasons };
+
+  return {
+    shouldExit: breaches.length > 0 || reasons.length > 0,
+    reasons,
+    breaches,
+  };
 };
 
 /**
@@ -359,6 +404,11 @@ export const coreTradeExecution = async ({
   const expiryDate = OrderStore.getInstance().getPostData().EXPIRYDATE;
   const sessionState = getSessionState(expiryDate);
 
+  if (sessionState.stoplossFiredToday) {
+    logger.log(`${ALGO}: Skipping entry/roll: stoploss fired earlier today`);
+    return;
+  }
+
   if (isTradeAlreadyTaken === false || hedgesExist === false) {
     if (sessionState.straddleOpenedToday) {
       logger.log(
@@ -449,7 +499,7 @@ export const executeTrade = async () => {
       await coreTradeExecution({ data: openSellPositions, allPositions });
     }
     const freshPositions = await getPositions(smartSession, cred);
-    const { shouldExit, reasons } = shouldExitDueToStoploss(
+    const { shouldExit, reasons, breaches } = shouldExitDueToStoploss(
       freshPositions,
       adjustedMtm,
     );
@@ -458,7 +508,14 @@ export const executeTrade = async () => {
         `${ALGO}: Tick-based stoploss triggered — ${reasons.join('; ')}`,
       );
       await notify(`⚠️ Stoploss triggered: ${reasons.join('; ')}`);
-      await closeTrade(false);
+      const closed = await closeBreachedLegs(breaches);
+      logger.log(
+        `${ALGO}: Closed ${closed} breached leg(s); remaining position continues`,
+      );
+      await setStoplossFiredToday(
+        OrderStore.getInstance().getPostData().EXPIRYDATE,
+        true,
+      );
     }
     resp = adjustedMtm;
   }

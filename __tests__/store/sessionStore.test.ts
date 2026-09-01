@@ -3,6 +3,7 @@ import path from 'path';
 import {
   getSessionState,
   setStraddleOpenedToday,
+  setStoplossFiredToday,
   setMtmBaseline,
 } from '../../src/store/sessionStore';
 
@@ -26,6 +27,7 @@ describe('SessionStore', () => {
     expect(state).toEqual({
       tradingDate: '',
       straddleOpenedToday: false,
+      stoplossFiredToday: false,
       mtmBaseline: 0,
     });
   });
@@ -37,12 +39,21 @@ describe('SessionStore', () => {
     expect(state.tradingDate).toBe('04AUG2026');
   });
 
+  it('should persist stoplossFiredToday and survive file reads', () => {
+    setStoplossFiredToday('04AUG2026', true);
+    const state = getSessionState('04AUG2026');
+    expect(state.stoplossFiredToday).toBe(true);
+    expect(state.tradingDate).toBe('04AUG2026');
+  });
+
   it('should reset session state when a new expiry date is encountered', () => {
     setStraddleOpenedToday('04AUG2026');
+    setStoplossFiredToday('04AUG2026', true);
     setMtmBaseline('04AUG2026', 1500);
 
     const newState = getSessionState('11AUG2026');
     expect(newState.straddleOpenedToday).toBe(false);
+    expect(newState.stoplossFiredToday).toBe(false);
     expect(newState.mtmBaseline).toBe(0);
     expect(newState.tradingDate).toBe('11AUG2026');
   });

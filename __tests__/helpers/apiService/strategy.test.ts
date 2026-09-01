@@ -52,10 +52,12 @@ jest.mock('../../../src/store/sessionStore', () => ({
   getSessionState: jest.fn().mockImplementation((expiryDate?: string) => ({
     tradingDate: expiryDate || '20FEB2025',
     straddleOpenedToday: false,
+    stoplossFiredToday: false,
     mtmBaseline: 0,
   })),
   saveSessionState: jest.fn(),
   setStraddleOpenedToday: jest.fn(),
+  setStoplossFiredToday: jest.fn(),
   setMtmBaseline: jest.fn(),
 }));
 
@@ -491,6 +493,39 @@ describe('ApiService - Strategy - Final 90+', () => {
       expect(result.reasons[0]).toContain(
         'NIFTY24150CE: LTP 230.00 >= trigger 225.00',
       );
+      expect(result.breaches).toEqual([
+        {
+          symbol: 'NIFTY24150CE',
+          reason: 'LTP',
+          ltp: 230,
+          trigger: 225,
+        },
+      ]);
+    });
+
+    it('should include multiple breached legs in breaches array', async () => {
+      const { shouldExitDueToStoploss } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      const positions: any[] = [
+        {
+          tradingsymbol: 'NIFTY24150CE',
+          netqty: '-65',
+          netvalue: '-6500',
+          ltp: '230.00',
+        },
+        {
+          tradingsymbol: 'NIFTY24150PE',
+          netqty: '-65',
+          netvalue: '-6500',
+          ltp: '240.00',
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, 0);
+      expect(result.shouldExit).toBe(true);
+      expect(result.breaches).toHaveLength(2);
+      expect(result.breaches[0].symbol).toBe('NIFTY24150CE');
+      expect(result.breaches[1].symbol).toBe('NIFTY24150PE');
     });
 
     it('should not trigger exit when short leg LTP is below trigger price', async () => {
@@ -508,6 +543,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       const result = shouldExitDueToStoploss(positions, 0);
       expect(result.shouldExit).toBe(false);
       expect(result.reasons).toHaveLength(0);
+      expect(result.breaches).toHaveLength(0);
     });
 
     it('should ignore long hedge legs (netqty >= 0)', async () => {
@@ -524,19 +560,39 @@ describe('ApiService - Strategy - Final 90+', () => {
       ];
       const result = shouldExitDueToStoploss(positions, 0);
       expect(result.shouldExit).toBe(false);
+      expect(result.breaches).toHaveLength(0);
     });
 
-    it('should trigger exit when adjustedMtm <= -LOSSPERLOT', async () => {
+    it('should trigger exit and pick worst leg when adjustedMtm <= -LOSSPERLOT with no LTP breach', async () => {
       const { shouldExitDueToStoploss } = await import(
         '../../../src/helpers/apiService/strategy'
       );
-      const positions: any[] = [];
-      const result = shouldExitDueToStoploss(positions, -4000, 3500);
+      const positions: any[] = [
+        {
+          tradingsymbol: '24000CE',
+          netqty: '-50',
+          netvalue: '-5000', // entry = 100
+          ltp: '150', // loss = 50 * 50 = 2500
+        },
+        {
+          tradingsymbol: '24000PE',
+          netqty: '-50',
+          netvalue: '-5000', // entry = 100
+          ltp: '180', // loss = 80 * 50 = 4000 (worst)
+        },
+      ];
+      const result = shouldExitDueToStoploss(positions, -4500, 3500);
       expect(result.shouldExit).toBe(true);
-      expect(result.reasons[0]).toContain('MTM -4000.00 <= -3500');
+      expect(result.reasons[0]).toContain('MTM -4500.00 <= -3500');
+      expect(result.breaches).toEqual([
+        {
+          symbol: '24000PE',
+          reason: 'MTM',
+        },
+      ]);
     });
 
-    it('should contain both reasons when both per-leg and MTM breach occur', async () => {
+    it('should keep ONLY LTP breaches when both LTP and MTM breach occur', async () => {
       const { shouldExitDueToStoploss } = await import(
         '../../../src/helpers/apiService/strategy'
       );
@@ -551,6 +607,14 @@ describe('ApiService - Strategy - Final 90+', () => {
       const result = shouldExitDueToStoploss(positions, -4000, 3500);
       expect(result.shouldExit).toBe(true);
       expect(result.reasons).toHaveLength(2);
+      expect(result.breaches).toEqual([
+        {
+          symbol: 'NIFTY24150CE',
+          reason: 'LTP',
+          ltp: 250,
+          trigger: 225,
+        },
+      ]);
     });
 
     it('should NOT trigger exit when short leg has netvalue 0 and ltp 0 (27-Aug misfire regression test)', async () => {
@@ -568,6 +632,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       const result = shouldExitDueToStoploss(positions, 0);
       expect(result.shouldExit).toBe(false);
       expect(result.reasons).toHaveLength(0);
+      expect(result.breaches).toHaveLength(0);
     });
 
     it('should NOT trigger exit when short leg has netvalue 0 and non-zero LTP', async () => {
@@ -584,6 +649,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       ];
       const result = shouldExitDueToStoploss(positions, 0);
       expect(result.shouldExit).toBe(false);
+      expect(result.breaches).toHaveLength(0);
     });
 
     it('should NOT trigger exit when short leg has valid netvalue but LTP 0', async () => {
@@ -647,7 +713,20 @@ describe('ApiService - Strategy - Final 90+', () => {
 
       await executeTrade();
 
-      expect(positionsHelper.closeTrade).toHaveBeenCalledWith(false);
+      expect(positionsHelper.closeBreachedLegs).toHaveBeenCalledWith([
+        {
+          symbol: 'NIFTY24150CE',
+          reason: 'LTP',
+          ltp: 250,
+          trigger: 225,
+        },
+      ]);
+      expect(positionsHelper.closeTrade).not.toHaveBeenCalled();
+      const sessionStore = jest.requireMock('../../../src/store/sessionStore');
+      expect(sessionStore.setStoplossFiredToday).toHaveBeenCalledWith(
+        '20FEB2025',
+        true,
+      );
     });
   });
 
@@ -714,10 +793,30 @@ describe('ApiService - Strategy - Final 90+', () => {
   });
 
   describe('coreTradeExecution', () => {
+    it('should skip entry/roll if stoplossFiredToday is true', async () => {
+      (getSessionState as jest.Mock).mockReturnValue({
+        tradingDate: '20FEB2025',
+        straddleOpenedToday: false,
+        stoplossFiredToday: true,
+        mtmBaseline: 0,
+      });
+      const { coreTradeExecution } = await import(
+        '../../../src/helpers/apiService/strategy'
+      );
+      await coreTradeExecution({ data: [], allPositions: [] });
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Skipping entry/roll: stoploss fired earlier today',
+        ),
+      );
+      expect(ordersHelper.doOrderByStrike).not.toHaveBeenCalled();
+    });
+
     it('should execute shortStraddle if no trades taken', async () => {
       (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
+        stoplossFiredToday: false,
         mtmBaseline: 0,
       });
       const { coreTradeExecution } = await import(
@@ -732,6 +831,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
+        stoplossFiredToday: false,
         mtmBaseline: 0,
       });
       const { coreTradeExecution } = await import(
@@ -751,6 +851,7 @@ describe('ApiService - Strategy - Final 90+', () => {
       (getSessionState as jest.Mock).mockReturnValue({
         tradingDate: '20FEB2025',
         straddleOpenedToday: false,
+        stoplossFiredToday: false,
         mtmBaseline: 0,
       });
       const { coreTradeExecution } = await import(
