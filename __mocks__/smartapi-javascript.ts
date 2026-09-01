@@ -8,3 +8,10 @@ export const SmartAPI = jest.fn().mockImplementation(() => ({
     },
   }),
 }));
+
+export const WebSocketV2 = jest.fn().mockImplementation(() => ({
+  connect: jest.fn().mockResolvedValue(undefined),
+  fetchData: jest.fn(),
+  close: jest.fn(),
+  on: jest.fn(),
+}));

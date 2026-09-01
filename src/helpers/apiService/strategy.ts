@@ -69,7 +69,7 @@ export interface StoplossBreach {
 export const shouldExitDueToStoploss = (
   positions: Position[] = [],
   adjustedMtm: number,
-  lossPerLot: number = LOSSPERLOT,
+  _lossPerLot: number = LOSSPERLOT,
 ): { shouldExit: boolean; reasons: string[]; breaches: StoplossBreach[] } => {
   const reasons: string[] = [];
   const breaches: StoplossBreach[] = [];
