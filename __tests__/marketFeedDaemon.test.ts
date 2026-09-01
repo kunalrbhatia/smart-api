@@ -1,6 +1,4 @@
-import fs from 'fs';
-import path from 'path';
-import { startFeedDaemon } from '../src/marketFeedDaemon';
+import { getAlgoPositions } from '../src/helpers/apiService/positions';
 import { shouldExitDueToStoploss } from '../src/helpers/apiService/strategy';
 
 jest.mock('../src/helpers/logger', () => ({
@@ -41,21 +39,16 @@ jest.mock('../src/helpers/killSwitch', () => ({
   isKillSwitchActive: jest.fn().mockReturnValue(false),
 }));
 
-let capturedTickListener: ((tick: any) => void) | null = null;
-
 jest.mock('../src/helpers/apiService/marketFeed', () => ({
   connectMarketFeed: jest.fn().mockResolvedValue(undefined),
   disconnectMarketFeed: jest.fn(),
-  addMarketTickListener: jest.fn().mockImplementation(cb => {
-    capturedTickListener = cb;
-  }),
+  addMarketTickListener: jest.fn(),
   normalizeToken: (raw: any) => String(raw).replace(/[^0-9]/g, ''),
 }));
 
 describe('marketFeedDaemon logic & zero-value guard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    capturedTickListener = null;
   });
 
   it('triggers exit only on breached leg and calls closeBreachedLegs + setStoplossFiredToday', async () => {
@@ -69,9 +62,7 @@ describe('marketFeedDaemon logic & zero-value guard', () => {
       },
     ];
 
-    const getAlgoPositionsMock =
-      require('../src/helpers/apiService/positions').getAlgoPositions;
-    getAlgoPositionsMock.mockReturnValue(mockPositions);
+    (getAlgoPositions as jest.Mock).mockReturnValue(mockPositions);
 
     const mockExitCheck = shouldExitDueToStoploss(
       [

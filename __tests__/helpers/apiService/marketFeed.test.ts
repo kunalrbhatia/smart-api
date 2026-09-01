@@ -29,6 +29,8 @@ import {
   isMarketFeedConnected,
 } from '../../../src/helpers/apiService/marketFeed';
 import { getMtm } from '../../../src/helpers/apiService/positions';
+import * as positionsModule from '../../../src/helpers/apiService/positions';
+import OrderStore from '../../../src/store/orderStore';
 
 jest.mock('../../../src/helpers/logger', () => ({
   logger: {
@@ -169,20 +171,14 @@ describe('marketFeed & normalizeToken', () => {
       const latestPrices = new Map<string, number>([['41000', 140]]);
 
       jest
-        .spyOn(
-          require('../../../src/helpers/apiService/positions'),
-          'getAlgoPositions',
-        )
+        .spyOn(positionsModule, 'getAlgoPositions')
         .mockReturnValue(positions);
 
       jest
-        .spyOn(
-          require('../../../src/store/orderStore').default.getInstance(),
-          'getPostData',
-        )
+        .spyOn(OrderStore.getInstance(), 'getPostData')
         .mockReturnValue({ EXPIRYDATE: '26AUG2026', INDEX: 'NIFTY' } as any);
 
-      const mtm = await getMtm(positions, latestPrices);
+      const mtm = await positionsModule.getMtm(positions, latestPrices);
       expect(mtm).toBe(-500);
     });
   });
