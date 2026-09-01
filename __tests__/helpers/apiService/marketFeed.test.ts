@@ -28,7 +28,6 @@ import {
   removeMarketTickListener,
   isMarketFeedConnected,
 } from '../../../src/helpers/apiService/marketFeed';
-import { getMtm } from '../../../src/helpers/apiService/positions';
 import * as positionsModule from '../../../src/helpers/apiService/positions';
 import OrderStore from '../../../src/store/orderStore';
 
