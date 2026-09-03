@@ -129,11 +129,14 @@ export const shortStraddle = async (isBuyHedge = false) => {
     );
 
     if (isBuyHedge) {
-      let strikeVariance = 0;
-      if (index === INDICES.NIFTY) {
-        strikeVariance = 50;
-      }
+      // Hedge walk step: NIFTY strikes are 50 apart, SENSEX are 100 apart.
+      // If the far hedge's LTP is > 3 (too expensive), walk further OTM in
+      // strike increments to find a cheaper hedge (3-Sep hotfix: SENSEX had
+      // strikeVariance 0 → infinite retry on the same strike → no entry).
+      const strikeVariance = index === INDICES.NIFTY ? 50 : 100;
+      const MAX_HEDGE_ATTEMPTS = 5; // proceed without the hedge after 5 tries
       let strikeIncrement = strikeVariance;
+      let hedgeAttempts = 0;
 
       let ceHedge = await doOrderByStrike(
         atmStrike + hedgeVariance,
@@ -141,7 +144,15 @@ export const shortStraddle = async (isBuyHedge = false) => {
         'BUY',
         true,
       );
-      while (typeof ceHedge === 'boolean' && ceHedge === false) {
+      while (
+        typeof ceHedge === 'boolean' &&
+        ceHedge === false &&
+        hedgeAttempts < MAX_HEDGE_ATTEMPTS
+      ) {
+        hedgeAttempts++;
+        logger.log(
+          `${ALGO}: CE hedge attempt ${hedgeAttempts}/${MAX_HEDGE_ATTEMPTS} — walking to ${atmStrike + hedgeVariance + strikeIncrement}`,
+        );
         ceHedge = await doOrderByStrike(
           atmStrike + hedgeVariance + strikeIncrement,
           OptionType.CE,
@@ -150,21 +161,41 @@ export const shortStraddle = async (isBuyHedge = false) => {
         );
         strikeIncrement += strikeVariance;
       }
+      if (typeof ceHedge === 'boolean' && ceHedge === false) {
+        logger.log(
+          `${ALGO}: CE hedge not placed after ${MAX_HEDGE_ATTEMPTS} attempts — proceeding without CE hedge`,
+        );
+      }
 
+      hedgeAttempts = 0;
+      strikeIncrement = strikeVariance;
       let peHedge = await doOrderByStrike(
         atmStrike - hedgeVariance,
         OptionType.PE,
         'BUY',
         true,
       );
-      while (typeof peHedge === 'boolean' && peHedge === false) {
+      while (
+        typeof peHedge === 'boolean' &&
+        peHedge === false &&
+        hedgeAttempts < MAX_HEDGE_ATTEMPTS
+      ) {
+        hedgeAttempts++;
+        logger.log(
+          `${ALGO}: PE hedge attempt ${hedgeAttempts}/${MAX_HEDGE_ATTEMPTS} — walking to ${atmStrike - hedgeVariance - strikeIncrement}`,
+        );
         peHedge = await doOrderByStrike(
           atmStrike - hedgeVariance - strikeIncrement,
           OptionType.PE,
           'BUY',
           true,
         );
-        strikeIncrement -= strikeVariance;
+        strikeIncrement += strikeVariance;
+      }
+      if (typeof peHedge === 'boolean' && peHedge === false) {
+        logger.log(
+          `${ALGO}: PE hedge not placed after ${MAX_HEDGE_ATTEMPTS} attempts — proceeding without PE hedge`,
+        );
       }
     }
     const ceSell = await doOrderByStrike(atmStrike, OptionType.CE, 'SELL');
