@@ -152,6 +152,46 @@ describe('ApiService - Strategy - Final 90+', () => {
       expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(5);
     });
 
+    it('should walk PE hedge strikes and cap at 5 attempts, then proceed with sells (SENSEX hotfix)', async () => {
+      // SENSEX: PE hedge keeps failing (LTP > 3) at every walked strike.
+      // With the fix, after MAX_HEDGE_ATTEMPTS (5) tries it gives up on the
+      // hedge and proceeds to the SELL legs (3-Sep duplicate-hedge incident).
+      (ordersHelper.doOrderByStrike as jest.Mock)
+        .mockResolvedValueOnce({ status: true }) // CE Hedge (first try fills)
+        .mockResolvedValue(false) // PE hedge: every attempt false
+        .mockResolvedValueOnce({ status: true }) // CE Sell
+        .mockResolvedValueOnce({ status: true }); // PE Sell
+      await shortStraddle(true);
+      // 1 CE hedge + 5 PE hedge attempts (cap) + 2 sells = 8
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(8);
+      expect(setStraddleOpenedToday).toHaveBeenCalledWith('20FEB2025');
+    });
+
+    it('should walk CE hedge strikes when CE hedge LTP > 3 before proceeding', async () => {
+      (ordersHelper.doOrderByStrike as jest.Mock)
+        .mockResolvedValueOnce(false) // CE Hedge initial (LTP > 3)
+        .mockResolvedValueOnce(false) // CE Hedge walk 1
+        .mockResolvedValueOnce({ status: true }) // CE Hedge walk 2 fills
+        .mockResolvedValueOnce({ status: true }) // PE Hedge
+        .mockResolvedValueOnce({ status: true }) // CE Sell
+        .mockResolvedValueOnce({ status: true }); // PE Sell
+      await shortStraddle(true);
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(6);
+      expect(setStraddleOpenedToday).toHaveBeenCalledWith('20FEB2025');
+    });
+
+    it('should cap CE hedge attempts at 5 and proceed without CE hedge', async () => {
+      (ordersHelper.doOrderByStrike as jest.Mock)
+        .mockResolvedValue(false) // all CE hedge attempts fail
+        .mockResolvedValueOnce({ status: true }) // PE Hedge
+        .mockResolvedValueOnce({ status: true }) // CE Sell
+        .mockResolvedValueOnce({ status: true }); // PE Sell
+      await shortStraddle(true);
+      // 5 CE hedge attempts (cap) + 1 PE hedge + 2 sells = 8
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(8);
+      expect(setStraddleOpenedToday).toHaveBeenCalledWith('20FEB2025');
+    });
+
     it('should set straddleOpenedToday session flag when BOTH sell legs fill with status true', async () => {
       (ordersHelper.doOrderByStrike as jest.Mock)
         .mockResolvedValueOnce({ status: true }) // CE Hedge
