@@ -154,41 +154,51 @@ describe('ApiService - Strategy - Final 90+', () => {
 
     it('should walk PE hedge strikes and cap at 5 attempts, then proceed with sells (SENSEX hotfix)', async () => {
       // SENSEX: PE hedge keeps failing (LTP > 3) at every walked strike.
-      // With the fix, after MAX_HEDGE_ATTEMPTS (5) tries it gives up on the
-      // hedge and proceeds to the SELL legs (3-Sep duplicate-hedge incident).
+      // Call sequence: CE hedge (1) + PE hedge initial + 5 walks (6) + CE sell (1) + PE sell (1) = 9.
+      // All PE attempts return false; sells succeed → straddleOpenedToday set.
       (ordersHelper.doOrderByStrike as jest.Mock)
-        .mockResolvedValueOnce({ status: true }) // CE Hedge (first try fills)
-        .mockResolvedValue(false) // PE hedge: every attempt false
-        .mockResolvedValueOnce({ status: true }) // CE Sell
-        .mockResolvedValueOnce({ status: true }); // PE Sell
+        .mockResolvedValueOnce({ status: true }) // 1 CE Hedge fills
+        .mockResolvedValueOnce(false) // 2 PE hedge initial (LTP > 3)
+        .mockResolvedValueOnce(false) // 3 PE walk 1
+        .mockResolvedValueOnce(false) // 4 PE walk 2
+        .mockResolvedValueOnce(false) // 5 PE walk 3
+        .mockResolvedValueOnce(false) // 6 PE walk 4
+        .mockResolvedValueOnce(false) // 7 PE walk 5 (cap hit)
+        .mockResolvedValueOnce({ status: true }) // 8 CE Sell
+        .mockResolvedValueOnce({ status: true }); // 9 PE Sell
       await shortStraddle(true);
-      // 1 CE hedge + 5 PE hedge attempts (cap) + 2 sells = 8
-      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(8);
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(9);
       expect(setStraddleOpenedToday).toHaveBeenCalledWith('20FEB2025');
     });
 
     it('should walk CE hedge strikes when CE hedge LTP > 3 before proceeding', async () => {
+      // CE hedge: initial + walk 1 fail, walk 2 fills (3 calls); PE hedge (1); sells (2) = 6.
       (ordersHelper.doOrderByStrike as jest.Mock)
-        .mockResolvedValueOnce(false) // CE Hedge initial (LTP > 3)
-        .mockResolvedValueOnce(false) // CE Hedge walk 1
-        .mockResolvedValueOnce({ status: true }) // CE Hedge walk 2 fills
-        .mockResolvedValueOnce({ status: true }) // PE Hedge
-        .mockResolvedValueOnce({ status: true }) // CE Sell
-        .mockResolvedValueOnce({ status: true }); // PE Sell
+        .mockResolvedValueOnce(false) // 1 CE Hedge initial (LTP > 3)
+        .mockResolvedValueOnce(false) // 2 CE walk 1
+        .mockResolvedValueOnce({ status: true }) // 3 CE walk 2 fills
+        .mockResolvedValueOnce({ status: true }) // 4 PE Hedge
+        .mockResolvedValueOnce({ status: true }) // 5 CE Sell
+        .mockResolvedValueOnce({ status: true }); // 6 PE Sell
       await shortStraddle(true);
       expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(6);
       expect(setStraddleOpenedToday).toHaveBeenCalledWith('20FEB2025');
     });
 
     it('should cap CE hedge attempts at 5 and proceed without CE hedge', async () => {
+      // CE hedge: initial + 5 walks all fail (6 calls); PE hedge (1); sells (2) = 9.
       (ordersHelper.doOrderByStrike as jest.Mock)
-        .mockResolvedValue(false) // all CE hedge attempts fail
-        .mockResolvedValueOnce({ status: true }) // PE Hedge
-        .mockResolvedValueOnce({ status: true }) // CE Sell
-        .mockResolvedValueOnce({ status: true }); // PE Sell
+        .mockResolvedValueOnce(false) // 1 CE Hedge initial
+        .mockResolvedValueOnce(false) // 2 CE walk 1
+        .mockResolvedValueOnce(false) // 3 CE walk 2
+        .mockResolvedValueOnce(false) // 4 CE walk 3
+        .mockResolvedValueOnce(false) // 5 CE walk 4
+        .mockResolvedValueOnce(false) // 6 CE walk 5 (cap hit)
+        .mockResolvedValueOnce({ status: true }) // 7 PE Hedge
+        .mockResolvedValueOnce({ status: true }) // 8 CE Sell
+        .mockResolvedValueOnce({ status: true }); // 9 PE Sell
       await shortStraddle(true);
-      // 5 CE hedge attempts (cap) + 1 PE hedge + 2 sells = 8
-      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(8);
+      expect(ordersHelper.doOrderByStrike).toHaveBeenCalledTimes(9);
       expect(setStraddleOpenedToday).toHaveBeenCalledWith('20FEB2025');
     });
 
